@@ -61,9 +61,9 @@ export default function HomeScreen() {
                 </Text>
               </View>
             </View>
-            <SacredButton
+                        <SacredButton
               title="Iniciar Jornada"
-              onPress={() => {}}
+              onPress={() => router.push('/create-individual')}
               size="sm"
               style={styles.cardButton}
             />

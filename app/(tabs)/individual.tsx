@@ -15,21 +15,8 @@ export default function IndividualScreen() {
   const insets = useSafeAreaInsets();
   const { cocriations, loading, createCocriation } = useIndividualCocriations();
 
-  const handleCreateNew = async () => {
-    // For now, create a sample cocreation - later we'll add a proper form
-    const newCocriation = {
-      title: 'Minha Nova Cocriação',
-      description: 'Uma jornada de manifestação pessoal',
-      mental_code: 'NOVA_ENERGIA',
-      why_reason: 'Para expandir minha consciência e manifestar abundância'
-    };
-
-    const { data, error } = await createCocriation(newCocriation);
-    if (error) {
-      console.error('Error creating cocriation:', error);
-    } else {
-      console.log('Cocriation created successfully:', data);
-    }
+    const handleCreateNew = () => {
+    router.push('/create-individual');
   };
 
   const renderCocriation = (cocriation: any) => (
