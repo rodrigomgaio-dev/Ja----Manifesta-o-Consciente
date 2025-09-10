@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import GradientBackground from '@/components/ui/GradientBackground';
 import SacredCard from '@/components/ui/SacredCard';
 import SacredButton from '@/components/ui/SacredButton';
@@ -19,6 +20,15 @@ const { width } = Dimensions.get('window');
 export default function HomeScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+
+  const handleCreateIndividual = () => {
+    router.push('/create-individual');
+  };
+
+  const handleCreateCircle = () => {
+    // TODO: Implementar criação de círculo
+    console.log('Criar círculo - Em desenvolvimento');
+  };
 
   return (
     <GradientBackground>
@@ -61,9 +71,9 @@ export default function HomeScreen() {
                 </Text>
               </View>
             </View>
-                        <SacredButton
+            <SacredButton
               title="Iniciar Jornada"
-              onPress={() => router.push('/create-individual')}
+              onPress={handleCreateIndividual}
               size="sm"
               style={styles.cardButton}
             />
@@ -87,7 +97,7 @@ export default function HomeScreen() {
             </View>
             <SacredButton
               title="Criar Círculo"
-              onPress={() => {}}
+              onPress={handleCreateCircle}
               variant="outline"
               size="sm"
               style={styles.cardButton}

@@ -16,11 +16,13 @@ import GradientBackground from '@/components/ui/GradientBackground';
 import SacredCard from '@/components/ui/SacredCard';
 import SacredButton from '@/components/ui/SacredButton';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useIndividualCocriations } from '@/hooks/useIndividualCocriations';
 import { Spacing } from '@/constants/Colors';
 
 export default function CreateIndividualScreen() {
   const { colors } = useTheme();
+  const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const { createCocriation } = useIndividualCocriations();
 
@@ -47,7 +49,18 @@ export default function CreateIndividualScreen() {
   };
 
   const handleSubmit = async () => {
-    // Validação básica
+    console.log('Starting form submission...');
+    console.log('Current user:', user);
+    console.log('Form data:', formData);
+
+    // Check authentication
+    if (!user) {
+      console.error('No user authenticated');
+      showWebAlert('Erro de Autenticação', 'Você precisa estar logado para criar uma cocriação.');
+      return;
+    }
+
+    // Validate required fields
     if (!formData.title.trim()) {
       showWebAlert('Erro', 'Por favor, informe o título da sua cocriação');
       return;
@@ -61,17 +74,36 @@ export default function CreateIndividualScreen() {
     setLoading(true);
 
     try {
-      const { data, error } = await createCocriation({
+      console.log('Calling createCocriation...');
+      
+      const result = await createCocriation({
         title: formData.title.trim(),
         description: formData.description.trim(),
         mental_code: formData.mental_code.trim() || undefined,
         why_reason: formData.why_reason.trim() || undefined,
       });
 
-      if (error) {
-        console.error('Error creating cocriation:', error);
-        showWebAlert('Erro', 'Não foi possível criar sua cocriação. Tente novamente.');
+      console.log('CreateCocriation result:', result);
+
+      if (result.error) {
+        console.error('Error from createCocriation:', result.error);
+        
+        // More specific error messages
+        let errorMessage = 'Não foi possível criar sua cocriação. Tente novamente.';
+        
+        if (result.error.message) {
+          if (result.error.message.includes('permission')) {
+            errorMessage = 'Erro de permissão. Verifique se você está logado corretamente.';
+          } else if (result.error.message.includes('network')) {
+            errorMessage = 'Erro de conexão. Verifique sua internet e tente novamente.';
+          } else {
+            errorMessage = `Erro: ${result.error.message}`;
+          }
+        }
+        
+        showWebAlert('Erro ao Criar Cocriação', errorMessage);
       } else {
+        console.log('Cocriation created successfully!');
         showWebAlert(
           'Sucesso!', 
           'Sua cocriação foi criada com sucesso!',
@@ -81,8 +113,8 @@ export default function CreateIndividualScreen() {
         );
       }
     } catch (error) {
-      console.error('Unexpected error:', error);
-      showWebAlert('Erro', 'Algo deu errado. Tente novamente.');
+      console.error('Unexpected error in handleSubmit:', error);
+      showWebAlert('Erro Inesperado', 'Algo deu errado. Tente novamente.');
     } finally {
       setLoading(false);
     }
@@ -91,6 +123,30 @@ export default function CreateIndividualScreen() {
   const handleCancel = () => {
     router.back();
   };
+
+  // Show authentication error if not logged in
+  if (!user) {
+    return (
+      <GradientBackground>
+        <View style={[styles.container, { paddingTop: insets.top }]}>
+          <View style={styles.errorContainer}>
+            <MaterialIcons name="error" size={64} color={colors.error} />
+            <Text style={[styles.errorTitle, { color: colors.text }]}>
+              Acesso Negado
+            </Text>
+            <Text style={[styles.errorMessage, { color: colors.textSecondary }]}>
+              Você precisa estar logado para criar uma cocriação.
+            </Text>
+            <SacredButton
+              title="Fazer Login"
+              onPress={() => router.push('/login')}
+              style={styles.loginButton}
+            />
+          </View>
+        </View>
+      </GradientBackground>
+    );
+  }
 
   return (
     <GradientBackground>
@@ -121,6 +177,15 @@ export default function CreateIndividualScreen() {
               Manifeste seus sonhos através da presença
             </Text>
           </View>
+
+          {/* User Info Debug (remove in production) */}
+          {__DEV__ && (
+            <SacredCard style={styles.debugCard}>
+              <Text style={[styles.debugText, { color: colors.textSecondary }]}>
+                Debug - Usuário: {user.email} (ID: {user.id})
+              </Text>
+            </SacredCard>
+          )}
 
           {/* Form */}
           <SacredCard glowing style={styles.formCard}>
@@ -292,6 +357,34 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: 'center',
     lineHeight: 22,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.xl,
+  },
+  errorTitle: {
+    fontSize: 24,
+    fontWeight: '600',
+    marginTop: Spacing.lg,
+    marginBottom: Spacing.md,
+  },
+  errorMessage: {
+    fontSize: 16,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: Spacing.xl,
+  },
+  loginButton: {
+    minWidth: 160,
+  },
+  debugCard: {
+    marginBottom: Spacing.md,
+  },
+  debugText: {
+    fontSize: 12,
+    fontFamily: 'monospace',
   },
   formCard: {
     marginBottom: Spacing.lg,

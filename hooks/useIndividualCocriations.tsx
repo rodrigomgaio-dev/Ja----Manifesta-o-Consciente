@@ -21,6 +21,8 @@ export function useIndividualCocriations() {
     if (!user) return;
 
     try {
+      console.log('Loading cocriations for user:', user.id);
+      
       const { data, error } = await supabase
         .from('individual_cocriations')
         .select('*')
@@ -30,10 +32,11 @@ export function useIndividualCocriations() {
       if (error) {
         console.error('Error loading cocriations:', error);
       } else {
+        console.log('Loaded cocriations:', data);
         setCocriations(data || []);
       }
     } catch (error) {
-      console.error('Error loading cocriations:', error);
+      console.error('Unexpected error loading cocriations:', error);
     } finally {
       setLoading(false);
     }
@@ -45,28 +48,45 @@ export function useIndividualCocriations() {
     mental_code?: string;
     why_reason?: string;
   }) => {
-    if (!user) return { error: new Error('User not authenticated') };
+    if (!user) {
+      console.error('No user authenticated for creating cocriation');
+      return { error: new Error('User not authenticated') };
+    }
+
+    console.log('Creating cocriation for user:', user.id, 'Data:', cocriation);
 
     try {
+      // Prepare the data to insert
+      const insertData = {
+        user_id: user.id,
+        title: cocriation.title.trim(),
+        description: cocriation.description?.trim() || null,
+        mental_code: cocriation.mental_code?.trim() || null,
+        why_reason: cocriation.why_reason?.trim() || null,
+        status: 'active' as const,
+        nft_generated: false,
+      };
+
+      console.log('Insert data prepared:', insertData);
+
       const { data, error } = await supabase
         .from('individual_cocriations')
-        .insert({
-          user_id: user.id,
-          title: cocriation.title,
-          description: cocriation.description,
-          mental_code: cocriation.mental_code,
-          why_reason: cocriation.why_reason,
-        })
+        .insert(insertData)
         .select()
         .single();
 
       if (error) {
+        console.error('Supabase error creating cocriation:', error);
         return { error };
       }
 
+      console.log('Cocriation created successfully:', data);
+
+      // Update local state
       setCocriations(prev => [data, ...prev]);
       return { data, error: null };
     } catch (error) {
+      console.error('Unexpected error creating cocriation:', error);
       return { error };
     }
   };
@@ -90,6 +110,7 @@ export function useIndividualCocriations() {
         .single();
 
       if (error) {
+        console.error('Error updating cocriation:', error);
         return { error };
       }
 
@@ -98,6 +119,7 @@ export function useIndividualCocriations() {
       );
       return { data, error: null };
     } catch (error) {
+      console.error('Unexpected error updating cocriation:', error);
       return { error };
     }
   };
@@ -113,12 +135,14 @@ export function useIndividualCocriations() {
         .eq('user_id', user.id);
 
       if (error) {
+        console.error('Error deleting cocriation:', error);
         return { error };
       }
 
       setCocriations(prev => prev.filter(c => c.id !== id));
       return { error: null };
     } catch (error) {
+      console.error('Unexpected error deleting cocriation:', error);
       return { error };
     }
   };
