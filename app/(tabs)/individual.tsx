@@ -19,69 +19,75 @@ export default function IndividualScreen() {
     const handleCreateNew = () => {
     router.push('/create-individual');
   };
-
-    const renderCocriation = (cocriation: any) => (
-    <SacredCard key={cocriation.id} style={styles.cocriationCard}>
-      {cocriation.cover_image_url && (
-        <Image 
-          source={{ uri: cocriation.cover_image_url }} 
-          style={styles.coverImage}
-          contentFit="cover"
-        />
-      )}
-      <View style={styles.cocriationHeader}>
-        <View style={styles.cocriationInfo}>
-          <Text style={[styles.cocriationTitle, { color: colors.text }]}>
-            {cocriation.title}
-          </Text>
-          {cocriation.mental_code && (
-            <Text style={[styles.mentalCode, { color: colors.primary }]}>
-              {cocriation.mental_code}
+  const renderCocriation = (cocriation: any) => (
+    <TouchableOpacity 
+      key={cocriation.id} 
+      onPress={() => router.push(`/cocriacao-details?id=${cocriation.id}`)}
+    >
+      <SacredCard style={styles.cocriationCard}>
+        {cocriation.cover_image_url && (
+          <Image 
+            source={{ uri: cocriation.cover_image_url }} 
+            style={styles.coverImage}
+            contentFit="cover"
+          />
+        )}
+        <View style={styles.cocriationHeader}>
+          <View style={styles.cocriationInfo}>
+            <Text style={[styles.cocriationTitle, { color: colors.text }]}>
+              {cocriation.title}
             </Text>
-          )}
-          {cocriation.description && (
-            <Text style={[styles.cocriationDescription, { color: colors.textSecondary }]}>
-              {cocriation.description}
-            </Text>
-          )}
-        </View>
-        <View style={[styles.statusBadge, { 
-          backgroundColor: cocriation.status === 'active' ? colors.primary + '20' : 
-                         cocriation.status === 'defining' ? colors.secondary + '20' : colors.success + '20' 
-        }]}>
-                    <Text style={[styles.statusText, { 
-            color: cocriation.status === 'active' ? colors.primary : 
-                  cocriation.status === 'paused' ? colors.secondary : colors.success 
+            {cocriation.mental_code && (
+              <Text style={[styles.mentalCode, { color: colors.primary }]}>
+                {cocriation.mental_code}
+              </Text>
+            )}
+            {cocriation.description && (
+              <Text style={[styles.cocriationDescription, { color: colors.textSecondary }]}>
+                {cocriation.description.length > 100 
+                  ? cocriation.description.substring(0, 100) + '...' 
+                  : cocriation.description}
+              </Text>
+            )}
+          </View>
+          <View style={[styles.statusBadge, { 
+            backgroundColor: cocriation.status === 'active' ? colors.primary + '20' : 
+                           cocriation.status === 'defining' ? colors.secondary + '20' : colors.success + '20' 
           }]}>
-            {cocriation.status === 'active' ? 'Ativa' : 
-             cocriation.status === 'paused' ? 'Pausada' : 'Concluída'}
-          </Text>
+            <Text style={[styles.statusText, { 
+              color: cocriation.status === 'active' ? colors.primary : 
+                    cocriation.status === 'paused' ? colors.secondary : colors.success 
+            }]}>
+              {cocriation.status === 'active' ? 'Ativa' : 
+               cocriation.status === 'paused' ? 'Pausada' : 'Concluída'}
+            </Text>
+          </View>
         </View>
-      </View>
-      
-      <View style={styles.cocriationActions}>
-        <TouchableOpacity style={styles.actionButton}>
-          <MaterialIcons name="dashboard" size={20} color={colors.primary} />
-          <Text style={[styles.actionText, { color: colors.primary }]}>
-            Vision Board
-          </Text>
-        </TouchableOpacity>
         
-        <TouchableOpacity style={styles.actionButton}>
-          <MaterialIcons name="self-improvement" size={20} color={colors.accent} />
-          <Text style={[styles.actionText, { color: colors.accent }]}>
-            Práticas
-          </Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.actionButton}>
-          <MaterialIcons name="mail-outline" size={20} color={colors.secondary} />
-          <Text style={[styles.actionText, { color: colors.secondary }]}>
-            Carta
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </SacredCard>
+        <View style={styles.cocriationActions}>
+          <TouchableOpacity style={styles.actionButton}>
+            <MaterialIcons name="dashboard" size={20} color={colors.primary} />
+            <Text style={[styles.actionText, { color: colors.primary }]}>
+              Vision Board
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.actionButton}>
+            <MaterialIcons name="self-improvement" size={20} color={colors.accent} />
+            <Text style={[styles.actionText, { color: colors.accent }]}>
+              Práticas
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.actionButton}>
+            <MaterialIcons name="mail-outline" size={20} color={colors.secondary} />
+            <Text style={[styles.actionText, { color: colors.secondary }]}>
+              Carta
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </SacredCard>
+    </TouchableOpacity>
   );
 
   return (

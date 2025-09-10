@@ -21,7 +21,7 @@ export default function HomeScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
 
-  const handleCreateIndividual = () => {
+    const handleCreateIndividual = () => {
     router.push('/create-individual');
   };
 
