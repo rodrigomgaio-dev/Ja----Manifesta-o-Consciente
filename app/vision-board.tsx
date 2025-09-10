@@ -38,12 +38,9 @@ export default function VisionBoardScreen() {
 
   const [cocriation, setCocriation] = useState<any>(null);
 
-  useEffect(() => {
-    // Check if we need to update status based on vision board items
-    if (items.length > 0 && cocriation?.status === 'defining') {
-      updateCocriationStatus();
-    }
-  }, [items, cocriation]);
+    useEffect(() => {
+    // Vision board items loaded, no status update needed since we start as active
+  }, [items]);
 
   const showWebAlert = (title: string, message: string, onOk?: () => void) => {
     if (Platform.OS === 'web') {
@@ -54,16 +51,6 @@ export default function VisionBoardScreen() {
     }
   };
 
-  const updateCocriationStatus = async () => {
-    if (!cocreationId) return;
-    
-    try {
-      await updateCocriation(cocreationId, { status: 'active' });
-      setCocriation((prev: any) => ({ ...prev, status: 'active' }));
-    } catch (error) {
-      console.error('Error updating cocriation status:', error);
-    }
-  };
 
   const addImageToBoard = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -299,10 +286,10 @@ export default function VisionBoardScreen() {
               Status da Cocriação
             </Text>
           </View>
-          <Text style={[styles.statusDescription, { color: colors.textSecondary }]}>
+                    <Text style={[styles.statusDescription, { color: colors.textSecondary }]}>
             {items.length > 0 
               ? '✨ Sua cocriação está ATIVA e pronta para manifestação!'
-              : '⏳ Adicione pelo menos uma imagem para ativar sua cocriação'
+              : '✨ Sua cocriação está ATIVA! Adicione elementos ao seu Vision Board'
             }
           </Text>
         </SacredCard>

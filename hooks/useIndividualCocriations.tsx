@@ -58,14 +58,14 @@ export function useIndividualCocriations() {
 
     try {
       // Prepare the data to insert
-      const insertData = {
+            const insertData = {
         user_id: user.id,
         title: cocriation.title.trim(),
         description: cocriation.description?.trim() || null,
         mental_code: cocriation.mental_code?.trim() || null,
         why_reason: cocriation.why_reason?.trim() || null,
         cover_image_url: cocriation.cover_image_url || null,
-        status: 'defining' as const,
+        status: 'active' as const,
         nft_generated: false,
       };
 

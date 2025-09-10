@@ -49,12 +49,12 @@ export default function IndividualScreen() {
           backgroundColor: cocriation.status === 'active' ? colors.primary + '20' : 
                          cocriation.status === 'defining' ? colors.secondary + '20' : colors.success + '20' 
         }]}>
-          <Text style={[styles.statusText, { 
+                    <Text style={[styles.statusText, { 
             color: cocriation.status === 'active' ? colors.primary : 
-                  cocriation.status === 'defining' ? colors.secondary : colors.success 
+                  cocriation.status === 'paused' ? colors.secondary : colors.success 
           }]}>
             {cocriation.status === 'active' ? 'Ativa' : 
-             cocriation.status === 'defining' ? 'Definindo' : 'Concluída'}
+             cocriation.status === 'paused' ? 'Pausada' : 'Concluída'}
           </Text>
         </View>
       </View>
