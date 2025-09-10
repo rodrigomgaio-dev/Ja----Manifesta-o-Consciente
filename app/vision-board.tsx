@@ -19,7 +19,7 @@ import SacredCard from '@/components/ui/SacredCard';
 import SacredButton from '@/components/ui/SacredButton';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { useVisionBoard } from '@/hooks/useVisionBoard';
+import { useVisionBoard } from '@/hooks/useIndividualCocriations';
 import { useIndividualCocriations } from '@/hooks/useIndividualCocriations';
 import { Spacing } from '@/constants/Colors';
 
