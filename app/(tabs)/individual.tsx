@@ -3,6 +3,7 @@ import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-nati
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { Image } from 'expo-image';
 import GradientBackground from '@/components/ui/GradientBackground';
 import SacredCard from '@/components/ui/SacredCard';
 import SacredButton from '@/components/ui/SacredButton';
@@ -19,8 +20,15 @@ export default function IndividualScreen() {
     router.push('/create-individual');
   };
 
-  const renderCocriation = (cocriation: any) => (
+    const renderCocriation = (cocriation: any) => (
     <SacredCard key={cocriation.id} style={styles.cocriationCard}>
+      {cocriation.cover_image_url && (
+        <Image 
+          source={{ uri: cocriation.cover_image_url }} 
+          style={styles.coverImage}
+          contentFit="cover"
+        />
+      )}
       <View style={styles.cocriationHeader}>
         <View style={styles.cocriationInfo}>
           <Text style={[styles.cocriationTitle, { color: colors.text }]}>
@@ -38,12 +46,15 @@ export default function IndividualScreen() {
           )}
         </View>
         <View style={[styles.statusBadge, { 
-          backgroundColor: cocriation.status === 'active' ? colors.primary + '20' : colors.success + '20' 
+          backgroundColor: cocriation.status === 'active' ? colors.primary + '20' : 
+                         cocriation.status === 'defining' ? colors.secondary + '20' : colors.success + '20' 
         }]}>
           <Text style={[styles.statusText, { 
-            color: cocriation.status === 'active' ? colors.primary : colors.success 
+            color: cocriation.status === 'active' ? colors.primary : 
+                  cocriation.status === 'defining' ? colors.secondary : colors.success 
           }]}>
-            {cocriation.status === 'active' ? 'Ativa' : 'Concluída'}
+            {cocriation.status === 'active' ? 'Ativa' : 
+             cocriation.status === 'defining' ? 'Definindo' : 'Concluída'}
           </Text>
         </View>
       </View>
@@ -327,5 +338,12 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     lineHeight: 20,
+  },
+  coverImage: {
+    width: '100%',
+    height: 120,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    marginBottom: Spacing.md,
   },
 });

@@ -42,11 +42,12 @@ export function useIndividualCocriations() {
     }
   };
 
-  const createCocriation = async (cocriation: {
+    const createCocriation = async (cocriation: {
     title: string;
     description?: string;
     mental_code?: string;
     why_reason?: string;
+    cover_image_url?: string;
   }) => {
     if (!user) {
       console.error('No user authenticated for creating cocriation');
@@ -63,7 +64,8 @@ export function useIndividualCocriations() {
         description: cocriation.description?.trim() || null,
         mental_code: cocriation.mental_code?.trim() || null,
         why_reason: cocriation.why_reason?.trim() || null,
-        status: 'active' as const,
+        cover_image_url: cocriation.cover_image_url || null,
+        status: 'defining' as const,
         nft_generated: false,
       };
 

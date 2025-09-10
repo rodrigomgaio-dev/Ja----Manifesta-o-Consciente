@@ -8,10 +8,13 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  TouchableOpacity,
+  Image,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import GradientBackground from '@/components/ui/GradientBackground';
 import SacredCard from '@/components/ui/SacredCard';
 import SacredButton from '@/components/ui/SacredButton';
@@ -33,6 +36,7 @@ export default function CreateIndividualScreen() {
     why_reason: '',
   });
 
+  const [coverImage, setCoverImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const showWebAlert = (title: string, message: string, onOk?: () => void) => {
@@ -81,6 +85,7 @@ export default function CreateIndividualScreen() {
         description: formData.description.trim(),
         mental_code: formData.mental_code.trim() || undefined,
         why_reason: formData.why_reason.trim() || undefined,
+        cover_image_url: coverImage || undefined,
       });
 
       console.log('CreateCocriation result:', result);
@@ -104,13 +109,8 @@ export default function CreateIndividualScreen() {
         showWebAlert('Erro ao Criar Cocriação', errorMessage);
       } else {
         console.log('Cocriation created successfully!');
-        showWebAlert(
-          'Sucesso!', 
-          'Sua cocriação foi criada com sucesso!',
-          () => {
-            router.back();
-          }
-        );
+        // Navigate to future letter creation
+        router.push(`/future-letter?cocreationId=${result.data.id}`);
       }
     } catch (error) {
       console.error('Unexpected error in handleSubmit:', error);
@@ -122,6 +122,25 @@ export default function CreateIndividualScreen() {
 
   const handleCancel = () => {
     router.back();
+  };
+
+  const selectCoverImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      showWebAlert('Permissão Necessária', 'Precisamos de permissão para acessar suas fotos.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [16, 9],
+      quality: 0.8,
+    });
+
+    if (!result.canceled) {
+      setCoverImage(result.assets[0].uri);
+    }
   };
 
   // Show authentication error if not logged in
@@ -280,6 +299,43 @@ export default function CreateIndividualScreen() {
                 textAlignVertical="top"
                 maxLength={300}
               />
+            </View>
+
+            <View style={styles.inputContainer}>
+              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
+                Imagem de Capa (Opcional)
+              </Text>
+              <TouchableOpacity
+                style={[
+                  styles.imageSelector,
+                  { backgroundColor: colors.surface, borderColor: colors.border },
+                ]}
+                onPress={selectCoverImage}
+              >
+                {coverImage ? (
+                  <View style={styles.selectedImageContainer}>
+                    <Image source={{ uri: coverImage }} style={styles.selectedImage} />
+                    <View style={styles.imageOverlay}>
+                      <MaterialIcons name="edit" size={24} color="white" />
+                      <Text style={styles.imageOverlayText}>Alterar Imagem</Text>
+                    </View>
+                  </View>
+                ) : (
+                  <View style={styles.imagePlaceholder}>
+                    <MaterialIcons 
+                      name="add-photo-alternate" 
+                      size={48} 
+                      color={colors.primary} 
+                    />
+                    <Text style={[styles.imagePlaceholderText, { color: colors.textSecondary }]}>
+                      Escolher Imagem de Capa
+                    </Text>
+                    <Text style={[styles.imageHint, { color: colors.textMuted }]}>
+                      Esta imagem representará sua cocriação
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
             </View>
           </SacredCard>
 
@@ -483,5 +539,56 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     textAlign: 'center',
     lineHeight: 22,
+  },
+  imageSelector: {
+    height: 120,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  selectedImageContainer: {
+    width: '100%',
+    height: '100%',
+    position: 'relative',
+  },
+  selectedImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  imageOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    opacity: 0.8,
+  },
+  imageOverlayText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '500',
+    marginTop: 4,
+  },
+  imagePlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.md,
+  },
+  imagePlaceholderText: {
+    fontSize: 16,
+    fontWeight: '500',
+    marginTop: Spacing.sm,
+  },
+  imageHint: {
+    fontSize: 12,
+    marginTop: Spacing.xs,
+    textAlign: 'center',
   },
 });
