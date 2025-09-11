@@ -28,7 +28,7 @@ export default function CirculosScreen() {
           </Text>
         </View>
 
-        {/* Create Circle */}
+                {/* Create Circle */}
         <SacredCard glowing style={styles.createCard}>
           <View style={styles.createContent}>
             <MaterialIcons 
@@ -44,7 +44,7 @@ export default function CirculosScreen() {
             </Text>
             <SacredButton
               title="Criar Agora"
-              onPress={() => {}}
+              onPress={() => router.push('/create-circle')}
               variant="secondary"
               style={styles.createButton}
             />

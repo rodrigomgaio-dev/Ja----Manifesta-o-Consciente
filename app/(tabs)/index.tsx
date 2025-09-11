@@ -25,9 +25,8 @@ export default function HomeScreen() {
     router.push('/create-individual');
   };
 
-  const handleCreateCircle = () => {
-    // TODO: Implementar criação de círculo
-    console.log('Criar círculo - Em desenvolvimento');
+    const handleCreateCircle = () => {
+    router.push('/create-circle');
   };
 
   return (
