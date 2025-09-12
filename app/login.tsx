@@ -36,8 +36,11 @@ export default function LoginScreen() {
   useEffect(() => {
     if (user) {
       // If user logged in with an invitation, go to alignment ritual
-      if (invite && circleId) {
-        router.replace(`/alignment-ritual?token=${invite}&circleId=${circleId}`);
+      if (invite) {
+        const qs = circleId
+          ? `token=${invite}&circleId=${circleId}`
+          : `token=${invite}`;
+        router.replace(`/alignment-ritual?${qs}`);
       } else {
         router.replace('/(tabs)');
       }

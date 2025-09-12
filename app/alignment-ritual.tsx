@@ -26,7 +26,8 @@ export default function AlignmentRitualScreen() {
   const { colors } = useTheme();
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
-  const { circleId, token } = useLocalSearchParams<{ circleId: string; token: string }>();
+  const { circleId: circleIdParam, token } = useLocalSearchParams<{ circleId?: string; token: string }>();
+  const [circleId, setCircleId] = useState<string | undefined>(circleIdParam);
 
   const [currentStep, setCurrentStep] = useState(0);
   const [responses, setResponses] = useState({
@@ -35,6 +36,21 @@ export default function AlignmentRitualScreen() {
     energy_type: '',
   });
   const [loading, setLoading] = useState(false);
+  
+  // Resolve circleId via token when not provided
+  React.useEffect(() => {
+    const resolveCircleId = async () => {
+      if (!circleId && token) {
+        const { data, error } = await supabase
+          .from('circle_invitations')
+          .select('circle_id')
+          .eq('invite_token', token)
+          .single();
+        if (!error && data?.circle_id) setCircleId(data.circle_id);
+      }
+    };
+    resolveCircleId();
+  }, [circleId, token]);
 
   const questions = [
     {
