@@ -1,14 +1,14 @@
 import React, { useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  ScrollView, 
-  StyleSheet, 
-  Dimensions 
+import {
+  View,
+  Text,
+  ScrollView,
+  StyleSheet,
+  Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
-import { router, useLocalSearchParams } from 'expo-router'; // ← ADICIONE ESTE IMPORT!
+import { router, usePathname, useLocalSearchParams } from 'expo-router'; // ← ADICIONE ESTES IMPORTS!
 import GradientBackground from '@/components/ui/GradientBackground';
 import SacredCard from '@/components/ui/SacredCard';
 import SacredButton from '@/components/ui/SacredButton';
@@ -21,19 +21,31 @@ export default function HomeScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
 
-  // 👇 NOVO: Captura o token da query string
-  const { circleInviteToken } = useLocalSearchParams<{ circleInviteToken?: string }>();
-  const router = useRouter();
+  // 👇 NOVO: Captura o caminho atual da URL
+  const pathname = usePathname(); // Ex: "/circle-invite/abc123"
+  const { token } = useLocalSearchParams<{ token?: string }>(); // Ex: "?token=abc123"
 
   useEffect(() => {
-    if (circleInviteToken) {
-      // Redireciona para a tela de convite, mantendo o token
+    // Caso 1: Acessou diretamente /circle-invite/xxx → extrai o token do caminho
+    if (pathname.startsWith('/circle-invite/')) {
+      const pathParts = pathname.split('/');
+      const extractedToken = pathParts[pathParts.length - 1]; // último segmento
+
+      if (extractedToken && extractedToken.length > 5) { // evita falsos positivos
+        // Redireciona para a raiz com o token como query param
+        router.replace(`/?circleInviteToken=${extractedToken}`);
+        return;
+      }
+    }
+
+    // Caso 2: Já está na raiz com query param (ex: ?circleInviteToken=...)
+    if (token) {
       router.replace({
         pathname: '/circle-invite/[token]',
-        params: { token: circleInviteToken },
+        params: { token },
       });
     }
-  }, [circleInviteToken, router]);
+  }, [pathname, token]);
 
   const handleCreateIndividual = () => {
     router.push('/create-individual');
@@ -45,7 +57,7 @@ export default function HomeScreen() {
 
   return (
     <GradientBackground>
-      <ScrollView 
+      <ScrollView
         style={[styles.container, { paddingTop: insets.top }]}
         showsVerticalScrollIndicator={false}
       >
@@ -67,13 +79,13 @@ export default function HomeScreen() {
           <Text style={[styles.sectionTitle, { color: colors.text }]}>
             Começar Jornada
           </Text>
-          
+
           <SacredCard glowing style={styles.actionCard}>
             <View style={styles.cardHeader}>
-              <MaterialIcons 
-                name="person" 
-                size={28} 
-                color={colors.primary} 
+              <MaterialIcons
+                name="person"
+                size={28}
+                color={colors.primary}
               />
               <View style={styles.cardText}>
                 <Text style={[styles.cardTitle, { color: colors.text }]}>
@@ -94,10 +106,10 @@ export default function HomeScreen() {
 
           <SacredCard style={styles.actionCard}>
             <View style={styles.cardHeader}>
-              <MaterialIcons 
-                name="group" 
-                size={28} 
-                color={colors.accent} 
+              <MaterialIcons
+                name="group"
+                size={28}
+                color={colors.accent}
               />
               <View style={styles.cardText}>
                 <Text style={[styles.cardTitle, { color: colors.text }]}>
@@ -123,19 +135,18 @@ export default function HomeScreen() {
           <Text style={[styles.sectionTitle, { color: colors.text }]}>
             Práticas Diárias
           </Text>
-          
+
           <View style={styles.practicesGrid}>
-            {[
-              { icon: 'favorite', title: 'Gratidão', color: colors.secondary },
+            {[{ icon: 'favorite', title: 'Gratidão', color: colors.secondary },
               { icon: 'self-improvement', title: 'Meditação', color: colors.primary },
               { icon: 'record-voice-over', title: 'Mantrams', color: colors.accent },
               { icon: 'psychology', title: 'Afirmações', color: colors.primary },
             ].map((practice, index) => (
               <SacredCard key={index} style={styles.practiceCard}>
-                <MaterialIcons 
-                  name={practice.icon as any} 
-                  size={24} 
-                  color={practice.color} 
+                <MaterialIcons
+                  name={practice.icon as any}
+                  size={24}
+                  color={practice.color}
                 />
                 <Text style={[styles.practiceTitle, { color: colors.text }]}>
                   {practice.title}

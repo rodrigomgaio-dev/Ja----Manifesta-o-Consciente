@@ -42,8 +42,9 @@ export default function CircleDetailsScreen() {
       const baseUrl = typeof window !== 'undefined' 
         ? window.location.origin 
         : 'https://yourapp.com';
-      //setInviteUrl(`${baseUrl}/circle-invite/${token}`);
 
+      setInviteUrl(`${baseUrl}/circle-invite/${token}`);
+      
       // Cursor solution    
       //  const path =
       //Platform.OS === 'web'
@@ -52,7 +53,7 @@ export default function CircleDetailsScreen() {
       //setInviteUrl(`${baseUrl}${path}`);
 
       //Qwen solution
-          setInviteUrl(`${baseUrl}/?circleInviteToken=${token}`);
+      //setInviteUrl(`${baseUrl}/?circleInviteToken=${token}`);
 
     }
   }, [token]);
