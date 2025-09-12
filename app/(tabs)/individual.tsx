@@ -134,7 +134,7 @@ export default function IndividualScreen() {
             Minhas Cocriações
           </Text>
           
-          {loading ? (
+                  {loading ? (
             <SacredCard style={styles.loadingCard}>
               <Text style={[styles.loadingText, { color: colors.textMuted }]}>
                 Carregando suas cocriações...

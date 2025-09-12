@@ -116,7 +116,7 @@ export default function CircleDetailsScreen() {
     );
   }
 
-  if (!circle) {
+    if (!circle) {
     return (
       <GradientBackground>
         <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -240,7 +240,6 @@ export default function CircleDetailsScreen() {
             </Text>
           </SacredCard>
         )}
-
         {/* Audio Invitation */}
         {circle.audio_invitation_url && (
           <SacredCard style={styles.audioCard}>
@@ -253,6 +252,36 @@ export default function CircleDetailsScreen() {
             </Text>
           </SacredCard>
         )}
+
+        {/* Circle Management */}
+        <SacredCard style={styles.managementCard}>
+          <Text style={[styles.managementTitle, { color: colors.text }]}>
+            Gerenciar Círculo
+          </Text>
+          
+          <View style={styles.managementActions}>
+            <TouchableOpacity style={styles.managementButton}>
+              <MaterialIcons name="people" size={20} color={colors.primary} />
+              <Text style={[styles.managementText, { color: colors.primary }]}>
+                Ver Membros
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={styles.managementButton}>
+              <MaterialIcons name="dashboard" size={20} color={colors.secondary} />
+              <Text style={[styles.managementText, { color: colors.secondary }]}>
+                Vision Board
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={styles.managementButton}>
+              <MaterialIcons name="schedule" size={20} color={colors.accent} />
+              <Text style={[styles.managementText, { color: colors.accent }]}>
+                Momentos
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </SacredCard>
 
         {/* Sacred Principles Reminder */}
         <SacredCard style={styles.principlesCard}>
@@ -442,11 +471,34 @@ const styles = StyleSheet.create({
   principleItem: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  principleText: {
+  },  principleText: {
     flex: 1,
     fontSize: 14,
     marginLeft: Spacing.md,
     lineHeight: 20,
+  },
+  managementCard: {
+    marginBottom: Spacing.lg,
+  },
+  managementTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: Spacing.lg,
+  },
+  managementActions: {
+    gap: Spacing.md,
+  },
+  managementButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.sm,
+    borderRadius: 12,
+    backgroundColor: 'rgba(139, 92, 246, 0.05)',
+  },
+  managementText: {
+    fontSize: 16,
+    fontWeight: '500',
+    marginLeft: Spacing.md,
   },
 });

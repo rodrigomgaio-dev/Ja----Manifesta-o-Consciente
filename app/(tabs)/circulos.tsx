@@ -1,16 +1,82 @@
 import React from 'react';
-import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
+import { router } from 'expo-router';
+import { Image } from 'expo-image';
 import GradientBackground from '@/components/ui/GradientBackground';
 import SacredCard from '@/components/ui/SacredCard';
 import SacredButton from '@/components/ui/SacredButton';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useCollectiveCircles } from '@/hooks/useCollectiveCircles';
 import { Spacing } from '@/constants/Colors';
-
 export default function CirculosScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const { circles, loading } = useCollectiveCircles();
+
+  const handleCreateNew = () => {
+    router.push('/create-circle');
+  };
+
+  const renderCircle = (circle: any) => (
+    <TouchableOpacity 
+      key={circle.id} 
+      onPress={() => router.push(`/circle-details?id=${circle.id}`)}
+    >
+      <SacredCard style={styles.circleCard}>
+        {circle.cover_image_url && (
+          <Image 
+            source={{ uri: circle.cover_image_url }} 
+            style={styles.coverImage}
+            contentFit="cover"
+          />
+        )}
+        <View style={styles.circleHeader}>
+          <View style={styles.circleInfo}>
+            <Text style={[styles.circleTitle, { color: colors.text }]}>
+              {circle.title}
+            </Text>
+            {circle.description && (
+              <Text style={[styles.circleDescription, { color: colors.textSecondary }]}>
+                {circle.description.length > 100 
+                  ? circle.description.substring(0, 100) + '...' 
+                  : circle.description}
+              </Text>
+            )}
+          </View>
+          <View style={[styles.statusBadge, { 
+            backgroundColor: circle.status === 'active' ? colors.primary + '20' : 
+                           circle.status === 'forming' ? colors.secondary + '20' : colors.success + '20' 
+          }]}>
+            <Text style={[styles.statusText, { 
+              color: circle.status === 'active' ? colors.primary : 
+                    circle.status === 'forming' ? colors.secondary : colors.success 
+            }]}>
+              {circle.status === 'active' ? 'Ativo' : 
+               circle.status === 'forming' ? 'Formando' : 'Concluído'}
+            </Text>
+          </View>
+        </View>
+        
+        <View style={styles.circleStats}>
+          <View style={styles.statItem}>
+            <MaterialIcons name="group" size={16} color={colors.primary} />
+            <Text style={[styles.statText, { color: colors.textSecondary }]}>
+              Máx. {circle.max_members} membros
+            </Text>
+          </View>
+          
+          <View style={styles.statItem}>
+            <MaterialIcons name="schedule" size={16} color={colors.accent} />
+            <Text style={[styles.statText, { color: colors.textSecondary }]}>
+              Criado em {new Date(circle.created_at).toLocaleDateString('pt-BR')}
+            </Text>
+          </View>
+        </View>
+      </SacredCard>
+    </TouchableOpacity>
+  );
 
   return (
     <GradientBackground>
@@ -41,10 +107,9 @@ export default function CirculosScreen() {
             </Text>
             <Text style={[styles.createDescription, { color: colors.textSecondary }]}>
               Forme um grupo íntimo de até 13 pessoas para manifestar um propósito comum
-            </Text>
-            <SacredButton
+            </Text>            <SacredButton
               title="Criar Agora"
-              onPress={() => router.push('/create-circle')}
+              onPress={handleCreateNew}
               variant="secondary"
               style={styles.createButton}
             />
@@ -75,26 +140,35 @@ export default function CirculosScreen() {
             />
           </View>
         </SacredCard>
-
         {/* My Circles */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>
             Meus Círculos
           </Text>
           
-          <View style={styles.emptyState}>
-            <MaterialIcons 
-              name="groups" 
-              size={64} 
-              color={colors.textMuted} 
-            />
-            <Text style={[styles.emptyTitle, { color: colors.text }]}>
-              Seu primeiro círculo te aguarda
-            </Text>
-            <Text style={[styles.emptyDescription, { color: colors.textMuted }]}>
-              Crie ou participe de um círculo para manifestar em comunhão
-            </Text>
-          </View>
+          {loading ? (
+            <SacredCard style={styles.loadingCard}>
+              <Text style={[styles.loadingText, { color: colors.textMuted }]}>
+                Carregando seus círculos...
+              </Text>
+            </SacredCard>
+          ) : circles.length > 0 ? (
+            circles.map(renderCircle)
+          ) : (
+            <View style={styles.emptyState}>
+              <MaterialIcons 
+                name="groups" 
+                size={64} 
+                color={colors.textMuted} 
+              />
+              <Text style={[styles.emptyTitle, { color: colors.text }]}>
+                Seu primeiro círculo te aguarda
+              </Text>
+              <Text style={[styles.emptyDescription, { color: colors.textMuted }]}>
+                Crie ou participe de um círculo para manifestar em comunhão
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* Sacred Principles */}
@@ -205,11 +279,71 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginTop: Spacing.md,
     marginBottom: Spacing.sm,
-  },
-  emptyDescription: {
+  },  emptyDescription: {
     fontSize: 14,
     textAlign: 'center',
     lineHeight: 20,
+  },
+  loadingCard: {
+    alignItems: 'center',
+    paddingVertical: Spacing.xl,
+  },
+  loadingText: {
+    fontSize: 16,
+  },
+  circleCard: {
+    marginBottom: Spacing.md,
+  },
+  coverImage: {
+    width: '100%',
+    height: 120,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    marginBottom: Spacing.md,
+  },
+  circleHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: Spacing.md,
+  },
+  circleInfo: {
+    flex: 1,
+    marginRight: Spacing.md,
+  },
+  circleTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: Spacing.xs,
+  },
+  circleDescription: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  statusBadge: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    borderRadius: 12,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  circleStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(139, 92, 246, 0.1)',
+    paddingTop: Spacing.md,
+  },
+  statItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  statText: {
+    fontSize: 12,
+    marginLeft: Spacing.xs,
   },
   principlesCard: {
     marginBottom: Spacing.xl,

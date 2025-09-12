@@ -37,12 +37,20 @@ export default function HomeScreen() {
     }
   }, []);
 
-  const handleCreateIndividual = () => {
+    const handleCreateIndividual = () => {
     router.push('/create-individual');
   };
 
   const handleCreateCircle = () => {
     router.push('/create-circle');
+  };
+
+  const handleGoToIndividual = () => {
+    router.push('/(tabs)/individual');
+  };
+
+  const handleGoToCircles = () => {
+    router.push('/(tabs)/circulos');
   };
 
   return (
@@ -69,8 +77,7 @@ export default function HomeScreen() {
           <Text style={[styles.sectionTitle, { color: colors.text }]}>
             Começar Jornada
           </Text>
-          
-          <SacredCard glowing style={styles.actionCard}>
+                    <SacredCard glowing style={styles.actionCard}>
             <View style={styles.cardHeader}>
               <MaterialIcons 
                 name="person" 
@@ -86,14 +93,22 @@ export default function HomeScreen() {
                 </Text>
               </View>
             </View>
-            <SacredButton
-              title="Iniciar Jornada"
-              onPress={handleCreateIndividual}
-              size="sm"
-              style={styles.cardButton}
-            />
+            <View style={styles.cardActions}>
+              <SacredButton
+                title="Nova Cocriação"
+                onPress={handleCreateIndividual}
+                size="sm"
+                style={styles.cardButton}
+              />
+              <SacredButton
+                title="Ver Minhas"
+                onPress={handleGoToIndividual}
+                variant="outline"
+                size="sm"
+                style={styles.cardButton}
+              />
+            </View>
           </SacredCard>
-
           <SacredCard style={styles.actionCard}>
             <View style={styles.cardHeader}>
               <MaterialIcons 
@@ -110,13 +125,22 @@ export default function HomeScreen() {
                 </Text>
               </View>
             </View>
-            <SacredButton
-              title="Criar Círculo"
-              onPress={handleCreateCircle}
-              variant="outline"
-              size="sm"
-              style={styles.cardButton}
-            />
+            <View style={styles.cardActions}>
+              <SacredButton
+                title="Criar Círculo"
+                onPress={handleCreateCircle}
+                variant="outline"
+                size="sm"
+                style={styles.cardButton}
+              />
+              <SacredButton
+                title="Ver Meus"
+                onPress={handleGoToCircles}
+                variant="outline"
+                size="sm"
+                style={styles.cardButton}
+              />
+            </View>
           </SacredCard>
         </View>
 
@@ -212,9 +236,12 @@ const styles = StyleSheet.create({
   cardDescription: {
     fontSize: 14,
     lineHeight: 20,
+  },  cardActions: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
   },
   cardButton: {
-    alignSelf: 'flex-start',
+    flex: 1,
   },
   dailyPractices: {
     marginBottom: Spacing.xl,
