@@ -53,7 +53,7 @@ export default function CircleDetailsScreen() {
       //setInviteUrl(`${baseUrl}${path}`);
 
       //Qwen solution
-      //setInviteUrl(`${baseUrl}/?circleInviteToken=${token}`);
+      setInviteUrl(`${baseUrl}/?circleInviteToken=${token}`);
 
     }
   }, [token]);
