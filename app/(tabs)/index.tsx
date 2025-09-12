@@ -8,12 +8,12 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
-import { router, useLocalSearchParams } from 'expo-router'; // ← ADICIONADO!
 import GradientBackground from '@/components/ui/GradientBackground';
 import SacredCard from '@/components/ui/SacredCard';
 import SacredButton from '@/components/ui/SacredButton';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Spacing, BorderRadius } from '@/constants/Colors';
+import { router } from 'expo-router'; // ← SÓ IMPORTAMOS router, NÃO os hooks de query!
 
 const { width } = Dimensions.get('window');
 
@@ -21,19 +21,21 @@ export default function HomeScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
 
-  // 👇 CAPTURA O TOKEN DA QUERY STRING
-  const { circleInviteToken } = useLocalSearchParams<{ circleInviteToken?: string }>();
-  const router = useRouter();
-
+  // 👇 NOVO: Captura o token da URL apenas na WEB, usando window.location
   useEffect(() => {
-    if (circleInviteToken) {
-      // Redireciona internamente para a tela de convite
-      router.replace({
-        pathname: '/circle-invite/[token]',
-        params: { token: circleInviteToken },
-      });
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const circleInviteToken = urlParams.get('circleInviteToken');
+
+      if (circleInviteToken) {
+        // Redireciona internamente para a tela de convite
+        router.replace({
+          pathname: '/circle-invite/[token]',
+          params: { token: circleInviteToken },
+        });
+      }
     }
-  }, [circleInviteToken, router]);
+  }, []);
 
   const handleCreateIndividual = () => {
     router.push('/create-individual');

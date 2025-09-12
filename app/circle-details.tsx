@@ -43,7 +43,7 @@ export default function CircleDetailsScreen() {
         ? window.location.origin 
         : 'https://yourapp.com';
 
-      setInviteUrl(`${baseUrl}/circle-invite/${token}`);
+      //setInviteUrl(`${baseUrl}/circle-invite/${token}`);
       
       // Cursor solution    
       //  const path =
