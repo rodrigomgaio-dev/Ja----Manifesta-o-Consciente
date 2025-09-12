@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router'; // ← ADICIONE ESTE IMPORT!
 import GradientBackground from '@/components/ui/GradientBackground';
 import SacredCard from '@/components/ui/SacredCard';
 import SacredButton from '@/components/ui/SacredButton';
@@ -21,11 +21,25 @@ export default function HomeScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
 
-    const handleCreateIndividual = () => {
+  // 👇 NOVO: Captura o token da query string
+  const { circleInviteToken } = useLocalSearchParams<{ circleInviteToken?: string }>();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (circleInviteToken) {
+      // Redireciona para a tela de convite, mantendo o token
+      router.replace({
+        pathname: '/circle-invite/[token]',
+        params: { token: circleInviteToken },
+      });
+    }
+  }, [circleInviteToken, router]);
+
+  const handleCreateIndividual = () => {
     router.push('/create-individual');
   };
 
-    const handleCreateCircle = () => {
+  const handleCreateCircle = () => {
     router.push('/create-circle');
   };
 
@@ -78,7 +92,7 @@ export default function HomeScreen() {
             />
           </SacredCard>
 
-                    <SacredCard style={styles.actionCard}>
+          <SacredCard style={styles.actionCard}>
             <View style={styles.cardHeader}>
               <MaterialIcons 
                 name="group" 
