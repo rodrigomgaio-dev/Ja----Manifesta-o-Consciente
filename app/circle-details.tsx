@@ -42,7 +42,12 @@ export default function CircleDetailsScreen() {
       const baseUrl = typeof window !== 'undefined' 
         ? window.location.origin 
         : 'https://yourapp.com';
-      setInviteUrl(`${baseUrl}/circle-invite/${token}`);
+      //setInviteUrl(`${baseUrl}/circle-invite/${token}`);
+        const path =
+      Platform.OS === 'web'
+      ? `/#/circle-invite/${token}`
+      : `/circle-invite/${token}`;
+      setInviteUrl(`${baseUrl}${path}`);
     }
   }, [token]);
 
