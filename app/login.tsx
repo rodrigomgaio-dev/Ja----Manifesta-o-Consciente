@@ -10,7 +10,7 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import GradientBackground from '@/components/ui/GradientBackground';
@@ -24,6 +24,7 @@ export default function LoginScreen() {
   const { colors } = useTheme();
   const { signIn, signUp, user, loading } = useAuth();
   const insets = useSafeAreaInsets();
+  const { invite, circleId } = useLocalSearchParams<{ invite?: string; circleId?: string }>();
 
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
@@ -34,9 +35,14 @@ export default function LoginScreen() {
 
   useEffect(() => {
     if (user) {
-      router.replace('/(tabs)');
+      // If user logged in with an invitation, go to alignment ritual
+      if (invite && circleId) {
+        router.replace(`/alignment-ritual?token=${invite}&circleId=${circleId}`);
+      } else {
+        router.replace('/(tabs)');
+      }
     }
-  }, [user]);
+  }, [user, invite, circleId]);
 
   const showWebAlert = (title: string, message: string) => {
     if (Platform.OS === 'web') {

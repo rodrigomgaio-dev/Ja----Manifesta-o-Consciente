@@ -78,7 +78,7 @@ export default function HomeScreen() {
             />
           </SacredCard>
 
-          <SacredCard style={styles.actionCard}>
+                    <SacredCard style={styles.actionCard}>
             <View style={styles.cardHeader}>
               <MaterialIcons 
                 name="group" 

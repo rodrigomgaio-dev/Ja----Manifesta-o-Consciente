@@ -90,7 +90,7 @@ export default function CreateCircleScreen() {
 
       console.log('CreateCircle result:', result);
 
-      if (result.error) {
+            if (result.error) {
         console.error('Error from createCircle:', result.error);
         
         let errorMessage = 'Não foi possível criar seu círculo. Tente novamente.';
@@ -117,14 +117,8 @@ export default function CreateCircleScreen() {
           showWebAlert('Círculo Criado', 'Círculo criado com sucesso, mas houve erro ao gerar convite.');
           router.push('/(tabs)/circulos');
         } else {
-          // Navigate to circle details with invitation
-          showWebAlert(
-            'Círculo Criado!',
-            'Seu círculo foi criado com sucesso! Agora você pode convidar pessoas.',
-            () => {
-              router.push(`/circle-details?id=${result.data.id}&token=${inviteResult.data.invite_token}`);
-            }
-          );
+          // Navigate to circle details with invitation token
+          router.replace(`/circle-details?id=${result.data.id}&token=${inviteResult.data.invite_token}`);
         }
       }
     } catch (error) {

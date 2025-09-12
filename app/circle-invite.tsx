@@ -52,9 +52,9 @@ export default function CircleInviteScreen() {
     }
   };
 
-  const handleAcceptInvite = () => {
-    // Navigate to login/register with invitation token
-    router.push(`/login?invite=${token}`);
+    const handleAcceptInvite = () => {
+    // Navigate to login/register with invitation token and circle info
+    router.push(`/login?invite=${token}&circleId=${invitation.collective_circles.id}`);
   };
 
   const handleDeclineInvite = () => {

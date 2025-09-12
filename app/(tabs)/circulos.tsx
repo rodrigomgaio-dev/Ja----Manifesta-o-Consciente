@@ -28,7 +28,7 @@ export default function CirculosScreen() {
           </Text>
         </View>
 
-                {/* Create Circle */}
+                        {/* Create Circle */}
         <SacredCard glowing style={styles.createCard}>
           <View style={styles.createContent}>
             <MaterialIcons 
