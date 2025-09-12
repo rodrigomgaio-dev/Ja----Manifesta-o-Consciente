@@ -36,13 +36,13 @@ export default function CircleDetailsScreen() {
     }
   }, [id, circles]);
 
-  useEffect(() => {
+    useEffect(() => {
     if (token) {
-      // Construct invite URL
+      // Construct invite URL for Expo Router
       const baseUrl = typeof window !== 'undefined' 
         ? window.location.origin 
-        : 'https://yourapp.com'; // Replace with your actual domain
-      setInviteUrl(`${baseUrl}/circle-invite?token=${token}`);
+        : 'https://yourapp.com';
+      setInviteUrl(`${baseUrl}/circle-invite/${token}`);
     }
   }, [token]);
 
