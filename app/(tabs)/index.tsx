@@ -13,31 +13,44 @@ import SacredCard from '@/components/ui/SacredCard';
 import SacredButton from '@/components/ui/SacredButton';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Spacing, BorderRadius } from '@/constants/Colors';
-import { router } from 'expo-router'; // ← SÓ IMPORTAMOS router, NÃO os hooks de query!
+import { router, useRouter } from 'expo-router';
 
 const { width } = Dimensions.get('window');
 
 export default function HomeScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const navigation = useRouter();
 
-  // 👇 NOVO: Captura o token da URL apenas na WEB, usando window.location
+  // Handle circle invitation from URL parameters (web only)
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const urlParams = new URLSearchParams(window.location.search);
-      const circleInviteToken = urlParams.get('circleInviteToken');
+      // Add delay to ensure router is fully mounted
+      const timer = setTimeout(() => {
+        try {
+          const urlParams = new URLSearchParams(window.location.search);
+          const circleInviteToken = urlParams.get('circleInviteToken');
 
-      if (circleInviteToken) {
-        // Redireciona internamente para a tela de convite
-        router.replace({
-          pathname: '/circle-invite/[token]',
-          params: { token: circleInviteToken },
-        });
-      }
+          console.log('Home screen - checking for invite token:', circleInviteToken);
+
+          if (circleInviteToken && navigation) {
+            console.log('Redirecting to circle invite with token:', circleInviteToken);
+            // Redirect internally to invitation screen
+            router.replace({
+              pathname: '/circle-invite/[token]',
+              params: { token: circleInviteToken },
+            });
+          }
+        } catch (error) {
+          console.log('Navigation not ready yet or error:', error);
+        }
+      }, 100); // Wait 100ms for router to be ready
+
+      return () => clearTimeout(timer);
     }
-  }, []);
+  }, [navigation]);
 
-    const handleCreateIndividual = () => {
+  const handleCreateIndividual = () => {
     router.push('/create-individual');
   };
 
@@ -77,7 +90,8 @@ export default function HomeScreen() {
           <Text style={[styles.sectionTitle, { color: colors.text }]}>
             Começar Jornada
           </Text>
-                    <SacredCard glowing style={styles.actionCard}>
+          
+          <SacredCard glowing style={styles.actionCard}>
             <View style={styles.cardHeader}>
               <MaterialIcons 
                 name="person" 
@@ -109,6 +123,7 @@ export default function HomeScreen() {
               />
             </View>
           </SacredCard>
+          
           <SacredCard style={styles.actionCard}>
             <View style={styles.cardHeader}>
               <MaterialIcons 
@@ -236,7 +251,8 @@ const styles = StyleSheet.create({
   cardDescription: {
     fontSize: 14,
     lineHeight: 20,
-  },  cardActions: {
+  },
+  cardActions: {
     flexDirection: 'row',
     gap: Spacing.sm,
   },

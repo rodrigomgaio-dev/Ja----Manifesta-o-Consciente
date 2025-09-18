@@ -150,6 +150,8 @@ export function useCollectiveCircles() {
 
   const getInvitationDetails = async (token: string) => {
     try {
+      console.log('Getting invitation details for token:', token);
+      
       const { data, error } = await supabase
         .from('circle_invitations')
         .select(`
@@ -161,7 +163,9 @@ export function useCollectiveCircles() {
             cover_image_url,
             personal_message,
             audio_invitation_url,
-            max_members
+            max_members,
+            status,
+            created_at
           ),
           profiles!circle_invitations_created_by_fkey (
             full_name,
@@ -169,13 +173,19 @@ export function useCollectiveCircles() {
           )
         `)
         .eq('invite_token', token)
-        .single();
+        .maybeSingle();
 
       if (error) {
         console.error('Error getting invitation details:', error);
         return { error };
       }
 
+      if (!data) {
+        console.log('No invitation found for token:', token);
+        return { error: new Error('Invitation not found') };
+      }
+
+      console.log('Invitation details loaded:', data);
       return { data, error: null };
     } catch (error) {
       console.error('Unexpected error getting invitation:', error);

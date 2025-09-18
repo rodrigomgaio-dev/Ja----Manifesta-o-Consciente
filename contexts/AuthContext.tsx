@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { Session, User as SupabaseUser } from '@supabase/supabase-js';
+import { router } from 'expo-router';
 import { supabase } from '@/services/supabase';
 import { User } from '@/services/types';
 
@@ -9,7 +10,7 @@ interface AuthContextType {
   loading: boolean;
   signUp: (email: string, password: string, fullName?: string) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
-  signOut: () => Promise<void>;
+  signOut: () => Promise<{ error: any }>;
   updateProfile: (updates: Partial<User>) => Promise<{ error: any }>;
 }
 
@@ -23,20 +24,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('Initial session:', session?.user?.email);
       setSession(session);
       if (session?.user) {
         loadUserProfile(session.user);
       } else {
         setLoading(false);
+        handleUnauthenticatedUser();
       }
     });
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('Auth state change:', event, session?.user?.email);
         setSession(session);
         if (session?.user) {
           await loadUserProfile(session.user);
+          handleAuthenticatedUser();
         } else {
           setUser(null);
           setLoading(false);
@@ -47,8 +52,59 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
+  const handleUnauthenticatedUser = () => {
+    // Check if we're on a public page or have a circle invite token
+    if (typeof window !== 'undefined') {
+      const currentPath = window.location.pathname;
+      const urlParams = new URLSearchParams(window.location.search);
+      const circleInviteToken = urlParams.get('circleInviteToken');
+      
+      const isPublicPage = currentPath.includes('/circle-invite/') || 
+                         currentPath.includes('/app-pitch') ||
+                         currentPath.includes('/login') ||
+                         currentPath.includes('/invitation-details');
+      
+      console.log('Unauthenticated user - Path:', currentPath, 'Token:', circleInviteToken, 'IsPublic:', isPublicPage);
+      
+      // If there's a circle invite token, don't redirect - let the home page handle it
+      if (circleInviteToken) {
+        console.log('Circle invite token found, staying on current page');
+        return;
+      }
+      
+      // If not on a public page and no invite token, redirect to login
+      if (!isPublicPage) {
+        console.log('Redirecting to login');
+        setTimeout(() => router.replace('/login'), 100);
+      }
+    }
+  };
+
+  const handleAuthenticatedUser = () => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const inviteToken = urlParams.get('invite');
+      
+      console.log('Authenticated user - Invite token:', inviteToken);
+      
+      if (inviteToken) {
+        // Redirect to invitation details with token preserved
+        console.log('Redirecting to invitation details with token:', inviteToken);
+        router.replace(`/invitation-details?token=${inviteToken}`);
+      } else {
+        // Normal login flow
+        console.log('Normal login, redirecting to tabs');
+        router.replace('/(tabs)');
+      }
+    } else {
+      router.replace('/(tabs)');
+    }
+  };
+
   const loadUserProfile = async (authUser: SupabaseUser) => {
     try {
+      console.log('Loading user profile for:', authUser.email);
+      
       const { data: profile, error } = await supabase
         .from('profiles')
         .select('*')
@@ -58,6 +114,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (error) {
         // Create profile if it doesn't exist
         if (error.code === 'PGRST116') {
+          console.log('Creating new profile for user:', authUser.email);
           const { error: insertError } = await supabase
             .from('profiles')
             .insert({
@@ -75,6 +132,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         }
       } else {
+        console.log('Profile loaded:', profile.email);
         setUser({
           id: profile.id,
           email: profile.email,
@@ -113,7 +171,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    console.log('Signing out user');
+    const { error } = await supabase.auth.signOut();
+    if (!error) {
+      setSession(null);
+      setUser(null);
+      console.log('User signed out successfully');
+      router.replace('/login');
+    } else {
+      console.error('Error signing out:', error);
+    }
+    return { error };
   };
 
   const updateProfile = async (updates: Partial<User>) => {

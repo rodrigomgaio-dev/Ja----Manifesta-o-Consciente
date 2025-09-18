@@ -1,3 +1,4 @@
+// app/cocriacao-details.tsx
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -5,8 +6,6 @@ import {
   ScrollView,
   StyleSheet,
   TouchableOpacity,
-  Alert,
-  Platform,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,6 +18,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useIndividualCocriations } from '@/hooks/useIndividualCocriations';
 import { Spacing } from '@/constants/Colors';
+import AppModal from '@/components/ui/AppModal';
 
 export default function CocriacaoDetailsScreen() {
   const { colors } = useTheme();
@@ -30,6 +30,20 @@ export default function CocriacaoDetailsScreen() {
   const [cocriation, setCocriation] = useState<any>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Estados para os modais
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [feedback, setFeedback] = useState<{
+    visible: boolean;
+    type: 'success' | 'error' | 'info';
+    title: string;
+    messageLines: string[];
+  }>({
+    visible: false,
+    type: 'info',
+    title: '',
+    messageLines: [],
+  });
+
   useEffect(() => {
     if (id && cocriations.length > 0) {
       const foundCocriation = cocriations.find(c => c.id === id);
@@ -37,61 +51,65 @@ export default function CocriacaoDetailsScreen() {
     }
   }, [id, cocriations]);
 
-  const showWebAlert = (title: string, message: string, buttons?: any[]) => {
-    if (Platform.OS === 'web') {
-      const confirmed = confirm(`${title}: ${message}`);
-      if (confirmed && buttons?.[0]?.onPress) {
-        buttons[0].onPress();
-      }
-    } else {
-      Alert.alert(title, message, buttons);
-    }
-  };
-
   const handleEdit = () => {
-    // TODO: Implementar edição
-    showWebAlert('Em Desenvolvimento', 'A funcionalidade de edição será implementada em breve.');
+    setFeedback({
+      visible: true,
+      type: 'info',
+      title: 'Em Desenvolvimento',
+      messageLines: [
+        'A funcionalidade de edição',
+        'será implementada em breve.'
+      ],
+    });
   };
 
   const handleDelete = () => {
-    showWebAlert(
-      'Confirmar Exclusão',
-      'Tem certeza que deseja excluir esta cocriação? Esta ação não pode ser desfeita.',
-      [
-        {
-          text: 'Cancelar',
-          style: 'cancel',
-        },
-        {
-          text: 'Excluir',
-          style: 'destructive',
-          onPress: confirmDelete,
-        },
-      ]
-    );
+    setShowDeleteModal(true);
   };
 
   const confirmDelete = async () => {
     if (!cocriation) return;
 
     setIsDeleting(true);
+    setShowDeleteModal(false);
 
     try {
       const result = await deleteCocriation(cocriation.id);
       
       if (result.error) {
         console.error('Error deleting cocriation:', result.error);
-        showWebAlert('Erro', 'Não foi possível excluir a cocriação. Tente novamente.');
+        setFeedback({
+          visible: true,
+          type: 'error',
+          title: 'Erro',
+          messageLines: [
+            'Não foi possível excluir',
+            'a cocriação.',
+            'Tente novamente.'
+          ],
+        });
       } else {
-        showWebAlert(
-          'Sucesso',
-          'Cocriação excluída com sucesso.',
-          [{ text: 'OK', onPress: () => router.back() }]
-        );
+        setFeedback({
+          visible: true,
+          type: 'success',
+          title: 'Sucesso',
+          messageLines: [
+            'Cocriação excluída',
+            'com sucesso.'
+          ],
+        });
       }
     } catch (error) {
       console.error('Unexpected error deleting cocriation:', error);
-      showWebAlert('Erro Inesperado', 'Algo deu errado. Tente novamente.');
+      setFeedback({
+        visible: true,
+        type: 'error',
+        title: 'Erro Inesperado',
+        messageLines: [
+          'Algo deu errado.',
+          'Tente novamente.'
+        ],
+      });
     } finally {
       setIsDeleting(false);
     }
@@ -331,6 +349,39 @@ export default function CocriacaoDetailsScreen() {
             style={[styles.deleteButton, { borderColor: colors.error }]}
           />
         </SacredCard>
+
+        {/* Modal de Confirmação */}
+        <AppModal
+          visible={showDeleteModal}
+          type="confirmation"
+          title="Confirmar Exclusão"
+          messageLines={[
+            "Tem certeza que deseja",
+            "excluir esta cocriação?",
+            "Esta ação não pode ser desfeita."
+          ]}
+          confirmText="Excluir"
+          cancelText="Cancelar"
+          showCancel
+          icon="delete"
+          onConfirm={confirmDelete}
+          onCancel={() => setShowDeleteModal(false)}
+        />
+
+        {/* Modal de Feedback */}
+        <AppModal
+          visible={feedback.visible}
+          type={feedback.type}
+          title={feedback.title}
+          messageLines={feedback.messageLines}
+          confirmText="OK"
+          onConfirm={() => {
+            if (feedback.type === 'success') {
+              router.back(); // volta após sucesso
+            }
+            setFeedback(prev => ({ ...prev, visible: false }));
+          }}
+        />
       </ScrollView>
     </GradientBackground>
   );

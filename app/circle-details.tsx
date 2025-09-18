@@ -24,10 +24,11 @@ export default function CircleDetailsScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { id, token } = useLocalSearchParams<{ id: string; token?: string }>();
-  const { circles, loading } = useCollectiveCircles();
+  const { circles, loading, createInvitation } = useCollectiveCircles();
 
   const [circle, setCircle] = useState<any>(null);
   const [inviteUrl, setInviteUrl] = useState<string>('');
+  const [creatingInvite, setCreatingInvite] = useState(false);
 
   useEffect(() => {
     if (id && circles.length > 0) {
@@ -36,27 +37,42 @@ export default function CircleDetailsScreen() {
     }
   }, [id, circles]);
 
-    useEffect(() => {
+  useEffect(() => {
     if (token) {
-      // Construct invite URL for Expo Router
+      // Construct invite URL for existing token
       const baseUrl = typeof window !== 'undefined' 
         ? window.location.origin 
         : 'https://yourapp.com';
 
-      //setInviteUrl(`${baseUrl}/circle-invite/${token}`);
-      
-      // Cursor solution    
-      //  const path =
-      //Platform.OS === 'web'
-      //? `/#/circle-invite/${token}`
-      //: `/circle-invite/${token}`;
-      //setInviteUrl(`${baseUrl}${path}`);
-
-      //Qwen solution
       setInviteUrl(`${baseUrl}/?circleInviteToken=${token}`);
-
     }
   }, [token]);
+
+  const generateNewInvite = async () => {
+    if (!circle) return;
+
+    setCreatingInvite(true);
+    try {
+      const result = await createInvitation(circle.id);
+      
+      if (result.error) {
+        console.error('Error creating invitation:', result.error);
+        alert('Erro ao gerar convite. Tente novamente.');
+      } else {
+        const baseUrl = typeof window !== 'undefined' 
+          ? window.location.origin 
+          : 'https://yourapp.com';
+
+        const newInviteUrl = `${baseUrl}/?circleInviteToken=${result.data.invite_token}`;
+        setInviteUrl(newInviteUrl);
+      }
+    } catch (error) {
+      console.error('Unexpected error creating invitation:', error);
+      alert('Erro inesperado. Tente novamente.');
+    } finally {
+      setCreatingInvite(false);
+    }
+  };
 
   const copyInviteLink = async () => {
     if (Platform.OS === 'web') {
@@ -87,21 +103,6 @@ export default function CircleDetailsScreen() {
     }
   };
 
-  const shareWhatsApp = () => {
-    const message = encodeURIComponent(
-      `🌟 Você foi convidado para um Círculo de Cocriação no Jaé!\n\n` +
-      `Circle: ${circle?.title}\n\n` +
-      `Participe: ${inviteUrl}`
-    );
-    const whatsappUrl = `https://wa.me/?text=${message}`;
-    
-    if (Platform.OS === 'web') {
-      window.open(whatsappUrl, '_blank');
-    } else {
-      Linking.openURL(whatsappUrl);
-    }
-  };
-
   if (loading) {
     return (
       <GradientBackground>
@@ -116,7 +117,7 @@ export default function CircleDetailsScreen() {
     );
   }
 
-    if (!circle) {
+  if (!circle) {
     return (
       <GradientBackground>
         <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -194,40 +195,55 @@ export default function CircleDetailsScreen() {
         </SacredCard>
 
         {/* Invite Section */}
-        {token && (
-          <SacredCard style={styles.inviteCard}>
+        <SacredCard glowing style={styles.inviteCard}>
+          <View style={styles.inviteHeader}>
+            <MaterialIcons name="link" size={32} color={colors.primary} />
             <Text style={[styles.inviteTitle, { color: colors.text }]}>
               Convidar Participantes
             </Text>
-            <Text style={[styles.inviteDescription, { color: colors.textSecondary }]}>
-              Compartilhe este link para convidar pessoas para seu círculo sagrado
-            </Text>
+          </View>
+          
+          <Text style={[styles.inviteDescription, { color: colors.textSecondary }]}>
+            Compartilhe este link exclusivo para convidar pessoas para seu círculo sagrado
+          </Text>
 
-            <View style={styles.linkContainer}>
-              <Text style={[styles.linkText, { color: colors.textMuted }]} numberOfLines={2}>
-                {inviteUrl}
-              </Text>
-            </View>
-
-            <View style={styles.shareActions}>
-              <SacredButton
-                title="Copiar Link"
-                onPress={copyInviteLink}
-                style={styles.shareButton}
-              />
-              
-              <TouchableOpacity 
-                style={[styles.whatsappButton, { backgroundColor: colors.success + '20' }]}
-                onPress={shareWhatsApp}
-              >
-                <MaterialIcons name="share" size={20} color={colors.success} />
-                <Text style={[styles.whatsappText, { color: colors.success }]}>
-                  WhatsApp
+          {inviteUrl ? (
+            <>
+              <View style={styles.linkContainer}>
+                <Text style={[styles.linkText, { color: colors.textMuted }]} numberOfLines={2}>
+                  {inviteUrl}
                 </Text>
-              </TouchableOpacity>
+              </View>
+
+              <View style={styles.shareActions}>
+                <SacredButton
+                  title="Copiar Link"
+                  onPress={copyInviteLink}
+                  style={styles.shareButton}
+                />
+              </View>
+            </>
+          ) : (
+            <View style={styles.generateInviteSection}>
+              <Text style={[styles.generateInviteText, { color: colors.textSecondary }]}>
+                Gere um link de convite para expandir seu círculo
+              </Text>
+              <SacredButton
+                title="Gerar Link de Convite"
+                onPress={generateNewInvite}
+                loading={creatingInvite}
+                style={styles.generateButton}
+              />
             </View>
-          </SacredCard>
-        )}
+          )}
+
+          <View style={styles.exclusivityNote}>
+            <MaterialIcons name="lock" size={16} color={colors.accent} />
+            <Text style={[styles.exclusivityText, { color: colors.textSecondary }]}>
+              Este é um convite exclusivo e pessoal
+            </Text>
+          </View>
+        </SacredCard>
 
         {/* Personal Message */}
         {circle.personal_message && (
@@ -240,6 +256,7 @@ export default function CircleDetailsScreen() {
             </Text>
           </SacredCard>
         )}
+
         {/* Audio Invitation */}
         {circle.audio_invitation_url && (
           <SacredCard style={styles.audioCard}>
@@ -389,10 +406,15 @@ const styles = StyleSheet.create({
   inviteCard: {
     marginBottom: Spacing.lg,
   },
+  inviteHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+  },
   inviteTitle: {
     fontSize: 20,
     fontWeight: '600',
-    marginBottom: Spacing.sm,
+    marginLeft: Spacing.md,
   },
   inviteDescription: {
     fontSize: 14,
@@ -402,31 +424,44 @@ const styles = StyleSheet.create({
   linkContainer: {
     backgroundColor: 'rgba(139, 92, 246, 0.1)',
     padding: Spacing.md,
-    borderRadius: 8,
+    borderRadius: 12,
     marginBottom: Spacing.lg,
   },
   linkText: {
     fontSize: 12,
     fontFamily: 'monospace',
+    lineHeight: 16,
   },
   shareActions: {
-    flexDirection: 'row',
-    gap: Spacing.md,
+    marginBottom: Spacing.md,
   },
   shareButton: {
-    flex: 2,
+    alignSelf: 'stretch',
   },
-  whatsappButton: {
-    flex: 1,
+  generateInviteSection: {
+    alignItems: 'center',
+    paddingVertical: Spacing.lg,
+  },
+  generateInviteText: {
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: Spacing.lg,
+  },
+  generateButton: {
+    minWidth: 200,
+  },
+  exclusivityNote: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: Spacing.md,
-    borderRadius: 12,
+    backgroundColor: 'rgba(6, 182, 212, 0.1)',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: 16,
   },
-  whatsappText: {
-    fontSize: 14,
-    fontWeight: '600',
+  exclusivityText: {
+    fontSize: 12,
+    fontWeight: '500',
     marginLeft: Spacing.xs,
   },
   messageCard: {
@@ -471,7 +506,8 @@ const styles = StyleSheet.create({
   principleItem: {
     flexDirection: 'row',
     alignItems: 'center',
-  },  principleText: {
+  },
+  principleText: {
     flex: 1,
     fontSize: 14,
     marginLeft: Spacing.md,

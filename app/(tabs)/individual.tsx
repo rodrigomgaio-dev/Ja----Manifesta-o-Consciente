@@ -1,3 +1,4 @@
+// app/tabs/individual.tsx
 import React from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,15 +11,29 @@ import SacredButton from '@/components/ui/SacredButton';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useIndividualCocriations } from '@/hooks/useIndividualCocriations';
 import { Spacing } from '@/constants/Colors';
+import { useFocusEffect } from 'expo-router';
+import { useCallback } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function IndividualScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
-  const { cocriations, loading, createCocriation } = useIndividualCocriations();
+  const { cocriations, loading, refresh } = useIndividualCocriations();
+  const { user } = useAuth(); // Para garantir que só recarrega se estiver logado
 
-    const handleCreateNew = () => {
+  // 🔁 Recarrega os dados quando a tela for focada
+  useFocusEffect(
+    useCallback(() => {
+      if (user?.id) {
+        refresh();
+      }
+    }, [user?.id, refresh])
+  );
+
+  const handleCreateNew = () => {
     router.push('/create-individual');
   };
+
   const renderCocriation = (cocriation: any) => (
     <TouchableOpacity 
       key={cocriation.id} 
@@ -52,7 +67,7 @@ export default function IndividualScreen() {
           </View>
           <View style={[styles.statusBadge, { 
             backgroundColor: cocriation.status === 'active' ? colors.primary + '20' : 
-                           cocriation.status === 'defining' ? colors.secondary + '20' : colors.success + '20' 
+                           cocriation.status === 'paused' ? colors.secondary + '20' : colors.success + '20' 
           }]}>
             <Text style={[styles.statusText, { 
               color: cocriation.status === 'active' ? colors.primary : 
@@ -134,7 +149,7 @@ export default function IndividualScreen() {
             Minhas Cocriações
           </Text>
           
-                  {loading ? (
+          {loading ? (
             <SacredCard style={styles.loadingCard}>
               <Text style={[styles.loadingText, { color: colors.textMuted }]}>
                 Carregando suas cocriações...
