@@ -8,7 +8,7 @@ import {
   Alert,
   Platform,
 } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
@@ -25,17 +25,28 @@ export default function CocriacaoDetailsScreen() {
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { cocriations, deleteCocriation, loading } = useIndividualCocriations();
+  const { cocriations, deleteCocriation, loading, refresh } = useIndividualCocriations();
 
   const [cocriation, setCocriation] = useState<any>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Update cocriation when cocriations array changes
   useEffect(() => {
+    console.log('Cocriations updated, searching for id:', id);
     if (id && cocriations.length > 0) {
       const foundCocriation = cocriations.find(c => c.id === id);
+      console.log('Found cocriation:', foundCocriation);
       setCocriation(foundCocriation);
     }
   }, [id, cocriations]);
+
+  // Refresh data when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      console.log('Screen focused, refreshing data...');
+      refresh();
+    }, [refresh])
+  );
 
   const showWebAlert = (title: string, message: string, buttons?: any[]) => {
     if (Platform.OS === 'web') {
@@ -49,8 +60,7 @@ export default function CocriacaoDetailsScreen() {
   };
 
   const handleEdit = () => {
-    // TODO: Implementar edição
-    showWebAlert('Em Desenvolvimento', 'A funcionalidade de edição será implementada em breve.');
+    router.push(`/edit-individual?id=${cocriation.id}`);
   };
 
   const handleDelete = () => {

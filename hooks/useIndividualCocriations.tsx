@@ -42,7 +42,7 @@ export function useIndividualCocriations() {
     }
   };
 
-    const createCocriation = async (cocriation: {
+  const createCocriation = async (cocriation: {
     title: string;
     description?: string;
     mental_code?: string;
@@ -57,8 +57,7 @@ export function useIndividualCocriations() {
     console.log('Creating cocriation for user:', user.id, 'Data:', cocriation);
 
     try {
-      // Prepare the data to insert
-            const insertData = {
+      const insertData = {
         user_id: user.id,
         title: cocriation.title.trim(),
         description: cocriation.description?.trim() || null,
@@ -100,6 +99,8 @@ export function useIndividualCocriations() {
     if (!user) return { error: new Error('User not authenticated') };
 
     try {
+      console.log('Updating cocriation:', id, updates);
+
       const { data, error } = await supabase
         .from('individual_cocriations')
         .update({
@@ -116,9 +117,18 @@ export function useIndividualCocriations() {
         return { error };
       }
 
+      console.log('Cocriation updated successfully:', data);
+
+      // Update local state immediately
       setCocriations(prev =>
         prev.map(c => (c.id === id ? { ...c, ...data } : c))
       );
+
+      // Also reload data to ensure full synchronization
+      setTimeout(() => {
+        loadCocriations();
+      }, 100);
+
       return { data, error: null };
     } catch (error) {
       console.error('Unexpected error updating cocriation:', error);

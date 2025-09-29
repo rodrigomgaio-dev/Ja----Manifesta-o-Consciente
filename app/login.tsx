@@ -47,49 +47,96 @@ export default function LoginScreen() {
     }
   }, [user, invite, circleId]);
 
-  const showWebAlert = (title: string, message: string) => {
+  const showWebAlert = (title: string, message: string, onOk?: () => void) => {
     if (Platform.OS === 'web') {
       alert(`${title}: ${message}`);
+      onOk?.();
     } else {
-      Alert.alert(title, message);
+      Alert.alert(title, message, onOk ? [{ text: 'OK', onPress: onOk }] : undefined);
     }
   };
 
-  const handleAuth = async () => {
-    if (!email || !password) {
+  const handleLogin = async () => {
+    if (!email.trim() || !password.trim()) {
       showWebAlert('Erro', 'Por favor, preencha todos os campos');
-      return;
-    }
-
-    if (isSignUp && !fullName) {
-      showWebAlert('Erro', 'Por favor, informe seu nome completo');
       return;
     }
 
     setIsLoading(true);
 
     try {
-      if (isSignUp) {
-        const { error } = await signUp(email, password, fullName);
-        if (error) {
-          showWebAlert('Erro no Cadastro', error.message);
-        } else {
-          showWebAlert(
-            'Cadastro Realizado',
-            'Verifique seu email para confirmar sua conta'
-          );
-          setIsSignUp(false);
-        }
+      const { error } = await signIn(email, password);
+      
+      if (error) {
+        console.error('Login error:', error);
+        showWebAlert(
+          'Erro no Login',
+          error.message === 'Invalid login credentials'
+            ? 'E-mail ou senha incorretos. Verifique suas credenciais.'
+            : error.message || 'Erro inesperado. Tente novamente.'
+        );
+        setIsLoading(false);
       } else {
-        const { error } = await signIn(email, password);
-        if (error) {
-          showWebAlert('Erro no Login', error.message);
+        // Success - AuthContext will handle navigation
+        // Check if there's a circle invite token to process
+        if (Platform.OS === 'web') {
+          const url = new URL(window.location.href);
+          const circleInviteToken = url.searchParams.get('circleInviteToken');
+          
+          if (circleInviteToken) {
+            // Clear the URL parameter and redirect to invitation details
+            window.history.replaceState({}, document.title, window.location.pathname);
+            router.replace(`/invitation-details?token=${circleInviteToken}`);
+            return;
+          }
         }
+        
+        // Normal login flow - go to home
+        router.replace('/(tabs)');
       }
     } catch (error) {
-      showWebAlert('Erro', 'Algo deu errado. Tente novamente.');
+      console.error('Unexpected login error:', error);
+      showWebAlert('Erro Inesperado', 'Algo deu errado. Tente novamente.');
+      setIsLoading(false);
+    }
+  };
+
+  const handleSignUp = async () => {
+    if (!email.trim() || !password.trim() || !fullName.trim()) {
+      showWebAlert('Erro', 'Por favor, preencha todos os campos');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const { error } = await signUp(email, password, fullName);
+      
+      if (error) {
+        console.error('SignUp error:', error);
+        showWebAlert('Erro no Cadastro', error.message);
+      } else {
+        showWebAlert(
+          'Conta Criada!', 
+          'Verifique seu e-mail para confirmar sua conta.',
+          () => {
+            router.replace('/(tabs)');
+          }
+        );
+      }
+    } catch (error) {
+      console.error('Unexpected signup error:', error);
+      showWebAlert('Erro Inesperado', 'Algo deu errado. Tente novamente.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleAuth = () => {
+    if (isSignUp) {
+      handleSignUp();
+    } else {
+      handleLogin();
     }
   };
 

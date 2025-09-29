@@ -1,3 +1,4 @@
+// Teste de sincronização - Rodrigo - 18/09/2025
 import React, { useEffect } from 'react';
 import {
   View,
@@ -12,18 +13,28 @@ import GradientBackground from '@/components/ui/GradientBackground';
 import SacredCard from '@/components/ui/SacredCard';
 import SacredButton from '@/components/ui/SacredButton';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { Spacing, BorderRadius } from '@/constants/Colors';
-import { router } from 'expo-router'; // ← SÓ IMPORTAMOS router, NÃO os hooks de query!
+import { router } from 'expo-router';
 
 const { width } = Dimensions.get('window');
 
 export default function HomeScreen() {
   const { colors } = useTheme();
+  const { user, loading: authLoading } = useAuth();
   const insets = useSafeAreaInsets();
 
-  // 👇 NOVO: Captura o token da URL apenas na WEB, usando window.location
+  // Redirect to login if not authenticated
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    if (!authLoading && !user) {
+      router.replace('/login');
+      return;
+    }
+  }, [user, authLoading]);
+
+  // Check for circle invite token only if user is authenticated
+  useEffect(() => {
+    if (user && typeof window !== 'undefined') {
       const urlParams = new URLSearchParams(window.location.search);
       const circleInviteToken = urlParams.get('circleInviteToken');
 
@@ -35,9 +46,14 @@ export default function HomeScreen() {
         });
       }
     }
-  }, []);
+  }, [user]);
 
-    const handleCreateIndividual = () => {
+  // Don't render anything if not authenticated
+  if (!user) {
+    return null;
+  }
+
+  const handleCreateIndividual = () => {
     router.push('/create-individual');
   };
 
@@ -77,7 +93,7 @@ export default function HomeScreen() {
           <Text style={[styles.sectionTitle, { color: colors.text }]}>
             Começar Jornada
           </Text>
-                    <SacredCard glowing style={styles.actionCard}>
+          <SacredCard glowing style={styles.actionCard}>
             <View style={styles.cardHeader}>
               <MaterialIcons 
                 name="person" 
@@ -236,7 +252,8 @@ const styles = StyleSheet.create({
   cardDescription: {
     fontSize: 14,
     lineHeight: 20,
-  },  cardActions: {
+  },
+  cardActions: {
     flexDirection: 'row',
     gap: Spacing.sm,
   },
