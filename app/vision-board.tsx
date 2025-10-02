@@ -1,34 +1,44 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  ScrollView,
+  Modal,
+  TextInput,
   Dimensions,
   Alert,
   Platform,
-  Modal,
-  TextInput,
-  PanResponder,
-  Animated,
+  useWindowDimensions,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  useAnimatedGestureHandler,
+  withSpring,
+  withTiming,
+  runOnJS,
+  interpolate,
+} from 'react-native-reanimated';
+import {
+  PanGestureHandler,
+  PinchGestureHandler,
+  TapGestureHandler,
+  State,
+  GestureHandlerRootView,
+} from 'react-native-gesture-handler';
+
 import GradientBackground from '@/components/ui/GradientBackground';
 import SacredButton from '@/components/ui/SacredButton';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useVisionBoard } from '@/hooks/useVisionBoard';
 import { Spacing } from '@/constants/Colors';
-
-const { width, height } = Dimensions.get('window');
-const CANVAS_WIDTH = width * 2;
-const CANVAS_HEIGHT = height * 1.5;
-const VISIBLE_AREA = { width: width - 40, height: height * 0.6 };
 
 // Sacred emojis for selection
 const SACRED_EMOJIS = [
@@ -42,148 +52,201 @@ interface DraggableItemProps {
   item: any;
   onUpdate: (id: string, updates: any) => void;
   onDelete: (id: string) => void;
+  canvasWidth: number;
+  canvasHeight: number;
+  isSelected: boolean;
+  onSelect: (id: string) => void;
+  zIndex: number;
 }
 
-const DraggableItem: React.FC<DraggableItemProps> = ({ item, onUpdate, onDelete }) => {
+const DraggableItem: React.FC<DraggableItemProps> = ({
+  item,
+  onUpdate,
+  onDelete,
+  canvasWidth,
+  canvasHeight,
+  isSelected,
+  onSelect,
+  zIndex,
+}) => {
   const { colors } = useTheme();
   
   // Animated values
-  const pan = useRef(new Animated.ValueXY({ 
-    x: item.position_x || 50, 
-    y: item.position_y || 50 
-  })).current;
-  const scale = useRef(new Animated.Value(1)).current;
-  
-  const [isDragging, setIsDragging] = useState(false);
-  const [showDeleteButton, setShowDeleteButton] = useState(false);
+  const translateX = useSharedValue(item.position_x || 50);
+  const translateY = useSharedValue(item.position_y || 50);
+  const scale = useSharedValue(1);
+  const itemScale = useSharedValue(1);
+  const opacity = useSharedValue(0);
+  const rotation = useSharedValue(0);
 
-  // Update position when item changes
+  // Item dimensions
+  const itemWidth = useSharedValue(item.width || 120);
+  const itemHeight = useSharedValue(item.height || 120);
+
+  // Initialize position and fade in
   useEffect(() => {
-    pan.setValue({ x: item.position_x || 50, y: item.position_y || 50 });
-  }, [item.position_x, item.position_y]);
+    translateX.value = item.position_x || 50;
+    translateY.value = item.position_y || 50;
+    itemWidth.value = item.width || 120;
+    itemHeight.value = item.height || 120;
+    
+    // Fade in animation
+    opacity.value = withTiming(1, { duration: 300 });
+  }, [item.position_x, item.position_y, item.width, item.height]);
 
-  const panResponder = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (evt, gestureState) => {
-        // Only respond if gesture is significant enough
-        return Math.abs(gestureState.dx) > 3 || Math.abs(gestureState.dy) > 3;
-      },
+  // Pan gesture handler
+  const panGestureHandler = useAnimatedGestureHandler({
+    onStart: (_, context) => {
+      context.startX = translateX.value;
+      context.startY = translateY.value;
       
-      onPanResponderGrant: () => {
-        setIsDragging(true);
-        setShowDeleteButton(true);
-        
-        // Set the offset to the current value
-        pan.setOffset({
-          x: pan.x._value,
-          y: pan.y._value,
-        });
-        
-        // Scale up animation (lift effect)
-        Animated.spring(scale, {
-          toValue: 1.1,
-          useNativeDriver: false,
-        }).start();
-      },
+      // Lift effect
+      scale.value = withSpring(1.05);
+      rotation.value = withSpring(2);
       
-      onPanResponderMove: Animated.event(
-        [null, { dx: pan.x, dy: pan.y }],
-        { useNativeDriver: false }
-      ),
+      // Select item
+      runOnJS(onSelect)(item.id);
+    },
+    onActive: (event, context) => {
+      translateX.value = context.startX + event.translationX;
+      translateY.value = context.startY + event.translationY;
+    },
+    onEnd: () => {
+      // Constrain to canvas bounds
+      translateX.value = Math.max(0, Math.min(translateX.value, canvasWidth - itemWidth.value));
+      translateY.value = Math.max(0, Math.min(translateY.value, canvasHeight - itemHeight.value));
       
-      onPanResponderRelease: (evt, gestureState) => {
-        setIsDragging(false);
-        
-        // Flatten the offset
-        pan.flattenOffset();
-        
-        // Scale down animation
-        Animated.spring(scale, {
-          toValue: 1,
-          useNativeDriver: false,
-        }).start();
-        
-        // Get final position
-        const finalX = pan.x._value;
-        const finalY = pan.y._value;
-        
-        // Ensure item stays within bounds
-        const constrainedX = Math.max(0, Math.min(finalX, CANVAS_WIDTH - (item.width || 120)));
-        const constrainedY = Math.max(0, Math.min(finalY, CANVAS_HEIGHT - (item.height || 120)));
-        
-        // Update position in state and database
-        if (finalX !== constrainedX || finalY !== constrainedY) {
-          pan.setValue({ x: constrainedX, y: constrainedY });
-        }
-        
-        onUpdate(item.id, { 
-          position_x: constrainedX, 
-          position_y: constrainedY 
-        });
-        
-        // Hide delete button after a delay
-        setTimeout(() => setShowDeleteButton(false), 3000);
-      },
-    })
-  ).current;
+      // Drop effect
+      scale.value = withSpring(1);
+      rotation.value = withSpring(0);
+      
+      // Update position in database
+      runOnJS(onUpdate)(item.id, {
+        position_x: translateX.value,
+        position_y: translateY.value,
+      });
+    },
+  });
 
-  const itemStyle = {
-    width: item.width || 120,
-    height: item.height || (item.type === 'text' ? 80 : 120),
-  };
+  // Pinch gesture handler for resizing (images only)
+  const pinchGestureHandler = useAnimatedGestureHandler({
+    onStart: () => {
+      itemScale.value = 1;
+    },
+    onActive: (event) => {
+      if (item.type === 'image') {
+        const newScale = Math.max(0.5, Math.min(event.scale, 3));
+        itemScale.value = newScale;
+        
+        const newWidth = (item.width || 120) * newScale;
+        const newHeight = (item.height || 120) * newScale;
+        
+        itemWidth.value = newWidth;
+        itemHeight.value = newHeight;
+      }
+    },
+    onEnd: () => {
+      if (item.type === 'image') {
+        // Update size in database
+        runOnJS(onUpdate)(item.id, {
+          width: itemWidth.value,
+          height: itemHeight.value,
+        });
+      }
+      itemScale.value = 1;
+    },
+  });
+
+  // Tap gesture handler
+  const tapGestureHandler = useAnimatedGestureHandler({
+    onEnd: () => {
+      runOnJS(onSelect)(item.id);
+    },
+  });
+
+  // Animated styles
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      position: 'absolute',
+      transform: [
+        { translateX: translateX.value },
+        { translateY: translateY.value },
+        { scale: scale.value },
+        { rotate: `${rotation.value}deg` },
+      ],
+      opacity: opacity.value,
+      zIndex: zIndex,
+      width: itemWidth.value,
+      height: itemHeight.value,
+    };
+  });
+
+  const borderStyle = useAnimatedStyle(() => {
+    return {
+      borderWidth: isSelected ? 2 : 0,
+      borderColor: colors.primary,
+      borderRadius: 12,
+    };
+  });
 
   return (
-    <Animated.View
-      style={[
-        styles.draggableItem,
-        itemStyle,
-        {
-          transform: [
-            { translateX: pan.x },
-            { translateY: pan.y },
-            { scale: scale }
-          ],
-        },
-        isDragging && styles.draggingItem
-      ]}
-      {...panResponder.panHandlers}
-    >
-      {/* Delete button */}
-      {showDeleteButton && (
-        <TouchableOpacity
-          style={[styles.deleteButton, { backgroundColor: colors.error }]}
-          onPress={() => onDelete(item.id)}
-          activeOpacity={0.8}
-        >
-          <MaterialIcons name="close" size={16} color="white" />
-        </TouchableOpacity>
-      )}
+    <PanGestureHandler onGestureEvent={panGestureHandler}>
+      <Animated.View style={animatedStyle}>
+        <PinchGestureHandler onGestureEvent={pinchGestureHandler} enabled={item.type === 'image'}>
+          <Animated.View style={[{ flex: 1 }, borderStyle]}>
+            <TapGestureHandler onGestureEvent={tapGestureHandler}>
+              <Animated.View style={{ flex: 1, borderRadius: 12, overflow: 'hidden' }}>
+                {/* Delete button */}
+                {isSelected && (
+                  <TouchableOpacity
+                    style={[styles.deleteButton, { backgroundColor: colors.error }]}
+                    onPress={() => onDelete(item.id)}
+                    activeOpacity={0.8}
+                  >
+                    <MaterialIcons name="close" size={16} color="white" />
+                  </TouchableOpacity>
+                )}
 
-      {/* Item content based on type */}
-      {item.type === 'image' && (
-        <Image 
-          source={{ uri: item.content }} 
-          style={styles.itemContent}
-          contentFit="cover"
-          cachePolicy="memory-disk"
-          transition={200}
-        />
-      )}
-      
-      {item.type === 'text' && (
-        <View style={[styles.textItemContainer, { backgroundColor: colors.primary + 'CC' }]}>
-          <Text style={[styles.textItemContent, { color: 'white' }]}>
-            {item.content}
-          </Text>
-        </View>
-      )}
-      
-      {item.type === 'emoji' && (
-        <View style={[styles.emojiItemContainer, { backgroundColor: colors.surface + 'AA' }]}>
-          <Text style={styles.emojiItemContent}>{item.content}</Text>
-        </View>
-      )}
-    </Animated.View>
+                {/* Resize handles for images */}
+                {isSelected && item.type === 'image' && (
+                  <>
+                    <View style={[styles.resizeHandle, styles.resizeHandleTopLeft, { backgroundColor: colors.primary }]} />
+                    <View style={[styles.resizeHandle, styles.resizeHandleTopRight, { backgroundColor: colors.primary }]} />
+                    <View style={[styles.resizeHandle, styles.resizeHandleBottomLeft, { backgroundColor: colors.primary }]} />
+                    <View style={[styles.resizeHandle, styles.resizeHandleBottomRight, { backgroundColor: colors.primary }]} />
+                  </>
+                )}
+
+                {/* Item content */}
+                {item.type === 'image' && (
+                  <Image 
+                    source={{ uri: item.content }} 
+                    style={styles.itemContent}
+                    contentFit="cover"
+                    cachePolicy="memory-disk"
+                    transition={200}
+                  />
+                )}
+                
+                {item.type === 'text' && (
+                  <View style={[styles.textItemContainer, { backgroundColor: colors.primary + 'DD' }]}>
+                    <Text style={[styles.textItemContent, { color: 'white' }]} numberOfLines={3}>
+                      {item.content}
+                    </Text>
+                  </View>
+                )}
+                
+                {item.type === 'emoji' && (
+                  <View style={[styles.emojiItemContainer, { backgroundColor: colors.surface + 'BB' }]}>
+                    <Text style={styles.emojiItemContent}>{item.content}</Text>
+                  </View>
+                )}
+              </Animated.View>
+            </TapGestureHandler>
+          </Animated.View>
+        </PinchGestureHandler>
+      </Animated.View>
+    </PanGestureHandler>
   );
 };
 
@@ -192,31 +255,46 @@ export default function VisionBoardScreen() {
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const { cocreationId } = useLocalSearchParams<{ cocreationId: string }>();
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   
   const { items, loading, addItem, updateItem, deleteItem, refresh } = useVisionBoard(cocreationId || '');
 
+  // Responsive canvas size
+  const canvasWidth = screenWidth * 1.8;
+  const canvasHeight = screenHeight * 1.2;
+
+  // State
   const [showTextModal, setShowTextModal] = useState(false);
   const [showEmojiModal, setShowEmojiModal] = useState(false);
   const [textInput, setTextInput] = useState('');
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const [localItems, setLocalItems] = useState<any[]>([]);
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const [itemZIndices, setItemZIndices] = useState<{ [key: string]: number }>({});
 
-  // Sync items with local state for immediate updates
+  // Zoom controls
+  const zoom = useSharedValue(1);
+  const canvasTranslateX = useSharedValue(0);
+  const canvasTranslateY = useSharedValue(0);
+
+  // Initialize z-indices
   useEffect(() => {
-    console.log('Items updated:', items.length);
-    setLocalItems([...items]);
+    const newZIndices: { [key: string]: number } = {};
+    items.forEach((item, index) => {
+      newZIndices[item.id] = index + 1;
+    });
+    setItemZIndices(newZIndices);
   }, [items]);
 
-  const showAlert = (title: string, message: string, onOk?: () => void) => {
+  const showAlert = useCallback((title: string, message: string, onOk?: () => void) => {
     if (Platform.OS === 'web') {
       alert(`${title}: ${message}`);
       onOk?.();
     } else {
       Alert.alert(title, message, onOk ? [{ text: 'OK', onPress: onOk }] : undefined);
     }
-  };
+  }, []);
 
-  const showConfirm = (title: string, message: string, onConfirm: () => void) => {
+  const showConfirm = useCallback((title: string, message: string, onConfirm: () => void) => {
     if (Platform.OS === 'web') {
       if (confirm(`${title}: ${message}`)) onConfirm();
     } else {
@@ -225,43 +303,45 @@ export default function VisionBoardScreen() {
         { text: 'Confirmar', onPress: onConfirm },
       ]);
     }
-  };
+  }, []);
 
-  // Find empty position in visible area
-  const findEmptyPosition = (itemWidth: number, itemHeight: number) => {
+  // Find empty position with collision detection
+  const findEmptyPosition = useCallback((itemWidth: number, itemHeight: number) => {
     const margin = 20;
-    const maxAttempts = 50;
+    const maxAttempts = 100;
+    const visibleWidth = screenWidth - 40;
+    const visibleHeight = screenHeight * 0.5;
     
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      const x = margin + Math.random() * (VISIBLE_AREA.width - itemWidth - margin * 2);
-      const y = margin + Math.random() * (VISIBLE_AREA.height - itemHeight - margin * 2);
+      const x = margin + Math.random() * (visibleWidth - itemWidth - margin * 2);
+      const y = margin + Math.random() * (visibleHeight - itemHeight - margin * 2);
       
-      // Check if position overlaps with existing items
-      const overlaps = localItems.some(existingItem => {
+      // Check collision with existing items
+      const hasCollision = items.some(existingItem => {
         const exX = existingItem.position_x || 0;
         const exY = existingItem.position_y || 0;
         const exW = existingItem.width || 120;
         const exH = existingItem.height || 120;
         
-        return !(x > exX + exW + 10 || 
-                 x + itemWidth + 10 < exX || 
-                 y > exY + exH + 10 || 
-                 y + itemHeight + 10 < exY);
+        return !(x > exX + exW + 15 || 
+                 x + itemWidth + 15 < exX || 
+                 y > exY + exH + 15 || 
+                 y + itemHeight + 15 < exY);
       });
       
-      if (!overlaps) {
+      if (!hasCollision) {
         return { x, y };
       }
     }
     
-    // If no empty position found, use a random position
+    // Fallback: random position
     return {
-      x: margin + Math.random() * (VISIBLE_AREA.width - itemWidth - margin * 2),
-      y: margin + Math.random() * (VISIBLE_AREA.height - itemHeight - margin * 2),
+      x: margin + Math.random() * (visibleWidth - itemWidth - margin * 2),
+      y: margin + Math.random() * (visibleHeight - itemHeight - margin * 2),
     };
-  };
+  }, [items, screenWidth, screenHeight]);
 
-  const handleAddImage = async () => {
+  const handleAddImage = useCallback(async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
       showAlert('Permissão Necessária', 'Precisamos de permissão para acessar suas fotos.');
@@ -276,9 +356,8 @@ export default function VisionBoardScreen() {
 
     if (!result.canceled) {
       try {
-        const itemWidth = 150;
-        const itemHeight = 150;
-        const position = findEmptyPosition(itemWidth, itemHeight);
+        const itemSize = Math.min(screenWidth * 0.35, 150);
+        const position = findEmptyPosition(itemSize, itemSize);
         
         const newItem = {
           type: 'image' as const,
@@ -286,39 +365,36 @@ export default function VisionBoardScreen() {
           description: 'Imagem do Vision Board',
           position_x: position.x,
           position_y: position.y,
-          width: itemWidth,
-          height: itemHeight,
+          width: itemSize,
+          height: itemSize,
         };
 
-        console.log('Adding image item:', newItem);
-        
         const response = await addItem(newItem);
         if (response.error) {
-          console.error('Error adding image:', response.error);
           showAlert('Erro', 'Não foi possível adicionar a imagem.');
         } else {
-          console.log('Image added successfully:', response.data);
           setHasUnsavedChanges(true);
           
-          // Force refresh to ensure item appears
-          setTimeout(() => refresh(), 100);
+          // Set z-index for new item
+          const maxZ = Math.max(...Object.values(itemZIndices), 0);
+          setItemZIndices(prev => ({ ...prev, [response.data.id]: maxZ + 1 }));
         }
       } catch (error) {
         console.error('Error adding image:', error);
         showAlert('Erro', 'Algo deu errado ao adicionar a imagem.');
       }
     }
-  };
+  }, [findEmptyPosition, addItem, showAlert, screenWidth, itemZIndices]);
 
-  const handleAddText = async () => {
+  const handleAddText = useCallback(async () => {
     if (!textInput.trim()) {
       showAlert('Erro', 'Por favor, digite um texto.');
       return;
     }
 
     try {
-      const itemWidth = 180;
-      const itemHeight = 100;
+      const itemWidth = Math.min(screenWidth * 0.45, 180);
+      const itemHeight = Math.min(screenWidth * 0.25, 100);
       const position = findEmptyPosition(itemWidth, itemHeight);
       
       const newItem = {
@@ -331,32 +407,28 @@ export default function VisionBoardScreen() {
         height: itemHeight,
       };
 
-      console.log('Adding text item:', newItem);
-      
       const response = await addItem(newItem);
       if (response.error) {
-        console.error('Error adding text:', response.error);
         showAlert('Erro', 'Não foi possível adicionar o texto.');
       } else {
-        console.log('Text added successfully:', response.data);
         setTextInput('');
         setShowTextModal(false);
         setHasUnsavedChanges(true);
         
-        // Force refresh to ensure item appears
-        setTimeout(() => refresh(), 100);
+        // Set z-index for new item
+        const maxZ = Math.max(...Object.values(itemZIndices), 0);
+        setItemZIndices(prev => ({ ...prev, [response.data.id]: maxZ + 1 }));
       }
     } catch (error) {
       console.error('Error adding text:', error);
       showAlert('Erro', 'Algo deu errado ao adicionar o texto.');
     }
-  };
+  }, [textInput, findEmptyPosition, addItem, showAlert, screenWidth, itemZIndices]);
 
-  const handleAddEmoji = async (emoji: string) => {
+  const handleAddEmoji = useCallback(async (emoji: string) => {
     try {
-      const itemWidth = 80;
-      const itemHeight = 80;
-      const position = findEmptyPosition(itemWidth, itemHeight);
+      const itemSize = Math.min(screenWidth * 0.2, 80);
+      const position = findEmptyPosition(itemSize, itemSize);
       
       const newItem = {
         type: 'emoji' as const,
@@ -364,81 +436,93 @@ export default function VisionBoardScreen() {
         description: 'Símbolo sagrado',
         position_x: position.x,
         position_y: position.y,
-        width: itemWidth,
-        height: itemHeight,
+        width: itemSize,
+        height: itemSize,
       };
 
-      console.log('Adding emoji item:', newItem);
-      
       const response = await addItem(newItem);
       if (response.error) {
-        console.error('Error adding emoji:', response.error);
         showAlert('Erro', 'Não foi possível adicionar o emoji.');
       } else {
-        console.log('Emoji added successfully:', response.data);
         setShowEmojiModal(false);
         setHasUnsavedChanges(true);
         
-        // Force refresh to ensure item appears
-        setTimeout(() => refresh(), 100);
+        // Set z-index for new item
+        const maxZ = Math.max(...Object.values(itemZIndices), 0);
+        setItemZIndices(prev => ({ ...prev, [response.data.id]: maxZ + 1 }));
       }
     } catch (error) {
       console.error('Error adding emoji:', error);
       showAlert('Erro', 'Algo deu errado ao adicionar o emoji.');
     }
-  };
+  }, [findEmptyPosition, addItem, showAlert, screenWidth, itemZIndices]);
 
-  const handleUpdateItem = async (id: string, updates: any) => {
+  const handleUpdateItem = useCallback(async (id: string, updates: any) => {
     try {
-      console.log('Updating item:', id, updates);
-      
-      // Update local state immediately for smooth UX
-      setLocalItems(prev => prev.map(item => 
-        item.id === id ? { ...item, ...updates } : item
-      ));
-      
-      // Update database
       const response = await updateItem(id, updates);
-      if (response.error) {
-        console.error('Error updating item:', response.error);
-        // Revert local changes on error
-        await refresh();
-      } else {
+      if (!response.error) {
         setHasUnsavedChanges(true);
       }
     } catch (error) {
       console.error('Error updating item:', error);
-      // Revert local changes on error
-      await refresh();
     }
-  };
+  }, [updateItem]);
 
-  const handleDeleteItem = async (id: string) => {
+  const handleDeleteItem = useCallback(async (id: string) => {
     try {
-      console.log('Deleting item:', id);
-      
-      // Update local state immediately
-      setLocalItems(prev => prev.filter(item => item.id !== id));
-      
-      // Delete from database
       const response = await deleteItem(id);
-      if (response.error) {
-        console.error('Error deleting item:', response.error);
-        showAlert('Erro', 'Não foi possível excluir o item.');
-        // Revert local changes on error
-        await refresh();
-      } else {
+      if (!response.error) {
         setHasUnsavedChanges(true);
+        setSelectedItemId(null);
+        
+        // Remove from z-indices
+        setItemZIndices(prev => {
+          const newZIndices = { ...prev };
+          delete newZIndices[id];
+          return newZIndices;
+        });
+      } else {
+        showAlert('Erro', 'Não foi possível excluir o item.');
       }
     } catch (error) {
       console.error('Error deleting item:', error);
       showAlert('Erro', 'Algo deu errado ao excluir o item.');
-      // Revert local changes on error
-      await refresh();
     }
-  };
+  }, [deleteItem, showAlert]);
 
-  const handleExit = () => {
+  const handleSelectItem = useCallback((id: string) => {
+    setSelectedItemId(prev => prev === id ? null : id);
+    
+    // Bring to front
+    const maxZ = Math.max(...Object.values(itemZIndices), 0);
+    setItemZIndices(prev => ({ ...prev, [id]: maxZ + 1 }));
+  }, [itemZIndices]);
+
+  const handleZoomReset = useCallback(() => {
+    zoom.value = withSpring(1);
+    canvasTranslateX.value = withSpring(0);
+    canvasTranslateY.value = withSpring(0);
+  }, []);
+
+  const handleZoomIn = useCallback(() => {
+    zoom.value = withSpring(Math.min(zoom.value * 1.2, 3));
+  }, []);
+
+  const handleZoomOut = useCallback(() => {
+    zoom.value = withSpring(Math.max(zoom.value * 0.8, 0.5));
+  }, []);
+
+  const canvasAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [
+        { translateX: canvasTranslateX.value },
+        { translateY: canvasTranslateY.value },
+        { scale: zoom.value },
+      ],
+    };
+  });
+
+  const handleExit = useCallback(() => {
     if (hasUnsavedChanges) {
       showConfirm(
         'Alterações não salvas',
@@ -448,25 +532,17 @@ export default function VisionBoardScreen() {
     } else {
       router.back();
     }
-  };
+  }, [hasUnsavedChanges, showConfirm]);
 
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     try {
-      await refresh(); // Sync with database
+      await refresh();
       setHasUnsavedChanges(false);
       showAlert('Vision Board Salvo!', 'Suas alterações foram salvas com sucesso.');
     } catch (error) {
       showAlert('Erro', 'Não foi possível salvar as alterações.');
     }
-  };
-
-  const handleFinish = () => {
-    showAlert(
-      'Vision Board Concluído!',
-      'Sua manifestação consciente está ativa. Visualize seus sonhos diariamente.',
-      () => router.push('/(tabs)/individual')
-    );
-  };
+  }, [refresh, showAlert]);
 
   if (!user) {
     return (
@@ -484,53 +560,57 @@ export default function VisionBoardScreen() {
   }
 
   return (
-    <GradientBackground>
-      <View style={[styles.container, { paddingTop: insets.top }]}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={handleExit} style={styles.headerButton}>
-            <MaterialIcons name="arrow-back" size={24} color={colors.text} />
-          </TouchableOpacity>
-          
-          <View style={styles.headerCenter}>
-            <Text style={[styles.headerTitle, { color: colors.text }]}>Vision Board</Text>
-            <Text style={[styles.headerSubtitle, { color: colors.textMuted }]}>
-              Manifeste conscientemente
-            </Text>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <GradientBackground>
+        <View style={[styles.container, { paddingTop: insets.top }]}>
+          {/* Header */}
+          <View style={styles.header}>
+            <TouchableOpacity onPress={handleExit} style={styles.headerButton}>
+              <MaterialIcons name="arrow-back" size={24} color={colors.text} />
+            </TouchableOpacity>
+            
+            <View style={styles.headerCenter}>
+              <Text style={[styles.headerTitle, { color: colors.text }]}>Vision Board</Text>
+              <Text style={[styles.headerSubtitle, { color: colors.textMuted }]}>
+                Manifeste conscientemente
+              </Text>
+            </View>
+            
+            {/* Zoom controls */}
+            <View style={styles.zoomControls}>
+              <TouchableOpacity onPress={handleZoomOut} style={[styles.zoomButton, { backgroundColor: colors.surface }]}>
+                <MaterialIcons name="zoom-out" size={20} color={colors.text} />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleZoomReset} style={[styles.zoomButton, { backgroundColor: colors.surface }]}>
+                <MaterialIcons name="center-focus-strong" size={20} color={colors.text} />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleZoomIn} style={[styles.zoomButton, { backgroundColor: colors.surface }]}>
+                <MaterialIcons name="zoom-in" size={20} color={colors.text} />
+              </TouchableOpacity>
+            </View>
           </View>
-          
-          <TouchableOpacity onPress={handleSave} style={styles.headerButton}>
-            <MaterialIcons 
-              name="save" 
-              size={24} 
-              color={hasUnsavedChanges ? colors.primary : colors.textMuted} 
-            />
-          </TouchableOpacity>
-        </View>
 
-        {/* Canvas Container */}
-        <View style={styles.canvasWrapper}>
-          <ScrollView
-            style={styles.canvasScrollView}
-            contentContainerStyle={{
-              width: CANVAS_WIDTH,
-              height: CANVAS_HEIGHT,
-            }}
-            showsVerticalScrollIndicator={false}
-            showsHorizontalScrollIndicator={false}
-            maximumZoomScale={1.5}
-            minimumZoomScale={0.8}
-            bounces={false}
-          >
-            <View style={[styles.canvas, { backgroundColor: colors.surface + '20' }]}>
+          {/* Canvas Container */}
+          <View style={styles.canvasWrapper}>
+            <Animated.View 
+              style={[
+                styles.canvas, 
+                { 
+                  backgroundColor: colors.surface + '15',
+                  width: canvasWidth,
+                  height: canvasHeight,
+                },
+                canvasAnimatedStyle
+              ]}
+            >
               {/* Background grid */}
               <View style={styles.gridPattern}>
-                {Array.from({ length: Math.ceil(CANVAS_HEIGHT / 50) }).map((_, row) => (
+                {Array.from({ length: Math.ceil(canvasHeight / 40) }).map((_, row) => (
                   <View key={`row-${row}`} style={styles.gridRow}>
-                    {Array.from({ length: Math.ceil(CANVAS_WIDTH / 50) }).map((_, col) => (
+                    {Array.from({ length: Math.ceil(canvasWidth / 40) }).map((_, col) => (
                       <View 
                         key={`dot-${row}-${col}`} 
-                        style={[styles.gridDot, { backgroundColor: colors.border + '30' }]} 
+                        style={[styles.gridDot, { backgroundColor: colors.border + '25' }]} 
                       />
                     ))}
                   </View>
@@ -538,142 +618,146 @@ export default function VisionBoardScreen() {
               </View>
 
               {/* Vision Board Items */}
-              {localItems.map((item) => (
+              {items.map((item) => (
                 <DraggableItem
-                  key={`${item.id}-${item.updated_at || item.created_at}`}
+                  key={item.id}
                   item={item}
                   onUpdate={handleUpdateItem}
                   onDelete={handleDeleteItem}
+                  canvasWidth={canvasWidth}
+                  canvasHeight={canvasHeight}
+                  isSelected={selectedItemId === item.id}
+                  onSelect={handleSelectItem}
+                  zIndex={itemZIndices[item.id] || 1}
                 />
               ))}
 
               {/* Empty state */}
-              {localItems.length === 0 && (
+              {items.length === 0 && (
                 <View style={styles.emptyState}>
-                  <View style={[styles.emptyStateContent, { backgroundColor: colors.surface + '60' }]}>
-                    <MaterialIcons name="touch-app" size={48} color={colors.textMuted} />
+                  <View style={[styles.emptyStateContent, { backgroundColor: colors.surface + '80' }]}>
+                    <MaterialIcons name="auto-awesome" size={48} color={colors.primary} />
                     <Text style={[styles.emptyStateTitle, { color: colors.text }]}>
                       Canvas Sagrado
                     </Text>
                     <Text style={[styles.emptyStateText, { color: colors.textSecondary }]}>
-                      Toque nos botões abaixo para adicionar{'\n'}
-                      imagens, textos e símbolos sagrados
+                      Comece a criar sua manifestação{'\n'}
+                      Toque nos botões para adicionar elementos
                     </Text>
                   </View>
                 </View>
               )}
-            </View>
-          </ScrollView>
-        </View>
+            </Animated.View>
+          </View>
 
-        {/* Action Buttons */}
-        <View style={styles.actionBar}>
-          <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: colors.primary }]}
-            onPress={handleAddImage}
-            activeOpacity={0.8}
-          >
-            <MaterialIcons name="add-photo-alternate" size={28} color="white" />
-            <Text style={styles.actionButtonText}>Imagem</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: colors.secondary }]}
-            onPress={() => setShowTextModal(true)}
-            activeOpacity={0.8}
-          >
-            <MaterialIcons name="text-fields" size={28} color="white" />
-            <Text style={styles.actionButtonText}>Texto</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: colors.accent }]}
-            onPress={() => setShowEmojiModal(true)}
-            activeOpacity={0.8}
-          >
-            <MaterialIcons name="emoji-emotions" size={28} color="white" />
-            <Text style={styles.actionButtonText}>Símbolo</Text>
-          </TouchableOpacity>
-        </View>
+          {/* Floating Action Buttons */}
+          <View style={styles.floatingActions}>
+            <TouchableOpacity
+              style={[styles.floatingButton, { backgroundColor: colors.primary }]}
+              onPress={handleAddImage}
+              activeOpacity={0.8}
+            >
+              <MaterialIcons name="add-photo-alternate" size={24} color="white" />
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[styles.floatingButton, { backgroundColor: colors.secondary }]}
+              onPress={() => setShowTextModal(true)}
+              activeOpacity={0.8}
+            >
+              <MaterialIcons name="text-fields" size={24} color="white" />
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[styles.floatingButton, { backgroundColor: colors.accent }]}
+              onPress={() => setShowEmojiModal(true)}
+              activeOpacity={0.8}
+            >
+              <MaterialIcons name="emoji-emotions" size={24} color="white" />
+            </TouchableOpacity>
 
-        {/* Finish Button */}
-        <View style={styles.finishSection}>
-          <SacredButton
-            title="Finalizar Vision Board"
-            onPress={handleFinish}
-            style={[styles.finishButton, { backgroundColor: colors.primary }]}
-          />
-        </View>
+            {/* Floating Finish Button */}
+            <TouchableOpacity
+              style={[styles.finishFloatingButton, { backgroundColor: colors.primary }]}
+              onPress={() => {
+                showAlert(
+                  'Vision Board Concluído!',
+                  'Sua manifestação consciente está ativa. Visualize seus sonhos diariamente.',
+                  () => router.push('/(tabs)/individual')
+                );
+              }}
+              activeOpacity={0.8}
+            >
+              <MaterialIcons name="check" size={28} color="white" />
+              <Text style={styles.finishFloatingButtonText}>Finalizar</Text>
+            </TouchableOpacity>
+          </View>
 
-        {/* Text Input Modal */}
-        <Modal visible={showTextModal} transparent animationType="fade">
-          <View style={styles.modalOverlay}>
-            <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>
-                Adicionar Texto Sagrado
-              </Text>
-              
-              <TextInput
-                style={[
-                  styles.textInput, 
-                  { 
-                    backgroundColor: colors.background, 
-                    color: colors.text,
-                    borderColor: colors.border
-                  }
-                ]}
-                value={textInput}
-                onChangeText={setTextInput}
-                placeholder="Digite sua intenção, sonho ou afirmação..."
-                placeholderTextColor={colors.textMuted}
-                multiline
-                numberOfLines={4}
-                autoFocus
-                maxLength={100}
-              />
-              
-              <Text style={[styles.charCount, { color: colors.textMuted }]}>
-                {textInput.length}/100 caracteres
-              </Text>
-              
-              <View style={styles.modalButtons}>
-                <TouchableOpacity
-                  style={[styles.modalButton, { backgroundColor: colors.textMuted }]}
-                  onPress={() => {
-                    setTextInput('');
-                    setShowTextModal(false);
-                  }}
-                >
-                  <Text style={styles.modalButtonText}>Cancelar</Text>
-                </TouchableOpacity>
+          {/* Text Input Modal */}
+          <Modal visible={showTextModal} transparent animationType="fade">
+            <View style={styles.modalOverlay}>
+              <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+                <Text style={[styles.modalTitle, { color: colors.text }]}>
+                  Texto Sagrado
+                </Text>
                 
-                <TouchableOpacity
+                <TextInput
                   style={[
-                    styles.modalButton, 
-                    { backgroundColor: textInput.trim() ? colors.primary : colors.textMuted }
+                    styles.textInput, 
+                    { 
+                      backgroundColor: colors.background, 
+                      color: colors.text,
+                      borderColor: colors.border
+                    }
                   ]}
-                  onPress={handleAddText}
-                  disabled={!textInput.trim()}
-                >
-                  <Text style={styles.modalButtonText}>Adicionar</Text>
-                </TouchableOpacity>
+                  value={textInput}
+                  onChangeText={setTextInput}
+                  placeholder="Digite sua intenção, sonho ou afirmação..."
+                  placeholderTextColor={colors.textMuted}
+                  multiline
+                  numberOfLines={4}
+                  autoFocus
+                  maxLength={100}
+                />
+                
+                <Text style={[styles.charCount, { color: colors.textMuted }]}>
+                  {textInput.length}/100 caracteres
+                </Text>
+                
+                <View style={styles.modalButtons}>
+                  <TouchableOpacity
+                    style={[styles.modalButton, { backgroundColor: colors.textMuted }]}
+                    onPress={() => {
+                      setTextInput('');
+                      setShowTextModal(false);
+                    }}
+                  >
+                    <Text style={styles.modalButtonText}>Cancelar</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    style={[
+                      styles.modalButton, 
+                      { backgroundColor: textInput.trim() ? colors.primary : colors.textMuted }
+                    ]}
+                    onPress={handleAddText}
+                    disabled={!textInput.trim()}
+                  >
+                    <Text style={styles.modalButtonText}>Adicionar</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
-          </View>
-        </Modal>
+          </Modal>
 
-        {/* Emoji Selection Modal */}
-        <Modal visible={showEmojiModal} transparent animationType="slide">
-          <View style={styles.modalOverlay}>
-            <View style={[styles.emojiModalContent, { backgroundColor: colors.surface }]}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>
-                Símbolos Sagrados
-              </Text>
-              
-              <ScrollView 
-                style={styles.emojiScrollView}
-                showsVerticalScrollIndicator={false}
-              >
+          {/* Emoji Selection Modal */}
+          <Modal visible={showEmojiModal} transparent animationType="slide">
+            <View style={styles.modalOverlay}>
+              <View style={[styles.emojiModalContent, { backgroundColor: colors.surface }]}>
+                <Text style={[styles.modalTitle, { color: colors.text }]}>
+                  Símbolos Sagrados
+                </Text>
+                
                 <View style={styles.emojiGrid}>
                   {SACRED_EMOJIS.map((emoji, index) => (
                     <TouchableOpacity
@@ -686,19 +770,19 @@ export default function VisionBoardScreen() {
                     </TouchableOpacity>
                   ))}
                 </View>
-              </ScrollView>
-              
-              <TouchableOpacity
-                style={[styles.closeModalButton, { backgroundColor: colors.textMuted }]}
-                onPress={() => setShowEmojiModal(false)}
-              >
-                <Text style={styles.modalButtonText}>Fechar</Text>
-              </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[styles.closeModalButton, { backgroundColor: colors.textMuted }]}
+                  onPress={() => setShowEmojiModal(false)}
+                >
+                  <Text style={styles.modalButtonText}>Fechar</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
-        </Modal>
-      </View>
-    </GradientBackground>
+          </Modal>
+        </View>
+      </GradientBackground>
+    </GestureHandlerRootView>
   );
 }
 
@@ -713,8 +797,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    zIndex: 100,
+    paddingVertical: Spacing.sm,
+    zIndex: 1000,
   },
   headerButton: {
     padding: Spacing.sm,
@@ -732,21 +816,28 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 2,
   },
+  zoomControls: {
+    flexDirection: 'row',
+    gap: 4,
+  },
+  zoomButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   
   // Canvas
   canvasWrapper: {
     flex: 1,
-    paddingHorizontal: Spacing.lg,
-  },
-  canvasScrollView: {
-    flex: 1,
-    borderRadius: 16,
-    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   canvas: {
-    flex: 1,
+    borderRadius: 20,
     position: 'relative',
-    borderRadius: 16,
+    overflow: 'hidden',
   },
   gridPattern: {
     position: 'absolute',
@@ -758,51 +849,50 @@ const styles = StyleSheet.create({
   gridRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 25,
-    paddingHorizontal: 25,
+    paddingVertical: 20,
+    paddingHorizontal: 20,
   },
   gridDot: {
-    width: 2,
-    height: 2,
+    width: 1.5,
+    height: 1.5,
     borderRadius: 1,
   },
   
-  // Draggable Items
-  draggableItem: {
-    position: 'absolute',
-    borderRadius: 12,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    backgroundColor: 'transparent',
-  },
-  draggingItem: {
-    elevation: 8,
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-  },
+  // Items
   deleteButton: {
     position: 'absolute',
-    top: -10,
-    right: -10,
+    top: -12,
+    right: -12,
     width: 28,
     height: 28,
     borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 1000,
+    zIndex: 1001,
     elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
   },
+  resizeHandle: {
+    position: 'absolute',
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    zIndex: 1000,
+  },
+  resizeHandleTopLeft: { top: -6, left: -6 },
+  resizeHandleTopRight: { top: -6, right: -6 },
+  resizeHandleBottomLeft: { bottom: -6, left: -6 },
+  resizeHandleBottomRight: { bottom: -6, right: -6 },
   itemContent: {
     width: '100%',
     height: '100%',
     borderRadius: 12,
   },
   textItemContainer: {
-    width: '100%',
-    height: '100%',
+    flex: 1,
     borderRadius: 12,
     padding: Spacing.sm,
     justifyContent: 'center',
@@ -815,8 +905,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   emojiItemContainer: {
-    width: '100%',
-    height: '100%',
+    flex: 1,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
@@ -828,66 +917,72 @@ const styles = StyleSheet.create({
   // Empty State
   emptyState: {
     position: 'absolute',
-    top: '35%',
+    top: '40%',
     left: '50%',
-    transform: [{ translateX: -120 }, { translateY: -80 }],
+    transform: [{ translateX: -140 }, { translateY: -80 }],
   },
   emptyStateContent: {
     padding: Spacing.xl,
-    borderRadius: 20,
+    borderRadius: 24,
     alignItems: 'center',
-    width: 240,
+    width: 280,
   },
   emptyStateTitle: {
-    fontSize: 20,
-    fontWeight: '600',
+    fontSize: 22,
+    fontWeight: '700',
     marginTop: Spacing.md,
     marginBottom: Spacing.sm,
   },
   emptyStateText: {
-    fontSize: 14,
+    fontSize: 15,
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: 22,
   },
   
-  // Action Bar
-  actionBar: {
-    flexDirection: 'row',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
+  // Floating Actions
+  floatingActions: {
+    position: 'absolute',
+    right: Spacing.lg,
+    bottom: Spacing.xl,
+    alignItems: 'center',
     gap: Spacing.md,
   },
-  actionButton: {
-    flex: 1,
+  floatingButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: Spacing.lg,
-    borderRadius: 12,
-    elevation: 2,
+    elevation: 8,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
   },
-  actionButtonText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: '600',
-    marginTop: Spacing.xs,
-  },
-  
-  // Finish Section
-  finishSection: {
+  finishFloatingButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderRadius: 28,
+    elevation: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    marginTop: Spacing.sm,
   },
-  finishButton: {
-    paddingVertical: Spacing.lg,
+  finishFloatingButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '700',
+    marginLeft: Spacing.xs,
   },
   
   // Modals
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    backgroundColor: 'rgba(0,0,0,0.8)',
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: Spacing.lg,
@@ -896,16 +991,16 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 400,
     padding: Spacing.xl,
-    borderRadius: 20,
+    borderRadius: 24,
   },
   modalTitle: {
-    fontSize: 22,
-    fontWeight: '600',
+    fontSize: 24,
+    fontWeight: '700',
     textAlign: 'center',
     marginBottom: Spacing.xl,
   },
   textInput: {
-    borderRadius: 12,
+    borderRadius: 16,
     padding: Spacing.lg,
     fontSize: 16,
     minHeight: 120,
@@ -925,7 +1020,7 @@ const styles = StyleSheet.create({
   modalButton: {
     flex: 1,
     paddingVertical: Spacing.md,
-    borderRadius: 10,
+    borderRadius: 12,
     alignItems: 'center',
   },
   modalButtonText: {
@@ -938,19 +1033,16 @@ const styles = StyleSheet.create({
   emojiModalContent: {
     width: '95%',
     maxWidth: 500,
-    maxHeight: '85%',
+    maxHeight: '80%',
     padding: Spacing.lg,
-    borderRadius: 20,
-  },
-  emojiScrollView: {
-    maxHeight: 350,
-    marginBottom: Spacing.lg,
+    borderRadius: 24,
   },
   emojiGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    justifyContent: 'space-around',
     gap: Spacing.sm,
+    marginBottom: Spacing.lg,
   },
   emojiButton: {
     width: 60,
@@ -965,7 +1057,7 @@ const styles = StyleSheet.create({
   },
   closeModalButton: {
     paddingVertical: Spacing.md,
-    borderRadius: 10,
+    borderRadius: 12,
     alignItems: 'center',
   },
   
