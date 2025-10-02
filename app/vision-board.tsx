@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,6 +9,10 @@ import {
   Dimensions,
   Alert,
   Platform,
+  Modal,
+  TextInput,
+  PanResponder,
+  Animated,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,13 +24,104 @@ import SacredCard from '@/components/ui/SacredCard';
 import SacredButton from '@/components/ui/SacredButton';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { useVisionBoard } from '@/hooks/useIndividualCocriations';
+import { useVisionBoard } from '@/hooks/useVisionBoard';
 import { useIndividualCocriations } from '@/hooks/useIndividualCocriations';
 import { Spacing } from '@/constants/Colors';
 
-const { width } = Dimensions.get('window');
-const GRID_SIZE = 3;
-const ITEM_SIZE = (width - (Spacing.lg * 2) - (Spacing.md * (GRID_SIZE - 1))) / GRID_SIZE;
+const { width, height } = Dimensions.get('window');
+const CANVAS_WIDTH = width * 3;
+const CANVAS_HEIGHT = height * 2;
+
+// Sacred emojis for selection
+const SACRED_EMOJIS = [
+  '✨', '💫', '🌟', '⭐', '💖', '💜', '🤍', '💎',
+  '🙏', '🕉️', '☯️', '🔮', '🕯️', '🪷', '🌸', '🌺',
+  '🦋', '🕊️', '🌈', '☀️', '🌙', '🌊', '🌳', '🍃',
+  '💰', '🏆', '👑', '🎯', '🎨', '📿', '🧘‍♀️', '🧘‍♂️'
+];
+
+interface VisionBoardItemProps {
+  item: any;
+  onUpdate: (id: string, updates: any) => void;
+  onDelete: (id: string) => void;
+}
+
+const DraggableVisionBoardItem: React.FC<VisionBoardItemProps> = ({ item, onUpdate, onDelete }) => {
+  const { colors } = useTheme();
+  const pan = useRef(new Animated.ValueXY({ x: item.position_x || 0, y: item.position_y || 0 })).current;
+  const [showDeleteButton, setShowDeleteButton] = useState(false);
+
+  const panResponder = PanResponder.create({
+    onMoveShouldSetPanResponder: () => true,
+    onPanResponderGrant: () => {
+      pan.setOffset({
+        x: pan.x._value,
+        y: pan.y._value,
+      });
+      setShowDeleteButton(true);
+    },
+    onPanResponderMove: Animated.event([null, { dx: pan.x, dy: pan.y }], {
+      useNativeDriver: false,
+    }),
+    onPanResponderRelease: () => {
+      pan.flattenOffset();
+      
+      // Save new position
+      const newX = pan.x._value;
+      const newY = pan.y._value;
+      onUpdate(item.id, { position_x: newX, position_y: newY });
+      
+      setTimeout(() => setShowDeleteButton(false), 2000);
+    },
+  });
+
+  const itemStyle = {
+    width: item.width || 120,
+    height: item.height || 120,
+  };
+
+  return (
+    <Animated.View
+      style={[
+        styles.draggableItem,
+        itemStyle,
+        {
+          transform: [{ translateX: pan.x }, { translateY: pan.y }],
+        },
+      ]}
+      {...panResponder.panHandlers}
+    >
+      {/* Delete button */}
+      {showDeleteButton && (
+        <TouchableOpacity
+          style={[styles.deleteButton, { backgroundColor: colors.error }]}
+          onPress={() => onDelete(item.id)}
+        >
+          <MaterialIcons name="close" size={16} color="white" />
+        </TouchableOpacity>
+      )}
+
+      {/* Item content */}
+      {item.type === 'image' && (
+        <Image 
+          source={{ uri: item.content }} 
+          style={styles.itemContent}
+          contentFit="cover"
+        />
+      )}
+      {item.type === 'text' && (
+        <View style={[styles.textItem, { backgroundColor: colors.primary + '80' }]}>
+          <Text style={styles.itemText}>{item.content}</Text>
+        </View>
+      )}
+      {item.type === 'emoji' && (
+        <View style={[styles.emojiItem, { backgroundColor: colors.surface + '40' }]}>
+          <Text style={styles.itemEmoji}>{item.content}</Text>
+        </View>
+      )}
+    </Animated.View>
+  );
+};
 
 export default function VisionBoardScreen() {
   const { colors } = useTheme();
@@ -33,24 +129,33 @@ export default function VisionBoardScreen() {
   const insets = useSafeAreaInsets();
   const { cocreationId } = useLocalSearchParams<{ cocreationId: string }>();
   
-  const { items, loading, addItem, refresh } = useVisionBoard(cocreationId || '');
-  const { updateCocriation } = useIndividualCocriations();
+  const { items, loading, addItem, updateItem, deleteItem, refresh } = useVisionBoard(cocreationId || '');
 
-  const [cocriation, setCocriation] = useState<any>(null);
-
-    useEffect(() => {
-    // Vision board items loaded, no status update needed since we start as active
-  }, [items]);
+  const [showTextModal, setShowTextModal] = useState(false);
+  const [showEmojiModal, setShowEmojiModal] = useState(false);
+  const [textInput, setTextInput] = useState('');
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   const showWebAlert = (title: string, message: string, onOk?: () => void) => {
     if (Platform.OS === 'web') {
-      alert(`${title}: ${message}`);
-      onOk?.();
+      const result = confirm(`${title}: ${message}`);
+      if (result && onOk) onOk();
     } else {
       Alert.alert(title, message, onOk ? [{ text: 'OK', onPress: onOk }] : undefined);
     }
   };
 
+  const showConfirmDialog = (title: string, message: string, onConfirm: () => void) => {
+    if (Platform.OS === 'web') {
+      const result = confirm(`${title}: ${message}`);
+      if (result) onConfirm();
+    } else {
+      Alert.alert(title, message, [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Confirmar', onPress: onConfirm },
+      ]);
+    }
+  };
 
   const addImageToBoard = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -67,21 +172,20 @@ export default function VisionBoardScreen() {
 
     if (!result.canceled) {
       try {
-        const imageResult = await addItem({
+        const randomX = Math.random() * (CANVAS_WIDTH - 200);
+        const randomY = Math.random() * (CANVAS_HEIGHT - 200);
+        
+        await addItem({
           type: 'image',
           content: result.assets[0].uri,
           description: '',
-          position_x: 0,
-          position_y: 0,
-          width: ITEM_SIZE,
-          height: ITEM_SIZE,
+          position_x: randomX,
+          position_y: randomY,
+          width: 120,
+          height: 120,
         });
-
-        if (imageResult.error) {
-          showWebAlert('Erro', 'Não foi possível adicionar a imagem ao Vision Board.');
-        } else {
-          await refresh();
-        }
+        
+        setHasUnsavedChanges(true);
       } catch (error) {
         console.error('Error adding image:', error);
         showWebAlert('Erro', 'Algo deu errado ao adicionar a imagem.');
@@ -89,94 +193,98 @@ export default function VisionBoardScreen() {
     }
   };
 
-  const addTextToBoard = () => {
-    // For now, add a placeholder text item
-    const placeholderTexts = [
-      'Gratidão infinita',
-      'Abundância',
-      'Amor incondicional', 
-      'Prosperidade',
-      'Paz interior',
-      'Realização',
-      'Sucesso',
-      'Harmonia',
-      'Felicidade plena',
-      'Liberdade'
-    ];
-    
-    const randomText = placeholderTexts[Math.floor(Math.random() * placeholderTexts.length)];
-    
-    addItem({
-      type: 'text',
-      content: randomText,
-      description: 'Afirmação positiva',
-      position_x: 0,
-      position_y: 0,
-      width: ITEM_SIZE,
-      height: ITEM_SIZE / 2,
-    });
-  };
-
-  const addEmojiToBoard = () => {
-    const emojis = ['✨', '🌟', '💖', '🙏', '🌈', '💫', '🔮', '🦋', '🌸', '💎'];
-    const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
-    
-    addItem({
-      type: 'emoji',
-      content: randomEmoji,
-      description: 'Símbolo de manifestação',
-      position_x: 0,
-      position_y: 0,
-      width: ITEM_SIZE / 2,
-      height: ITEM_SIZE / 2,
-    });
-  };
-
-  const handleFinish = () => {
-    if (items.length === 0) {
-      showWebAlert(
-        'Vision Board Vazio', 
-        'Adicione pelo menos uma imagem ao seu Vision Board antes de continuar.',
-        () => {}
-      );
+  const handleAddText = async () => {
+    if (!textInput.trim()) {
+      showWebAlert('Erro', 'Por favor, digite um texto.');
       return;
     }
 
-    showWebAlert(
-      'Vision Board Criado!',
-      'Sua cocriação está agora ativa e pronta para manifestação!',
-      () => {
-        router.push('/(tabs)/individual');
-      }
-    );
+    try {
+      const randomX = Math.random() * (CANVAS_WIDTH - 200);
+      const randomY = Math.random() * (CANVAS_HEIGHT - 100);
+      
+      await addItem({
+        type: 'text',
+        content: textInput.trim(),
+        description: 'Texto personalizado',
+        position_x: randomX,
+        position_y: randomY,
+        width: 150,
+        height: 80,
+      });
+      
+      setTextInput('');
+      setShowTextModal(false);
+      setHasUnsavedChanges(true);
+    } catch (error) {
+      console.error('Error adding text:', error);
+      showWebAlert('Erro', 'Algo deu errado ao adicionar o texto.');
+    }
   };
 
-  const renderVisionBoardItem = (item: any, index: number) => {
-    const itemStyle = {
-      width: item.width || ITEM_SIZE,
-      height: item.height || ITEM_SIZE,
-    };
+  const handleAddEmoji = async (emoji: string) => {
+    try {
+      const randomX = Math.random() * (CANVAS_WIDTH - 100);
+      const randomY = Math.random() * (CANVAS_HEIGHT - 100);
+      
+      await addItem({
+        type: 'emoji',
+        content: emoji,
+        description: 'Símbolo sagrado',
+        position_x: randomX,
+        position_y: randomY,
+        width: 60,
+        height: 60,
+      });
+      
+      setShowEmojiModal(false);
+      setHasUnsavedChanges(true);
+    } catch (error) {
+      console.error('Error adding emoji:', error);
+      showWebAlert('Erro', 'Algo deu errado ao adicionar o emoji.');
+    }
+  };
 
-    return (
-      <View key={item.id} style={[styles.visionBoardItem, itemStyle]}>
-        {item.type === 'image' && (
-          <Image 
-            source={{ uri: item.content }} 
-            style={styles.itemImage}
-            contentFit="cover"
-          />
-        )}
-        {item.type === 'text' && (
-          <View style={[styles.textItem, { backgroundColor: colors.primary }]}>
-            <Text style={styles.itemText}>{item.content}</Text>
-          </View>
-        )}
-        {item.type === 'emoji' && (
-          <View style={styles.emojiItem}>
-            <Text style={styles.itemEmoji}>{item.content}</Text>
-          </View>
-        )}
-      </View>
+  const handleUpdateItem = async (id: string, updates: any) => {
+    try {
+      await updateItem(id, updates);
+      setHasUnsavedChanges(true);
+    } catch (error) {
+      console.error('Error updating item:', error);
+    }
+  };
+
+  const handleDeleteItem = async (id: string) => {
+    try {
+      await deleteItem(id);
+      setHasUnsavedChanges(true);
+    } catch (error) {
+      console.error('Error deleting item:', error);
+    }
+  };
+
+  const handleExit = () => {
+    if (hasUnsavedChanges) {
+      showConfirmDialog(
+        'Alterações não salvas',
+        'Você tem alterações não salvas. Deseja sair mesmo assim?',
+        () => router.back()
+      );
+    } else {
+      router.back();
+    }
+  };
+
+  const handleSave = () => {
+    setHasUnsavedChanges(false);
+    showWebAlert('Vision Board Salvo!', 'Suas alterações foram salvas com sucesso.');
+  };
+
+  const handleFinish = () => {
+    showWebAlert(
+      'Vision Board Concluído!',
+      'Sua manifestação consciente está ativa. Visualize seus sonhos diariamente.',
+      () => router.push('/(tabs)/individual')
     );
   };
 
@@ -197,134 +305,171 @@ export default function VisionBoardScreen() {
 
   return (
     <GradientBackground>
-      <ScrollView 
-        style={[styles.container, { paddingTop: insets.top }]}
-        showsVerticalScrollIndicator={false}
-      >
+      <View style={[styles.container, { paddingTop: insets.top }]}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>
-            Vision Board
-          </Text>
-          <Text style={[styles.headerSubtitle, { color: colors.textMuted }]}>
-            Crie a representação visual dos seus sonhos
-          </Text>
+          <TouchableOpacity onPress={handleExit} style={styles.backButton}>
+            <MaterialIcons name="arrow-back" size={24} color={colors.text} />
+          </TouchableOpacity>
+          <View style={styles.headerCenter}>
+            <Text style={[styles.headerTitle, { color: colors.text }]}>Vision Board</Text>
+            <Text style={[styles.headerSubtitle, { color: colors.textMuted }]}>
+              Manifeste seus sonhos
+            </Text>
+          </View>
+          <TouchableOpacity onPress={handleSave} style={styles.saveButton}>
+            <MaterialIcons name="save" size={24} color={colors.primary} />
+          </TouchableOpacity>
         </View>
 
-        {/* Vision Board Grid */}
-        <SacredCard glowing style={styles.visionBoardCard}>
-          <Text style={[styles.boardTitle, { color: colors.text }]}>
-            Seu Vision Board
-          </Text>
-          
-          <View style={styles.visionBoardGrid}>
-            {items.map((item, index) => renderVisionBoardItem(item, index))}
-            
-            {/* Empty slots */}
-            {Array.from({ length: Math.max(0, 9 - items.length) }).map((_, index) => (
-              <View key={`empty-${index}`} style={[styles.emptySlot, { borderColor: colors.border }]}>
-                <MaterialIcons name="add" size={24} color={colors.textMuted} />
-              </View>
-            ))}
-          </View>
-
-          {items.length === 0 && (
-            <View style={styles.emptyState}>
-              <MaterialIcons name="dashboard" size={48} color={colors.textMuted} />
-              <Text style={[styles.emptyStateText, { color: colors.textSecondary }]}>
-                Seu Vision Board está vazio
-              </Text>
-              <Text style={[styles.emptyStateSubtext, { color: colors.textMuted }]}>
-                Adicione imagens, textos e símbolos que representem seus sonhos
-              </Text>
+        {/* Canvas Area */}
+        <ScrollView
+          style={styles.canvasContainer}
+          contentContainerStyle={{
+            width: CANVAS_WIDTH,
+            height: CANVAS_HEIGHT,
+          }}
+          showsVerticalScrollIndicator={false}
+          showsHorizontalScrollIndicator={false}
+          maximumZoomScale={2}
+          minimumZoomScale={0.5}
+        >
+          <View style={[styles.canvas, { backgroundColor: colors.surface + '10' }]}>
+            {/* Background pattern */}
+            <View style={styles.canvasPattern}>
+              {Array.from({ length: 20 }).map((_, i) => (
+                <View key={i} style={[styles.patternLine, { backgroundColor: colors.border + '20' }]} />
+              ))}
             </View>
-          )}
-        </SacredCard>
 
-        {/* Action Buttons */}
-        <View style={styles.actionButtons}>
-          <TouchableOpacity 
-            style={[styles.actionButton, { backgroundColor: colors.primary + '20' }]}
+            {/* Vision Board Items */}
+            {items.map((item) => (
+              <DraggableVisionBoardItem
+                key={item.id}
+                item={item}
+                onUpdate={handleUpdateItem}
+                onDelete={handleDeleteItem}
+              />
+            ))}
+
+            {/* Empty state */}
+            {items.length === 0 && (
+              <View style={styles.emptyState}>
+                <View style={[styles.emptyStateContent, { backgroundColor: colors.surface + '40' }]}>
+                  <MaterialIcons name="gesture" size={48} color={colors.textMuted} />
+                  <Text style={[styles.emptyStateTitle, { color: colors.text }]}>
+                    Canvas Infinito
+                  </Text>
+                  <Text style={[styles.emptyStateText, { color: colors.textSecondary }]}>
+                    Adicione elementos e posicione-os livremente{"\n"}
+                    Arraste para mover • Toque longo para excluir
+                  </Text>
+                </View>
+              </View>
+            )}
+          </View>
+        </ScrollView>
+
+        {/* Floating Action Buttons */}
+        <View style={styles.floatingButtons}>
+          <TouchableOpacity
+            style={[styles.floatingButton, { backgroundColor: colors.primary }]}
             onPress={addImageToBoard}
           >
-            <MaterialIcons name="add-photo-alternate" size={24} color={colors.primary} />
-            <Text style={[styles.actionButtonText, { color: colors.primary }]}>
-              Adicionar Imagem
-            </Text>
+            <MaterialIcons name="add-photo-alternate" size={24} color="white" />
           </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={[styles.actionButton, { backgroundColor: colors.secondary + '20' }]}
-            onPress={addTextToBoard}
+          
+          <TouchableOpacity
+            style={[styles.floatingButton, { backgroundColor: colors.secondary }]}
+            onPress={() => setShowTextModal(true)}
           >
-            <MaterialIcons name="text-fields" size={24} color={colors.secondary} />
-            <Text style={[styles.actionButtonText, { color: colors.secondary }]}>
-              Adicionar Texto
-            </Text>
+            <MaterialIcons name="text-fields" size={24} color="white" />
           </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={[styles.actionButton, { backgroundColor: colors.accent + '20' }]}
-            onPress={addEmojiToBoard}
+          
+          <TouchableOpacity
+            style={[styles.floatingButton, { backgroundColor: colors.accent }]}
+            onPress={() => setShowEmojiModal(true)}
           >
-            <MaterialIcons name="emoji-emotions" size={24} color={colors.accent} />
-            <Text style={[styles.actionButtonText, { color: colors.accent }]}>
-              Adicionar Emoji
-            </Text>
+            <MaterialIcons name="emoji-emotions" size={24} color="white" />
           </TouchableOpacity>
         </View>
-
-        {/* Status Info */}
-        <SacredCard style={styles.statusCard}>
-          <View style={styles.statusHeader}>
-            <MaterialIcons 
-              name={items.length > 0 ? 'check-circle' : 'radio-button-unchecked'} 
-              size={24} 
-              color={items.length > 0 ? colors.success : colors.textMuted} 
-            />
-            <Text style={[styles.statusTitle, { color: colors.text }]}>
-              Status da Cocriação
-            </Text>
-          </View>
-                    <Text style={[styles.statusDescription, { color: colors.textSecondary }]}>
-            {items.length > 0 
-              ? '✨ Sua cocriação está ATIVA e pronta para manifestação!'
-              : '✨ Sua cocriação está ATIVA! Adicione elementos ao seu Vision Board'
-            }
-          </Text>
-        </SacredCard>
 
         {/* Finish Button */}
         <View style={styles.finishContainer}>
           <SacredButton
-            title={items.length > 0 ? "Finalizar Vision Board" : "Adicione Itens Primeiro"}
+            title="Concluir Vision Board"
             onPress={handleFinish}
-            disabled={items.length === 0}
             style={styles.finishButton}
           />
         </View>
 
-        {/* Info */}
-        <SacredCard style={styles.infoCard}>
-          <Text style={[styles.infoTitle, { color: colors.text }]}>
-            💡 Dicas para seu Vision Board
-          </Text>
-          <View style={styles.tipsList}>
-            <Text style={[styles.tip, { color: colors.textSecondary }]}>
-              • Use imagens que despertem emoções positivas
-            </Text>
-            <Text style={[styles.tip, { color: colors.textSecondary }]}>
-              • Adicione palavras e afirmações poderosas
-            </Text>
-            <Text style={[styles.tip, { color: colors.textSecondary }]}>
-              • Inclua símbolos que representem seus sonhos
-            </Text>
-            <Text style={[styles.tip, { color: colors.textSecondary }]}>
-              • Visualize-se já vivendo essa realidade
-            </Text>
+        {/* Text Modal */}
+        <Modal visible={showTextModal} transparent animationType="fade">
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
+                Adicionar Texto
+              </Text>
+              <TextInput
+                style={[styles.textInput, { backgroundColor: colors.background, color: colors.text }]}
+                value={textInput}
+                onChangeText={setTextInput}
+                placeholder="Digite seu texto de manifestação..."
+                placeholderTextColor={colors.textMuted}
+                multiline
+                autoFocus
+              />
+              <View style={styles.modalButtons}>
+                <TouchableOpacity
+                  style={[styles.modalButton, { backgroundColor: colors.textMuted }]}
+                  onPress={() => {
+                    setTextInput('');
+                    setShowTextModal(false);
+                  }}
+                >
+                  <Text style={styles.modalButtonText}>Cancelar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalButton, { backgroundColor: colors.primary }]}
+                  onPress={handleAddText}
+                >
+                  <Text style={styles.modalButtonText}>Adicionar</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           </View>
-        </SacredCard>
-      </ScrollView>
+        </Modal>
+
+        {/* Emoji Modal */}
+        <Modal visible={showEmojiModal} transparent animationType="slide">
+          <View style={styles.modalOverlay}>
+            <View style={[styles.emojiModalContent, { backgroundColor: colors.surface }]}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
+                Símbolos Sagrados
+              </Text>
+              <ScrollView style={styles.emojiGrid}>
+                <View style={styles.emojiContainer}>
+                  {SACRED_EMOJIS.map((emoji, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      style={[styles.emojiButton, { backgroundColor: colors.background }]}
+                      onPress={() => handleAddEmoji(emoji)}
+                    >
+                      <Text style={styles.emojiText}>{emoji}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </ScrollView>
+              <TouchableOpacity
+                style={[styles.closeButton, { backgroundColor: colors.textMuted }]}
+                onPress={() => setShowEmojiModal(false)}
+              >
+                <Text style={styles.modalButtonText}>Fechar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      </View>
     </GradientBackground>
   );
 }
@@ -332,44 +477,73 @@ export default function VisionBoardScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: Spacing.lg,
   },
   header: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: Spacing.lg,
-    marginBottom: Spacing.xl,
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    zIndex: 10,
+  },
+  backButton: {
+    padding: Spacing.sm,
+  },
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 28,
-    fontWeight: '600',
-    marginBottom: Spacing.xs,
-  },
-  headerSubtitle: {
-    fontSize: 16,
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-  visionBoardCard: {
-    marginBottom: Spacing.lg,
-  },
-  boardTitle: {
     fontSize: 20,
     fontWeight: '600',
-    marginBottom: Spacing.lg,
-    textAlign: 'center',
   },
-  visionBoardGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  headerSubtitle: {
+    fontSize: 12,
+  },
+  saveButton: {
+    padding: Spacing.sm,
+  },
+  canvasContainer: {
+    flex: 1,
+  },
+  canvas: {
+    flex: 1,
+    position: 'relative',
+  },
+  canvasPattern: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    flexDirection: 'column',
     justifyContent: 'space-between',
-    gap: Spacing.md,
-    minHeight: 200,
   },
-  visionBoardItem: {
+  patternLine: {
+    height: 1,
+    width: '100%',
+  },
+  draggableItem: {
+    position: 'absolute',
     borderRadius: 12,
-    overflow: 'hidden',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
   },
-  itemImage: {
+  deleteButton: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  itemContent: {
     width: '100%',
     height: '100%',
     borderRadius: 12,
@@ -378,9 +552,9 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
     padding: Spacing.sm,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   itemText: {
     color: 'white',
@@ -392,98 +566,136 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     borderRadius: 12,
-    alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+    alignItems: 'center',
   },
   itemEmoji: {
-    fontSize: 32,
-  },
-  emptySlot: {
-    width: ITEM_SIZE,
-    height: ITEM_SIZE,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderStyle: 'dashed',
-    alignItems: 'center',
-    justifyContent: 'center',
+    fontSize: 28,
   },
   emptyState: {
-    alignItems: 'center',
-    paddingVertical: Spacing.xl,
+    position: 'absolute',
+    top: '40%',
+    left: '50%',
+    transform: [{ translateX: -100 }, { translateY: -50 }],
   },
-  emptyStateText: {
+  emptyStateContent: {
+    padding: Spacing.xl,
+    borderRadius: 16,
+    alignItems: 'center',
+    width: 200,
+  },
+  emptyStateTitle: {
     fontSize: 18,
-    fontWeight: '500',
+    fontWeight: '600',
     marginTop: Spacing.md,
     marginBottom: Spacing.sm,
   },
-  emptyStateSubtext: {
+  emptyStateText: {
     fontSize: 14,
     textAlign: 'center',
     lineHeight: 20,
   },
-  actionButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: Spacing.lg,
-    gap: Spacing.sm,
+  floatingButtons: {
+    position: 'absolute',
+    right: Spacing.lg,
+    bottom: 100,
+    gap: Spacing.md,
   },
-  actionButton: {
-    flex: 1,
+  floatingButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: Spacing.lg,
-    borderRadius: 12,
-  },
-  actionButtonText: {
-    fontSize: 12,
-    fontWeight: '600',
-    marginTop: Spacing.sm,
-    textAlign: 'center',
-  },
-  statusCard: {
-    marginBottom: Spacing.lg,
-  },
-  statusHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: Spacing.md,
-  },
-  statusTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginLeft: Spacing.md,
-  },
-  statusDescription: {
-    fontSize: 14,
-    lineHeight: 20,
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
   },
   finishContainer: {
-    marginBottom: Spacing.lg,
+    padding: Spacing.lg,
   },
   finishButton: {
-    marginHorizontal: Spacing.md,
+    backgroundColor: 'rgba(139, 92, 246, 0.9)',
   },
-  infoCard: {
-    marginBottom: Spacing.xl,
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  infoTitle: {
-    fontSize: 18,
+  modalContent: {
+    width: '85%',
+    padding: Spacing.xl,
+    borderRadius: 16,
+    maxWidth: 400,
+  },
+  modalTitle: {
+    fontSize: 20,
     fontWeight: '600',
+    textAlign: 'center',
     marginBottom: Spacing.lg,
   },
-  tipsList: {
+  textInput: {
+    borderRadius: 12,
+    padding: Spacing.md,
+    fontSize: 16,
+    minHeight: 100,
+    textAlignVertical: 'top',
+    marginBottom: Spacing.lg,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+  },
+  modalButton: {
+    flex: 1,
+    padding: Spacing.md,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  modalButtonText: {
+    color: 'white',
+    fontWeight: '600',
+  },
+  emojiModalContent: {
+    width: '90%',
+    maxWidth: 500,
+    maxHeight: '80%',
+    padding: Spacing.lg,
+    borderRadius: 16,
+  },
+  emojiGrid: {
+    maxHeight: 300,
+  },
+  emojiContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
     gap: Spacing.sm,
   },
-  tip: {
-    fontSize: 14,
-    lineHeight: 20,
+  emojiButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: Spacing.sm,
+  },
+  emojiText: {
+    fontSize: 24,
+  },
+  closeButton: {
+    padding: Spacing.md,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: Spacing.lg,
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: Spacing.xl,
   },
   errorTitle: {
     fontSize: 24,
