@@ -20,7 +20,7 @@ import Animated, {
   withSequence,
   runOnJS,
 } from 'react-native-reanimated';
-import { LinearGradient } from 'expo-linear-gradient'; // Importar o gradiente
+import { LinearGradient } from 'expo-linear-gradient';
 
 import GradientBackground from '@/components/ui/GradientBackground';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -48,8 +48,8 @@ export default function VisionBoardViewScreen() {
   const { items, loading } = useVisionBoard(cocreationId || '');
 
   // Available area for positioning (considering safe areas and header)
-  const availableWidth = screenWidth - 40; // 20px padding on each side
-  const availableHeight = screenHeight - insets.top - insets.bottom - 120; // Account for header and padding
+  const availableWidth = screenWidth - 20; // 10px padding on each side
+  const availableHeight = screenHeight - insets.top - insets.bottom - 100; // Account for header and padding
   const headerHeight = 80;
 
   const [positionedImages, setPositionedImages] = useState<PositionedImage[]>([]);
@@ -63,7 +63,7 @@ export default function VisionBoardViewScreen() {
   const rectanglesOverlap = useCallback((
     rect1: { x: number; y: number; width: number; height: number },
     rect2: { x: number; y: number; width: number; height: number },
-    margin: number = 20
+    margin: number = 10 // Reduced margin
   ): boolean => {
     return !(
       rect1.x + rect1.width + margin < rect2.x ||
@@ -80,11 +80,12 @@ export default function VisionBoardViewScreen() {
     existingPositions: Array<{ x: number; y: number; width: number; height: number }>
   ): { x: number; y: number } => {
     const maxAttempts = 50;
-    const margin = 15;
+    const margin = 10; // Reduced margin
 
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      const x = Math.random() * (availableWidth - imageWidth - margin * 2) + margin;
-      const y = Math.random() * (availableHeight - imageHeight - margin * 2) + margin + headerHeight;
+      // Allow positioning closer to edges
+      const x = Math.random() * (availableWidth - imageWidth);
+      const y = Math.random() * (availableHeight - imageHeight) + headerHeight;
 
       const newRect = { x, y, width: imageWidth, height: imageHeight };
       
@@ -100,8 +101,8 @@ export default function VisionBoardViewScreen() {
 
     // If all attempts failed, return a random position (fallback)
     return {
-      x: Math.random() * (availableWidth - imageWidth - margin * 2) + margin,
-      y: Math.random() * (availableHeight - imageHeight - margin * 2) + margin + headerHeight,
+      x: Math.random() * (availableWidth - imageWidth),
+      y: Math.random() * (availableHeight - imageHeight) + headerHeight,
     };
   }, [availableWidth, availableHeight, headerHeight, rectanglesOverlap]);
 
@@ -115,15 +116,24 @@ export default function VisionBoardViewScreen() {
     const positioned: PositionedImage[] = [];
     const existingPositions: Array<{ x: number; y: number; width: number; height: number }> = [];
 
+    // Calculate target size based on number of images and screen dimensions
+    const totalArea = availableWidth * availableHeight;
+    const targetImageArea = totalArea / (imageItems.length || 1);
+    const targetImageSize = Math.sqrt(targetImageArea);
+    
+    // Set a minimum and maximum size
+    const minSize = Math.min(screenWidth * 0.15, screenHeight * 0.1, 100);
+    const maxSize = Math.min(screenWidth * 0.4, screenHeight * 0.3, 200);
+    
+    // Use the target size, but clamp it between min and max
+    const baseSize = Math.max(minSize, Math.min(maxSize, targetImageSize));
+    
+    // Add a small random variation (±10%) to avoid uniformity
+    const sizeVariation = 0.9 + Math.random() * 0.2; // Between 90% and 110%
+    const finalSize = Math.max(minSize, Math.min(maxSize, baseSize * sizeVariation));
+
     imageItems.forEach((item, index) => {
-      // Use responsive sizing for images
-      const baseSize = Math.min(screenWidth * 0.25, screenHeight * 0.15, 140);
-      const minSize = Math.min(screenWidth * 0.2, screenHeight * 0.12, 100);
-      
-      // Add some variation to image sizes (80% to 120% of base size)
-      const sizeVariation = 0.8 + Math.random() * 0.4;
-      const finalSize = Math.max(minSize, baseSize * sizeVariation);
-      
+      // Use the calculated finalSize for all images
       const imageWidth = item.width ? Math.min(item.width, finalSize) : finalSize;
       const imageHeight = item.height ? Math.min(item.height, finalSize) : finalSize;
 
@@ -136,7 +146,7 @@ export default function VisionBoardViewScreen() {
         height: imageHeight,
         x: position.x,
         y: position.y,
-        animationDelay: index * 150, // Stagger animation by 150ms per image
+        animationDelay: index * 100, // Stagger animation by 100ms per image
       };
 
       positioned.push(positionedImage);
@@ -149,7 +159,7 @@ export default function VisionBoardViewScreen() {
     });
 
     setPositionedImages(positioned);
-  }, [imageItems, screenWidth, screenHeight, generateRandomPosition]);
+  }, [imageItems, screenWidth, screenHeight, availableWidth, availableHeight, generateRandomPosition]);
 
   // Recalculate positions when screen gains focus or when items change
   useFocusEffect(
@@ -338,8 +348,8 @@ const AnimatedVisionImage: React.FC<{
     // Iniciar flutuação após a entrada
     setTimeout(() => {
       // Gerar valores aleatórios para o alcance da flutuação
-      const rangeX = 5 + Math.random() * 5; // Entre 5 e 10px
-      const rangeY = 5 + Math.random() * 5; // Entre 5 e 10px
+      const rangeX = 3 + Math.random() * 4; // Entre 3 e 7px
+      const rangeY = 3 + Math.random() * 4; // Entre 3 e 7px
 
       // Animação de flutuação em loop
       floatX.value = withRepeat(
