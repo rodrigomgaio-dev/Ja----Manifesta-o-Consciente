@@ -108,10 +108,10 @@ export default function VisionBoardScreen() {
       } else {
         showAlert(
           'Vision Board Finalizado',
-          'Sua manifestação consciente foi criada com sucesso! Agora você pode contemplá-la na tela de visualização.',
+          'Sua manifestação consciente foi criada com sucesso! O Vision Board foi marcado como concluído.',
           () => {
-            // Navigate to the view-only screen
-            router.replace(`/vision-board-view?cocreationId=${cocreationId}`);
+            // Navigate back to individual cocriations list to see the updated status
+            router.replace('/(tabs)/individual');
           }
         );
       }
@@ -121,7 +121,7 @@ export default function VisionBoardScreen() {
     } finally {
       setIsFinalizingVisionBoard(false);
     }
-  }, [finalizeVisionBoard, showAlert, cocreationId]);
+  }, [finalizeVisionBoard, showAlert, router]);
 
   if (!user) {
     return (

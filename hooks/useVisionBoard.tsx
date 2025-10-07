@@ -129,55 +129,39 @@ export function useVisionBoard(cocriationId: string) {
   const finalizeVisionBoard = async () => {
     try {
       // Update the cocriation to mark vision board as completed
+      // We'll add a custom field to track vision board completion status
       const { data, error } = await supabase
         .from('individual_cocriations')
         .update({ 
           updated_at: new Date().toISOString(),
-          // We'll use a custom field or status to track vision board completion
-          // For now, we'll add a flag that indicates vision board is finished
+          // Add a completion status field for vision board
+          // This will be used to determine if vision board is completed
+          status: 'vision_board_completed'
         })
         .eq('id', cocriationId)
         .select()
         .single();
 
       if (error) {
+        console.error('Error updating cocriation status:', error);
         return { error };
       }
 
-      // Add a special marker item to indicate vision board is completed
-      const { data: markerData, error: markerError } = await supabase
-        .from('vision_board_items')
-        .upsert({
-          cocreation_id: cocriationId,
-          type: 'marker' as any, // Special type to mark completion
-          content: 'VISION_BOARD_COMPLETED',
-          description: 'Vision Board completion marker',
-          position_x: -1, // Hidden position
-          position_y: -1,
-          width: 0,
-          height: 0,
-        }, {
-          onConflict: 'cocreation_id,content'
-        });
+      console.log('Vision Board marked as completed:', data);
 
-      if (markerError) {
-        console.error('Error creating completion marker:', markerError);
-      }
-
-      // Refresh data
+      // Refresh data to reflect the change
       await loadCocriation();
-      await loadVisionBoardItems();
       
       return { data, error: null };
     } catch (error) {
+      console.error('Error finalizing vision board:', error);
       return { error };
     }
   };
 
   const checkVisionBoardCompleted = () => {
-    return items.some(item => 
-      item.type === 'marker' && item.content === 'VISION_BOARD_COMPLETED'
-    );
+    // Check if the cocriation status indicates vision board is completed
+    return cocriation?.status === 'vision_board_completed' || cocriation?.status === 'completed';
   };
 
   return {
