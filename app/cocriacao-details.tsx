@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Alert,
   Platform,
+  RefreshControl, // Importar o RefreshControl
 } from 'react-native';
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,7 +19,8 @@ import SacredButton from '@/components/ui/SacredButton';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useIndividualCocriations } from '@/hooks/useIndividualCocriations';
-import { useVisionBoard } from '@/hooks/useVisionBoard'; // Certifique-se de que este hook retorna os itens
+// Remover a importação de useVisionBoard, pois não será mais usado para verificação de status
+// import { useVisionBoard } from '@/hooks/useVisionBoard'; 
 import { Spacing } from '@/constants/Colors';
 
 export default function CocriacaoDetailsScreen() {
@@ -27,15 +29,16 @@ export default function CocriacaoDetailsScreen() {
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { cocriations, deleteCocriation, loading, refresh } = useIndividualCocriations();
-  // Agora usaremos o hook para obter os itens do VisionBoard
-  const { items: visionBoardItems, loading: visionBoardLoading, refresh: refreshVisionBoard } = useVisionBoard(id || '');
+  
+  // REMOVIDO: const { items: visionBoardItems, loading: visionBoardLoading, refresh: refreshVisionBoard } = useVisionBoard(id || '');
 
   const [cocriation, setCocriation] = useState<any>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  // Estado para saber se o VisionBoard está completo (baseado em alguma lógica)
-  const [isVisionBoardCompleted, setIsVisionBoardCompleted] = useState(false);
-  // Estado para saber se o VisionBoard foi iniciado (tem itens)
-  const [isVisionBoardStarted, setIsVisionBoardStarted] = useState(false);
+  // REMOVIDO: const [isVisionBoardStarted, setIsVisionBoardStarted] = useState(false);
+  
+  // ADICIONADO: Estados para o RefreshControl
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshingFromPull, setRefreshingFromPull] = useState(false); // Para distinguir o refresh manual
 
   // Atualizar cocriation quando cocriations array muda
   useEffect(() => {
@@ -44,26 +47,38 @@ export default function CocriacaoDetailsScreen() {
       const foundCocriation = cocriations.find(c => c.id === id);
       console.log('Found cocriation:', foundCocriation);
       setCocriation(foundCocriation);
-      // Atualizar o estado de conclusão do VisionBoard com base no status da cocriação
-      // Ajuste o nome do campo conforme seu banco de dados
-      setIsVisionBoardCompleted(!!foundCocriation?.vision_board_completed); 
+      // REMOVIDO: setIsVisionBoardStarted(!!foundCocriation?.vision_board_items_count && foundCocriation.vision_board_items_count > 0);
     }
   }, [id, cocriations]);
 
-  // Atualizar estado de início do VisionBoard quando os itens mudam
-  useEffect(() => {
-    if (visionBoardItems) {
-      setIsVisionBoardStarted(visionBoardItems.length > 0);
+  // ADICIONADO: Função para recarregar dados manualmente
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    setRefreshingFromPull(true); // Indica que o refresh foi acionado pelo pull
+    try {
+      // Recarregar apenas a lista de cocriações (isso atualizará a cocriação específica via useEffect)
+      await refresh();
+      // O useEffect acima cuidará de atualizar 'cocriation' e 'isVisionBoardCompleted'
+    } catch (error) {
+      console.error("Erro ao recarregar dados:", error);
+    } finally {
+      setRefreshing(false);
+      setRefreshingFromPull(false); // Resetar o estado de pull
     }
-  }, [visionBoardItems]);
+  }, [refresh]);
 
-  // Refresh data when screen comes into focus
+  // Refresh data when screen comes into focus (APENAS a lista de cocriações)
+  // REMOVIDO: refreshVisionBoard do useFocusEffect
   useFocusEffect(
     React.useCallback(() => {
-      console.log('Screen focused, refreshing data...');
-      refresh();
-      refreshVisionBoard(); // Certifique-se de que os dados do VisionBoard também são atualizados
-    }, [refresh, refreshVisionBoard])
+      console.log('Screen focused, refreshing cocriation list...');
+      // Chamamos refresh() para garantir que alterações feitas em outras telas sejam refletidas
+      // A chamada real pode ser debounced ou controlada se for muito frequente
+      if (!refreshingFromPull) { // Apenas se não foi recarregado por pull-to-refresh
+        refresh();
+      }
+      // REMOVIDO: refreshVisionBoard();
+    }, [refresh, refreshingFromPull]) // Adicionado refreshingFromPull como dependência para evitar loop
   );
 
   const showWebAlert = (title: string, message: string, buttons?: any[]) => {
@@ -127,7 +142,8 @@ export default function CocriacaoDetailsScreen() {
 
   const handleVisionBoard = () => {
     // Verifica se o VisionBoard está marcado como completo no status da cocriação
-    if (isVisionBoardCompleted) {
+    // Agora confiamos apenas no campo 'vision_board_completed'
+    if (cocriation?.vision_board_completed) {
       // Navega para a tela de visualização somente leitura
       router.push(`/vision-board-view?cocreationId=${cocriation.id}`);
     } else {
@@ -175,22 +191,33 @@ export default function CocriacaoDetailsScreen() {
   }
 
   // Determinar o texto do subtitulo do botão VisionBoard
+  // Agora baseado apenas no campo 'vision_board_completed'
   let visionBoardStatusText = "Em construção";
-  let visionBoardStatusColor = colors.warning || colors.textMuted; // Use uma cor de aviso se disponível
+  let visionBoardStatusColor = colors.warning || colors.textMuted;
 
-  if (isVisionBoardCompleted) {
+  if (cocriation?.vision_board_completed) {
     visionBoardStatusText = "✓ Finalizado";
     visionBoardStatusColor = colors.success;
-  } else if (isVisionBoardStarted) {
-     visionBoardStatusText = "Iniciado";
-     visionBoardStatusColor = colors.primary; // Ou outra cor para "iniciado"
+  } else if (cocriation?.vision_board_items_count && cocriation.vision_board_items_count > 0) { // Opcional: verificar se tem itens
+    // Se você adicionou vision_board_items_count à tabela cocriations
+    visionBoardStatusText = "Iniciado";
+    visionBoardStatusColor = colors.primary;
   }
 
   return (
     <GradientBackground>
+      {/* ADICIONADO: RefreshControl ao ScrollView */}
       <ScrollView 
         style={[styles.container, { paddingTop: insets.top }]}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[colors.primary]} // Cor do indicador de carregamento
+            progressBackgroundColor={colors.surface} // Cor de fundo do indicador
+          />
+        }
       >
         {/* Header */}
         <View style={styles.header}>
