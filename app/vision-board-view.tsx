@@ -1,5 +1,5 @@
 /* VisionBoardViewScreen.tsx
-   Reescrito: justified layout + pinch/pan + performance improvements
+   Reescrito: layout tipo "collage" (aleatório denso + rotação suave + sobreposição sutil)
    Requisitos: react-native-gesture-handler v2+, react-native-reanimated v2+, expo-image
 */
 
@@ -10,9 +10,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   useWindowDimensions,
-  Platform,
   ActivityIndicator,
-  ScrollView,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -24,12 +22,8 @@ import Animated, {
   withTiming,
   withDelay,
   withSpring,
-  runOnJS,
 } from 'react-native-reanimated';
-import {
-  Gesture,
-  GestureDetector,
-} from 'react-native-gesture-handler';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 
 import GradientBackground from '@/components/ui/GradientBackground';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -44,116 +38,98 @@ interface PositionedItem {
   height: number;
   x: number;
   y: number;
+  rotation: number;
   animationDelay: number;
 }
 
 /**
- * Justified layout algorithm:
- * Recebe lista de imagens com aspect ratios, largura do container e targetRowHeight.
- * Retorna PositionedItem[] e totalHeight
+ * Gera um layout tipo colagem, com sobreposição leve e rotação aleatória
  */
-function computeJustifiedLayout(
+function computeCollageLayout(
   images: { id: string; uri: string; width?: number; height?: number }[],
   containerWidth: number,
-  targetRowHeight = 200,
-  spacing = 8,
-  padding = 12
+  containerHeight: number,
+  spacing = 12
 ) {
   if (!images || images.length === 0) return { items: [], totalHeight: 0 };
 
-  const rows: {
-    items: { id: string; uri: string; aspect: number }[];
-    aspectSum: number;
-  }[] = [];
+  const items: PositionedItem[] = [];
+  const usedSpots: { x: number; y: number; w: number; h: number }[] = [];
 
-  let currentRow: { items: { id: string; uri: string; aspect: number }[]; aspectSum: number } = {
-    items: [],
-    aspectSum: 0,
-  };
+  const baseSize = Math.min(containerWidth, containerHeight) * 0.35;
+  const minSize = baseSize * 0.6;
+  const maxSize = baseSize * 1.2;
 
-  // Convert to aspect ratios (fallback to 1 if missing)
-  const imgs = images.map((img) => {
-    const w = img.width || 1;
-    const h = img.height || 1;
-    const aspect = Math.max(0.2, Math.min(5, w / h)); // clamp
-    return { id: img.id, uri: img.uri, aspect };
+  let cursorY = spacing;
+
+  images.forEach((img, idx) => {
+    const aspect = (img.width || 1) / (img.height || 1);
+    const size = Math.random() * (maxSize - minSize) + minSize;
+    const w = aspect > 1 ? size : size * aspect;
+    const h = aspect > 1 ? size / aspect : size;
+    const rotation = (Math.random() - 0.5) * 12; // graus aleatórios (-6 a +6)
+
+    // tentativa de posicionamento aleatório dentro do canvas
+    let x = Math.random() * (containerWidth - w - spacing * 2) + spacing;
+    let y = Math.random() * (containerHeight - h - spacing * 4) + spacing;
+
+    // verificar sobreposição excessiva (ajuste se necessário)
+    let tries = 0;
+    while (
+      usedSpots.some(
+        (s) =>
+          Math.abs(s.x - x) < (s.w + w) * 0.35 &&
+          Math.abs(s.y - y) < (s.h + h) * 0.35
+      ) &&
+      tries < 10
+    ) {
+      x = Math.random() * (containerWidth - w - spacing * 2) + spacing;
+      y = Math.random() * (containerHeight - h - spacing * 4) + spacing;
+      tries++;
+    }
+
+    usedSpots.push({ x, y, w, h });
+
+    items.push({
+      id: img.id,
+      uri: img.uri,
+      width: w,
+      height: h,
+      x,
+      y,
+      rotation,
+      animationDelay: idx * 80,
+    });
+
+    cursorY = Math.max(cursorY, y + h + spacing);
   });
 
-  const effectiveWidth = Math.max(100, containerWidth - padding * 2);
-
-  for (const img of imgs) {
-    currentRow.items.push(img);
-    currentRow.aspectSum += img.aspect;
-
-    // Calculate approximate row height if we include this item
-    const rowHeight = (effectiveWidth - (currentRow.items.length - 1) * spacing) / currentRow.aspectSum;
-
-    // If rowHeight is near target or smaller (images would be too tall otherwise), finalize row
-    if (rowHeight < targetRowHeight * 1.25) {
-      rows.push(currentRow);
-      currentRow = { items: [], aspectSum: 0 };
-    }
-  }
-  // push remainder
-  if (currentRow.items.length > 0) rows.push(currentRow);
-
-  // Now compute positions & sizes
-  const items: PositionedItem[] = [];
-  let cursorY = padding;
-  let idx = 0;
-
-  for (const row of rows) {
-    const rowItemCount = row.items.length;
-    const aspectSum = row.aspectSum;
-    const rowHeight = Math.max(60, Math.min(targetRowHeight * 1.15, (effectiveWidth - (rowItemCount - 1) * spacing) / aspectSum));
-    let cursorX = padding;
-
-    for (const rItem of row.items) {
-      const w = Math.round(rowHeight * rItem.aspect);
-      const h = Math.round(rowHeight);
-
-      items.push({
-        id: rItem.id,
-        uri: rItem.uri,
-        width: w,
-        height: h,
-        x: cursorX,
-        y: cursorY,
-        animationDelay: idx * 60,
-      });
-
-      cursorX += w + spacing;
-      idx++;
-    }
-
-    cursorY += rowHeight + spacing;
-  }
-
-  const totalHeight = cursorY + padding - spacing; // remove last spacing
+  const totalHeight = Math.max(containerHeight, cursorY + spacing);
   return { items, totalHeight };
 }
 
-/** Memoized image component to avoid re-renders */
+/** Memoized animated image component */
 const VisionImage = React.memo(function VisionImage({
   item,
   colors,
-  onLoad,
 }: {
   item: PositionedItem;
   colors: any;
-  onLoad?: () => void;
 }) {
   const opacity = useSharedValue(0);
-  const scale = useSharedValue(0.98);
+  const scale = useSharedValue(0.9);
 
   useEffect(() => {
-    opacity.value = withDelay(item.animationDelay, withTiming(1, { duration: 450 }));
-    scale.value = withDelay(item.animationDelay, withSpring(1, { damping: 12, stiffness: 120 }));
-  }, [item.animationDelay, opacity, scale]);
+    opacity.value = withDelay(item.animationDelay, withTiming(1, { duration: 400 }));
+    scale.value = withDelay(item.animationDelay, withSpring(1, { damping: 10, stiffness: 100 }));
+  }, [item.animationDelay]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
-    transform: [{ scale: scale.value }],
+    transform: [
+      { scale: scale.value },
+      { rotate: `${item.rotation}deg` },
+    ],
   }));
 
   return (
@@ -168,7 +144,6 @@ const VisionImage = React.memo(function VisionImage({
         },
         animatedStyle,
       ]}
-      pointerEvents="box-none"
     >
       <View style={[styles.imageFrame, { backgroundColor: colors.surface + '40' }]}>
         <Image
@@ -176,9 +151,7 @@ const VisionImage = React.memo(function VisionImage({
           style={styles.image}
           contentFit="cover"
           cachePolicy="memory-disk"
-          transition={200}
-          onLoad={() => onLoad && onLoad()}
-          accessibilityLabel="vision-image"
+          transition={300}
         />
       </View>
     </Animated.View>
@@ -192,10 +165,9 @@ export default function VisionBoardViewScreen() {
   const { cocreationId } = useLocalSearchParams<{ cocreationId: string }>();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
 
-  // Hook para buscar os itens do VisionBoard
   const { items: rawItems, loading } = useVisionBoard(cocreationId || '');
 
-  const imageItemsRaw = useMemo(() => {
+  const imageItems = useMemo(() => {
     return rawItems
       .filter((it) => it.type === 'image' && it.content)
       .map((it) => ({
@@ -206,60 +178,40 @@ export default function VisionBoardViewScreen() {
       }));
   }, [rawItems]);
 
-  // Layout: compute justified layout for container width (use screen width; for web/landscape we can increase)
-  const containerWidth = Math.max(300, screenWidth); // can tweak
-  const targetRowHeight = Math.round(screenHeight * 0.22); // adaptive row height
+  const containerWidth = screenWidth * 1.2;
+  const containerHeight = screenHeight * 1.3;
 
   const { items: positionedItems, totalHeight } = useMemo(() => {
-    const { items, totalHeight } = computeJustifiedLayout(
-      imageItemsRaw,
-      containerWidth,
-      targetRowHeight,
-      8,
-      12
-    );
-    return { items, totalHeight };
-  }, [imageItemsRaw, containerWidth, targetRowHeight]);
+    return computeCollageLayout(imageItems, containerWidth, containerHeight);
+  }, [imageItems, containerWidth, containerHeight]);
 
-  // PINCH & PAN state (Reanimated shared values)
+  // Zoom/pan logic
   const scale = useSharedValue(1);
-  const focalX = useSharedValue(0);
-  const focalY = useSharedValue(0);
   const translationX = useSharedValue(0);
   const translationY = useSharedValue(0);
   const lastScale = useRef(1);
   const lastTrans = useRef({ x: 0, y: 0 });
 
-  // Limit zoom
-  const MIN_SCALE = 0.6;
-  const MAX_SCALE = 3;
+  const MIN_SCALE = 0.7;
+  const MAX_SCALE = 2.8;
 
-  // Gesture: pinch + pan
   const pinch = Gesture.Pinch()
     .onUpdate((e) => {
       const next = lastScale.current * e.scale;
       scale.value = Math.max(MIN_SCALE, Math.min(MAX_SCALE, next));
-      focalX.value = e.focalX;
-      focalY.value = e.focalY;
     })
     .onEnd(() => {
       lastScale.current = scale.value;
-      // small bounce to limits
       scale.value = withTiming(Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale.value)), { duration: 200 });
-      lastScale.current = scale.value;
     });
 
   const pan = Gesture.Pan()
-    .onStart(() => {
-      // no-op
-    })
     .onUpdate((e) => {
       translationX.value = lastTrans.current.x + e.translationX;
       translationY.value = lastTrans.current.y + e.translationY;
     })
     .onEnd(() => {
       lastTrans.current = { x: translationX.value, y: translationY.value };
-      // optional: add boundaries logic here to avoid panning too far
     });
 
   const composed = Gesture.Simultaneous(pinch, pan);
@@ -272,12 +224,14 @@ export default function VisionBoardViewScreen() {
     ],
   }));
 
-  // zoom controls (header buttons)
-  const handleZoom = useCallback((to: number) => {
-    const clamped = Math.max(MIN_SCALE, Math.min(MAX_SCALE, to));
-    scale.value = withTiming(clamped, { duration: 350 });
-    lastScale.current = clamped;
-  }, []);
+  const handleZoom = useCallback(
+    (to: number) => {
+      const clamped = Math.max(MIN_SCALE, Math.min(MAX_SCALE, to));
+      scale.value = withTiming(clamped, { duration: 300 });
+      lastScale.current = clamped;
+    },
+    [scale]
+  );
 
   if (!user) {
     return (
@@ -303,7 +257,6 @@ export default function VisionBoardViewScreen() {
           <TouchableOpacity
             onPress={() => router.back()}
             style={[styles.backButton, { backgroundColor: colors.surface + '80' }]}
-            activeOpacity={0.8}
           >
             <MaterialIcons name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
@@ -311,7 +264,7 @@ export default function VisionBoardViewScreen() {
           <View style={styles.headerContent}>
             <Text style={[styles.headerTitle, { color: colors.text }]}>Vision Board</Text>
             <Text style={[styles.headerSubtitle, { color: colors.textMuted }]}>
-              Contemple suas manifestações
+              Colagem das suas manifestações
             </Text>
           </View>
 
@@ -319,38 +272,37 @@ export default function VisionBoardViewScreen() {
             <TouchableOpacity
               onPress={() => handleZoom(lastScale.current / 1.2)}
               style={[styles.zoomButton, { backgroundColor: colors.surface + '80' }]}
-              activeOpacity={0.8}
             >
               <MaterialIcons name="zoom-out" size={20} color={colors.text} />
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => {
                 handleZoom(1);
-                translationX.value = withTiming(0, { duration: 250 });
-                translationY.value = withTiming(0, { duration: 250 });
+                translationX.value = withTiming(0);
+                translationY.value = withTiming(0);
                 lastTrans.current = { x: 0, y: 0 };
               }}
               style={[styles.zoomButton, { backgroundColor: colors.surface + '80' }]}
-              activeOpacity={0.8}
             >
               <MaterialIcons name="center-focus-strong" size={20} color={colors.text} />
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => handleZoom(lastScale.current * 1.2)}
               style={[styles.zoomButton, { backgroundColor: colors.surface + '80' }]}
-              activeOpacity={0.8}
             >
               <MaterialIcons name="zoom-in" size={20} color={colors.text} />
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* Canvas area */}
+        {/* Canvas */}
         <View style={styles.canvasContainer}>
           {loading ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color={colors.textMuted} />
-              <Text style={[styles.loadingText, { color: colors.textMuted }]}>Carregando sua manifestação...</Text>
+              <Text style={[styles.loadingText, { color: colors.textMuted }]}>
+                Carregando sua colagem...
+              </Text>
             </View>
           ) : positionedItems.length === 0 ? (
             <View style={styles.emptyContainer}>
@@ -358,15 +310,13 @@ export default function VisionBoardViewScreen() {
                 <MaterialIcons name="visibility" size={64} color={colors.textMuted} />
                 <Text style={[styles.emptyTitle, { color: colors.text }]}>Vision Board Vazio</Text>
                 <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-                  Não há imagens para visualizar ainda.{'\n'}Adicione elementos ao seu Vision Board primeiro.
+                  Não há imagens para visualizar ainda. Adicione elementos ao seu Vision Board.
                 </Text>
               </View>
             </View>
           ) : (
-            // GestureDetector ao redor do canvas para pinch+pan
             <GestureDetector gesture={composed}>
               <Animated.View style={[styles.canvasScrollArea]}>
-                {/* container that will be zoomed/panned */}
                 <Animated.View
                   style={[
                     {
@@ -376,9 +326,6 @@ export default function VisionBoardViewScreen() {
                     animatedCanvasStyle,
                   ]}
                 >
-                  {/* Background optional */}
-                  <View style={[StyleSheet.absoluteFill, { backgroundColor: 'transparent' }]} />
-
                   {positionedItems.map((it) => (
                     <VisionImage key={it.id} item={it} colors={colors} />
                   ))}
@@ -388,11 +335,10 @@ export default function VisionBoardViewScreen() {
           )}
         </View>
 
-        {/* Inspiração */}
         {positionedItems.length > 0 && (
           <View style={styles.inspirationContainer}>
             <Text style={[styles.inspirationText, { color: colors.textMuted }]}>
-              ✨ Observe. Sinta. Manifeste conscientemente. ✨
+              ✨ Inspire-se. Visualize. Manifeste. ✨
             </Text>
           </View>
         )}
@@ -402,9 +348,7 @@ export default function VisionBoardViewScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  container: { flex: 1 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -420,15 +364,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  headerContent: {
-    flex: 1,
-    alignItems: 'center',
-    marginHorizontal: Spacing.md,
-  },
-  headerButtons: {
-    flexDirection: 'row',
-    gap: Spacing.xs,
-  },
+  headerContent: { flex: 1, alignItems: 'center' },
+  headerButtons: { flexDirection: 'row', gap: Spacing.xs },
   zoomButton: {
     width: 40,
     height: 40,
@@ -436,29 +373,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-  },
-  headerSubtitle: {
-    fontSize: 13,
-    marginTop: 2,
-    fontStyle: 'italic',
-  },
-  canvasContainer: {
-    flex: 1,
-    paddingHorizontal: 4,
-    paddingVertical: 8,
-  },
-  canvasScrollArea: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-  },
-  imageContainer: {
-    position: 'absolute',
-    zIndex: 10,
-  },
+  headerTitle: { fontSize: 22, fontWeight: '700' },
+  headerSubtitle: { fontSize: 13, fontStyle: 'italic', marginTop: 2 },
+  canvasContainer: { flex: 1, paddingHorizontal: 4, paddingVertical: 8 },
+  canvasScrollArea: { flex: 1, alignItems: 'center', justifyContent: 'flex-start' },
+  imageContainer: { position: 'absolute' },
   imageFrame: {
     width: '100%',
     height: '100%',
@@ -466,31 +385,14 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     elevation: 4,
     shadowColor: '#000',
+    shadowOpacity: 0.2,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
-    borderWidth: 0,
+    shadowRadius: 4,
   },
-  image: {
-    width: '100%',
-    height: '100%',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    fontSize: 16,
-    marginTop: Spacing.lg,
-    textAlign: 'center',
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.xl,
-  },
+  image: { width: '100%', height: '100%' },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  loadingText: { fontSize: 16, marginTop: Spacing.lg, textAlign: 'center' },
+  emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   emptyContent: {
     padding: Spacing.xl,
     borderRadius: 24,
@@ -498,43 +400,11 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 420,
   },
-  emptyTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    marginTop: Spacing.lg,
-    marginBottom: Spacing.md,
-  },
-  emptyText: {
-    fontSize: 16,
-    textAlign: 'center',
-    lineHeight: 24,
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.xl,
-  },
-  errorTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    marginTop: Spacing.lg,
-    marginBottom: Spacing.md,
-  },
-  errorText: {
-    fontSize: 16,
-    textAlign: 'center',
-    lineHeight: 24,
-  },
-  inspirationContainer: {
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.lg,
-    alignItems: 'center',
-  },
-  inspirationText: {
-    fontSize: 14,
-    textAlign: 'center',
-    fontStyle: 'italic',
-    letterSpacing: 0.5,
-  },
+  emptyTitle: { fontSize: 24, fontWeight: '700', marginTop: Spacing.lg },
+  emptyText: { fontSize: 16, textAlign: 'center', lineHeight: 24 },
+  errorContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  errorTitle: { fontSize: 24, fontWeight: '700', marginTop: Spacing.lg },
+  errorText: { fontSize: 16, textAlign: 'center', lineHeight: 24 },
+  inspirationContainer: { padding: Spacing.lg, alignItems: 'center' },
+  inspirationText: { fontSize: 14, fontStyle: 'italic', textAlign: 'center' },
 });
