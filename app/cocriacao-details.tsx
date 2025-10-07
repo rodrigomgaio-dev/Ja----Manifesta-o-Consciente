@@ -1,163 +1,196 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
-  ScrollView,
   StyleSheet,
   TouchableOpacity,
-  Alert,
-  Platform,
+  useWindowDimensions,
 } from 'react-native';
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withSpring,
+  withDelay,
+  withRepeat,
+  withSequence,
+  runOnJS,
+} from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
+
 import GradientBackground from '@/components/ui/GradientBackground';
-import SacredCard from '@/components/ui/SacredCard';
-import SacredButton from '@/components/ui/SacredButton';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { useIndividualCocriations } from '@/hooks/useIndividualCocriations';
 import { useVisionBoard } from '@/hooks/useVisionBoard';
 import { Spacing } from '@/constants/Colors';
 
-export default function CocriacaoDetailsScreen() {
+interface PositionedImage {
+  id: string;
+  content: string;
+  width: number;
+  height: number;
+  x: number;
+  y: number;
+  animationDelay: number;
+}
+
+export default function VisionBoardViewScreen() {
   const { colors } = useTheme();
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const { cocriations, deleteCocriation, loading, refresh } = useIndividualCocriations();
-  const { checkVisionBoardCompleted } = useVisionBoard(id || '');
+  const { cocreationId } = useLocalSearchParams<{ cocreationId: string }>();
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  
+  const { items, loading } = useVisionBoard(cocreationId || '');
 
-  const [cocriation, setCocriation] = useState<any>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [isVisionBoardCompleted, setIsVisionBoardCompleted] = useState(false);
+  // Available area for positioning (considering safe areas and header)
+  const availableWidth = screenWidth - 20; // 10px padding on each side
+  const availableHeight = screenHeight - insets.top - insets.bottom - 100; // Account for header and padding
+  const headerHeight = 80;
 
-  // Update cocriation when cocriations array changes
-  useEffect(() => {
-    console.log('Cocriations updated, searching for id:', id);
-    if (id && cocriations.length > 0) {
-      const foundCocriation = cocriations.find(c => c.id === id);
-      console.log('Found cocriation:', foundCocriation);
-      setCocriation(foundCocriation);
+  const [positionedImages, setPositionedImages] = useState<PositionedImage[]>([]);
+
+  // Filter only images from vision board items
+  const imageItems = useMemo(() => {
+    return items.filter(item => item.type === 'image' && item.content);
+  }, [items]);
+
+  // Function to check if two rectangles overlap
+  const rectanglesOverlap = useCallback((
+    rect1: { x: number; y: number; width: number; height: number },
+    rect2: { x: number; y: number; width: number; height: number },
+    margin: number = 10 // Reduced margin
+  ): boolean => {
+    return !(
+      rect1.x + rect1.width + margin < rect2.x ||
+      rect2.x + rect2.width + margin < rect1.x ||
+      rect1.y + rect1.height + margin < rect2.y ||
+      rect2.y + rect2.height + margin < rect1.y
+    );
+  }, []);
+
+  // Function to generate random position with collision detection
+  const generateRandomPosition = useCallback((
+    imageWidth: number, 
+    imageHeight: number, 
+    existingPositions: Array<{ x: number; y: number; width: number; height: number }>
+  ): { x: number; y: number } => {
+    const maxAttempts = 50;
+    const margin = 10; // Reduced margin
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      // Allow positioning closer to edges
+      const x = Math.random() * (availableWidth - imageWidth);
+      const y = Math.random() * (availableHeight - imageHeight) + headerHeight;
+
+      const newRect = { x, y, width: imageWidth, height: imageHeight };
       
-      // Check if vision board is completed
-      if (foundCocriation) {
-        const completed = checkVisionBoardCompleted();
-        setIsVisionBoardCompleted(completed);
+      // Check collision with existing positions
+      const hasCollision = existingPositions.some(existingRect => 
+        rectanglesOverlap(newRect, existingRect, margin)
+      );
+
+      if (!hasCollision) {
+        return { x, y };
       }
     }
-  }, [id, cocriations, checkVisionBoardCompleted]);
 
-  // Refresh data when screen comes into focus
+    // If all attempts failed, return a random position (fallback)
+    return {
+      x: Math.random() * (availableWidth - imageWidth),
+      y: Math.random() * (availableHeight - imageHeight) + headerHeight,
+    };
+  }, [availableWidth, availableHeight, headerHeight, rectanglesOverlap]);
+
+  // Function to calculate random positions for all images
+  const calculateRandomPositions = useCallback(() => {
+    if (imageItems.length === 0) {
+      setPositionedImages([]);
+      return;
+    }
+
+    const positioned: PositionedImage[] = [];
+    const existingPositions: Array<{ x: number; y: number; width: number; height: number }> = [];
+
+    // Calculate target size based on number of images and screen dimensions
+    const totalArea = availableWidth * availableHeight;
+    const targetImageArea = totalArea / (imageItems.length || 1);
+    const targetImageSize = Math.sqrt(targetImageArea);
+    
+    // Set a minimum and maximum size
+    const minSize = Math.min(screenWidth * 0.15, screenHeight * 0.1, 100);
+    const maxSize = Math.min(screenWidth * 0.4, screenHeight * 0.3, 200);
+    
+    // Use the target size, but clamp it between min and max
+    const baseSize = Math.max(minSize, Math.min(maxSize, targetImageSize));
+    
+    // Add a small random variation (±10%) to avoid uniformity
+    const sizeVariation = 0.9 + Math.random() * 0.2; // Between 90% and 110%
+    const finalSize = Math.max(minSize, Math.min(maxSize, baseSize * sizeVariation));
+
+    imageItems.forEach((item, index) => {
+      // Use the calculated finalSize for all images
+      const imageWidth = item.width ? Math.min(item.width, finalSize) : finalSize;
+      const imageHeight = item.height ? Math.min(item.height, finalSize) : finalSize;
+
+      const position = generateRandomPosition(imageWidth, imageHeight, existingPositions);
+
+      const positionedImage: PositionedImage = {
+        id: item.id,
+        content: item.content,
+        width: imageWidth,
+        height: imageHeight,
+        x: position.x,
+        y: position.y,
+        animationDelay: index * 100, // Stagger animation by 100ms per image
+      };
+
+      positioned.push(positionedImage);
+      existingPositions.push({
+        x: position.x,
+        y: position.y,
+        width: imageWidth,
+        height: imageHeight,
+      });
+    });
+
+    setPositionedImages(positioned);
+  }, [imageItems, screenWidth, screenHeight, availableWidth, availableHeight, generateRandomPosition]);
+
+  // Recalculate positions when screen gains focus or when items change
   useFocusEffect(
-    React.useCallback(() => {
-      console.log('Screen focused, refreshing data...');
-      refresh();
-    }, [refresh])
+    useCallback(() => {
+      if (imageItems.length > 0) {
+        // Small delay to ensure screen is fully focused
+        const timer = setTimeout(calculateRandomPositions, 100);
+        return () => clearTimeout(timer);
+      }
+    }, [imageItems, calculateRandomPositions])
   );
 
-  const showWebAlert = (title: string, message: string, buttons?: any[]) => {
-    if (Platform.OS === 'web') {
-      const confirmed = confirm(`${title}: ${message}`);
-      if (confirmed && buttons?.[0]?.onPress) {
-        buttons[0].onPress();
-      }
-    } else {
-      Alert.alert(title, message, buttons);
+  // Initial calculation when items are first loaded
+  useEffect(() => {
+    if (imageItems.length > 0) {
+      calculateRandomPositions();
     }
-  };
+  }, [imageItems, calculateRandomPositions]);
 
-  const handleEdit = () => {
-    router.push(`/edit-individual?id=${cocriation.id}`);
-  };
-
-  const handleDelete = () => {
-    showWebAlert(
-      'Confirmar Exclusão',
-      'Tem certeza que deseja excluir esta cocriação? Esta ação não pode ser desfeita.',
-      [
-        {
-          text: 'Cancelar',
-          style: 'cancel',
-        },
-        {
-          text: 'Excluir',
-          style: 'destructive',
-          onPress: confirmDelete,
-        },
-      ]
-    );
-  };
-
-  const confirmDelete = async () => {
-    if (!cocriation) return;
-
-    setIsDeleting(true);
-
-    try {
-      const result = await deleteCocriation(cocriation.id);
-      
-      if (result.error) {
-        console.error('Error deleting cocriation:', result.error);
-        showWebAlert('Erro', 'Não foi possível excluir a cocriação. Tente novamente.');
-      } else {
-        showWebAlert(
-          'Sucesso',
-          'Cocriação excluída com sucesso.',
-          [{ text: 'OK', onPress: () => router.back() }]
-        );
-      }
-    } catch (error) {
-      console.error('Unexpected error deleting cocriation:', error);
-      showWebAlert('Erro Inesperado', 'Algo deu errado. Tente novamente.');
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
-  const handleVisionBoard = () => {
-    if (isVisionBoardCompleted) {
-      // Navigate to view-only screen if completed
-      router.push(`/vision-board-view?cocreationId=${cocriation.id}`);
-    } else {
-      // Navigate to edit screen if not completed
-      router.push(`/vision-board?cocreationId=${cocriation.id}`);
-    }
-  };
-
-  const handleFutureLetter = () => {
-    router.push(`/future-letter?cocreationId=${cocriation.id}`);
-  };
-
-  if (loading) {
-    return (
-      <GradientBackground>
-        <View style={[styles.container, { paddingTop: insets.top }]}>
-          <View style={styles.loadingContainer}>
-            <Text style={[styles.loadingText, { color: colors.text }]}>
-              Carregando detalhes...
-            </Text>
-          </View>
-        </View>
-      </GradientBackground>
-    );
-  }
-
-  if (!cocriation) {
+  if (!user) {
     return (
       <GradientBackground>
         <View style={[styles.container, { paddingTop: insets.top }]}>
           <View style={styles.errorContainer}>
             <MaterialIcons name="error" size={64} color={colors.error} />
             <Text style={[styles.errorTitle, { color: colors.text }]}>
-              Cocriação não encontrada
+              Acesso Negado
             </Text>
-            <SacredButton
-              title="Voltar"
-              onPress={() => router.back()}
-              style={styles.backButton}
-            />
+            <Text style={[styles.errorText, { color: colors.textSecondary }]}>
+              Você precisa estar logado para visualizar este Vision Board.
+            </Text>
           </View>
         </View>
       </GradientBackground>
@@ -166,213 +199,335 @@ export default function CocriacaoDetailsScreen() {
 
   return (
     <GradientBackground>
-      <ScrollView 
-        style={[styles.container, { paddingTop: insets.top }]}
-        showsVerticalScrollIndicator={false}
-      >
+      <View style={[styles.container, { paddingTop: insets.top }]}>
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity 
-            style={styles.backButton}
-            onPress={() => router.back()}
+            onPress={() => router.back()} 
+            style={[styles.backButton, { backgroundColor: colors.surface + '80' }]}
+            activeOpacity={0.8}
           >
-            <MaterialIcons name="arrow-back" size={24} color={colors.primary} />
-            <Text style={[styles.backText, { color: colors.primary }]}>
-              Voltar
-            </Text>
+            <MaterialIcons name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
+          
+          <View style={styles.headerContent}>
+            <Text style={[styles.headerTitle, { color: colors.text }]}>
+              Vision Board
+            </Text>
+            <Text style={[styles.headerSubtitle, { color: colors.textMuted }]}>
+              Contemple suas manifestações
+            </Text>
+          </View>
 
-          <View style={styles.headerActions}>
-            <TouchableOpacity 
-              style={[styles.actionIcon, { backgroundColor: colors.primary + '20' }]}
-              onPress={handleEdit}
+          <View style={styles.headerButtons}>
+            <TouchableOpacity
+              onPress={() => router.push(`/vision-board?cocreationId=${cocreationId}`)}
+              style={[styles.editButton, { backgroundColor: colors.secondary + '20' }]}
+              activeOpacity={0.8}
             >
-              <MaterialIcons name="edit" size={20} color={colors.primary} />
+              <MaterialIcons name="edit" size={20} color={colors.secondary} />
             </TouchableOpacity>
             
-            <TouchableOpacity 
-              style={[styles.actionIcon, { backgroundColor: colors.error + '20' }]}
-              onPress={handleDelete}
-              disabled={isDeleting}
+            <TouchableOpacity
+              onPress={calculateRandomPositions}
+              style={[styles.shuffleButton, { backgroundColor: colors.primary + '20' }]}
+              activeOpacity={0.8}
             >
-              <MaterialIcons name="delete" size={20} color={colors.error} />
+              <MaterialIcons name="shuffle" size={20} color={colors.primary} />
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* Cover Image */}
-        {cocriation.cover_image_url && (
-          <SacredCard style={styles.coverCard}>
-            <Image 
-              source={{ uri: cocriation.cover_image_url }} 
-              style={styles.coverImage}
-              contentFit="cover"
-            />
-          </SacredCard>
+        {/* Vision Board Canvas */}
+        <View style={styles.canvasContainer}>
+          {loading ? (
+            <View style={styles.loadingContainer}>
+              <MaterialIcons name="hourglass-empty" size={48} color={colors.textMuted} />
+              <Text style={[styles.loadingText, { color: colors.textMuted }]}>
+                Carregando sua manifestação...
+              </Text>
+            </View>
+          ) : imageItems.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <View style={[styles.emptyContent, { backgroundColor: colors.surface + '60' }]}>
+                <MaterialIcons name="visibility" size={64} color={colors.textMuted} />
+                <Text style={[styles.emptyTitle, { color: colors.text }]}>
+                  Vision Board Vazio
+                </Text>
+                <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+                  Não há imagens para visualizar ainda.{'\n'}
+                  Adicione elementos ao seu Vision Board primeiro.
+                </Text>
+              </View>
+            </View>
+          ) : (
+            <View style={styles.canvas}>
+              {/* Fundo Interativo - Gradiente Dinâmico */}
+              <LinearGradient
+                colors={[
+                  colors.surface + '20',
+                  colors.primary + '10',
+                  colors.accent + '10',
+                  colors.surface + '20',
+                ]}
+                style={StyleSheet.absoluteFill}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              />
+
+              {/* Ambient background pattern */}
+              <View style={styles.ambientPattern}>
+                {Array.from({ length: 12 }).map((_, i) => (
+                  <View
+                    key={i}
+                    style={[
+                      styles.ambientDot,
+                      {
+                        backgroundColor: colors.primary + '15',
+                        left: `${Math.random() * 90 + 5}%`,
+                        top: `${Math.random() * 90 + 5}%`,
+                      }
+                    ]}
+                  />
+                ))}
+              </View>
+
+              {/* Vision Board Images */}
+              {positionedImages.map((image) => (
+                <AnimatedVisionImage
+                  key={`${image.id}-${image.x}-${image.y}`} // Key includes position to trigger re-render
+                  image={image}
+                  colors={colors}
+                />
+              ))}
+            </View>
+          )}
+        </View>
+
+        {/* Inspiration Text */}
+        {imageItems.length > 0 && (
+          <View style={styles.inspirationContainer}>
+            <Text style={[styles.inspirationText, { color: colors.textMuted }]}>
+              ✨ Observe. Sinta. Manifeste conscientemente. ✨
+            </Text>
+          </View>
         )}
-
-        {/* Main Info */}
-        <SacredCard glowing style={styles.mainCard}>
-          <View style={styles.titleSection}>
-            <Text style={[styles.title, { color: colors.text }]}>
-              {cocriation.title}
-            </Text>
-            
-            {cocriation.mental_code && (
-              <View style={[styles.mentalCodeBadge, { backgroundColor: colors.primary }]}>
-                <Text style={styles.mentalCodeText}>
-                  {cocriation.mental_code}
-                </Text>
-              </View>
-            )}
-
-            <View style={[styles.statusBadge, { 
-              backgroundColor: cocriation.status === 'active' ? colors.primary + '20' : 
-                             cocriation.status === 'paused' ? colors.secondary + '20' : colors.success + '20' 
-            }]}>
-              <Text style={[styles.statusText, { 
-                color: cocriation.status === 'active' ? colors.primary : 
-                      cocriation.status === 'paused' ? colors.secondary : colors.success 
-              }]}>
-                {cocriation.status === 'active' ? 'Ativa' : 
-                 cocriation.status === 'paused' ? 'Pausada' : 'Concluída'}
-              </Text>
-            </View>
-          </View>
-
-          {cocriation.description && (
-            <View style={styles.descriptionSection}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                Descrição
-              </Text>
-              <Text style={[styles.description, { color: colors.textSecondary }]}>
-                {cocriation.description}
-              </Text>
-            </View>
-          )}
-
-          {cocriation.why_reason && (
-            <View style={styles.whySection}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                Seu Porquê
-              </Text>
-              <Text style={[styles.whyText, { color: colors.textSecondary }]}>
-                {cocriation.why_reason}
-              </Text>
-            </View>
-          )}
-
-          <View style={styles.dateSection}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>
-              Criada em
-            </Text>
-            <Text style={[styles.dateText, { color: colors.textSecondary }]}>
-              {new Date(cocriation.created_at).toLocaleDateString('pt-BR', {
-                day: '2-digit',
-                month: 'long',
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-              })}
-            </Text>
-          </View>
-        </SacredCard>
-
-        {/* Quick Actions */}
-        <SacredCard style={styles.actionsCard}>
-          <Text style={[styles.actionsTitle, { color: colors.text }]}>
-            Ações Rápidas
-          </Text>
-          
-          <View style={styles.actionsList}>
-            <TouchableOpacity 
-              style={styles.actionButton}
-              onPress={handleVisionBoard}
-            >
-              <MaterialIcons name="dashboard" size={24} color={colors.primary} />
-              <View style={styles.actionTextContainer}>
-                <Text style={[styles.actionText, { color: colors.primary }]}>
-                  Vision Board
-                </Text>
-                {isVisionBoardCompleted && (
-                  <Text style={[styles.actionSubtext, { color: colors.success }]}>
-                    ✓ Finalizado
-                  </Text>
-                )}
-              </View>
-              <MaterialIcons name="chevron-right" size={20} color={colors.textMuted} />
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={styles.actionButton}
-              onPress={handleFutureLetter}
-            >
-              <MaterialIcons name="mail-outline" size={24} color={colors.secondary} />
-              <Text style={[styles.actionText, { color: colors.secondary }]}>
-                Carta ao Futuro
-              </Text>
-              <MaterialIcons name="chevron-right" size={20} color={colors.textMuted} />
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.actionButton}>
-              <MaterialIcons name="self-improvement" size={24} color={colors.accent} />
-              <Text style={[styles.actionText, { color: colors.accent }]}>
-                Práticas Diárias
-              </Text>
-              <MaterialIcons name="chevron-right" size={20} color={colors.textMuted} />
-            </TouchableOpacity>
-          </View>
-        </SacredCard>
-
-        {/* Statistics */}
-        <SacredCard style={styles.statsCard}>
-          <Text style={[styles.statsTitle, { color: colors.text }]}>
-            Estatísticas
-          </Text>
-          
-          <View style={styles.statsList}>
-            <View style={styles.statItem}>
-              <MaterialIcons name="calendar-today" size={20} color={colors.primary} />
-              <Text style={[styles.statText, { color: colors.textSecondary }]}>
-                {Math.ceil((new Date().getTime() - new Date(cocriation.created_at).getTime()) / (1000 * 60 * 60 * 24))} dias ativa
-              </Text>
-            </View>
-
-            <View style={styles.statItem}>
-              <MaterialIcons name="auto-awesome" size={20} color={colors.accent} />
-              <Text style={[styles.statText, { color: colors.textSecondary }]}>
-                NFT será gerado na conclusão
-              </Text>
-            </View>
-          </View>
-        </SacredCard>
-
-        {/* Danger Zone */}
-        <SacredCard style={styles.dangerCard}>
-          <Text style={[styles.dangerTitle, { color: colors.error }]}>
-            Zona de Perigo
-          </Text>
-          <Text style={[styles.dangerDescription, { color: colors.textSecondary }]}>
-            A exclusão desta cocriação é permanente e não pode ser desfeita.
-          </Text>
-          <SacredButton
-            title={isDeleting ? "Excluindo..." : "Excluir Cocriação"}
-            onPress={handleDelete}
-            loading={isDeleting}
-            variant="outline"
-            style={[styles.deleteButton, { borderColor: colors.error }]}
-          />
-        </SacredCard>
-      </ScrollView>
+      </View>
     </GradientBackground>
   );
 }
 
+// Separate component for animated vision board images
+const AnimatedVisionImage: React.FC<{
+  image: PositionedImage;
+  colors: any;
+}> = ({ image, colors }) => {
+  const opacity = useSharedValue(0);
+  const scale = useSharedValue(0.3);
+  const translateY = useSharedValue(20);
+
+  // Valores para a flutuação
+  const floatX = useSharedValue(0);
+  const floatY = useSharedValue(0);
+
+  useEffect(() => {
+    // Staggered entrance animation
+    opacity.value = withDelay(
+      image.animationDelay,
+      withTiming(1, { duration: 800 })
+    );
+    scale.value = withDelay(
+      image.animationDelay,
+      withSpring(1, { damping: 12, stiffness: 100 })
+    );
+    translateY.value = withDelay(
+      image.animationDelay,
+      withSpring(0, { damping: 10, stiffness: 80 })
+    );
+
+    // Iniciar flutuação após a entrada
+    setTimeout(() => {
+      // Gerar valores aleatórios para o alcance da flutuação
+      const rangeX = 3 + Math.random() * 4; // Entre 3 e 7px
+      const rangeY = 3 + Math.random() * 4; // Entre 3 e 7px
+
+      // Animação de flutuação em loop
+      floatX.value = withRepeat(
+        withSequence(
+          withSpring(rangeX, { duration: 3000, damping: 10 }),
+          withSpring(-rangeX, { duration: 3000, damping: 10 }),
+          withSpring(0, { duration: 1000, damping: 10 }) // Volta suavemente para o centro
+        ),
+        -1, // Loop infinito
+        false
+      );
+
+      floatY.value = withRepeat(
+        withSequence(
+          withSpring(rangeY, { duration: 2500, damping: 10 }),
+          withSpring(-rangeY, { duration: 2500, damping: 10 }),
+          withSpring(0, { duration: 1000, damping: 10 }) // Volta suavemente para o centro
+        ),
+        -1, // Loop infinito
+        false
+      );
+    }, image.animationDelay + 800); // Começa após a animação de entrada
+
+  }, [image.animationDelay]);
+
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: opacity.value,
+      transform: [
+        { scale: scale.value },
+        { translateY: translateY.value },
+        { translateX: floatX.value }, // Aplica o movimento X da flutuação
+        { translateY: translateY.value + floatY.value }, // Combina o translateY base com o da flutuação
+      ],
+    };
+  });
+
+  return (
+    <Animated.View
+      style={[
+        styles.imageContainer,
+        {
+          left: image.x,
+          top: image.y,
+          width: image.width,
+          height: image.height,
+        },
+        animatedStyle,
+      ]}
+    >
+      <View style={[styles.imageFrame, { backgroundColor: colors.surface + '40' }]}>
+        <Image
+          source={{ uri: image.content }}
+          style={styles.image}
+          contentFit="cover"
+          cachePolicy="memory-disk"
+          transition={300}
+        />
+        
+        {/* Subtle glow effect */}
+        <View style={[styles.imageGlow, { backgroundColor: colors.primary + '20' }]} />
+      </View>
+    </Animated.View>
+  );
+};
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: Spacing.lg,
   },
+  
+  // Header
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    height: 80,
+    zIndex: 100,
+  },
+  backButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerContent: {
+    flex: 1,
+    alignItems: 'center',
+    marginHorizontal: Spacing.md,
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  editButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+  },
+  headerSubtitle: {
+    fontSize: 13,
+    marginTop: 2,
+    fontStyle: 'italic',
+  },
+  shuffleButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  
+  // Canvas Container
+  canvasContainer: {
+    flex: 1,
+    position: 'relative',
+  },
+  canvas: {
+    flex: 1,
+    position: 'relative',
+  },
+  
+  // Ambient Pattern
+  ambientPattern: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 1,
+  },
+  ambientDot: {
+    position: 'absolute',
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+  },
+  
+  // Images
+  imageContainer: {
+    position: 'absolute',
+    zIndex: 10,
+  },
+  imageFrame: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 16,
+    padding: 4,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+  },
+  image: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 12,
+  },
+  imageGlow: {
+    position: 'absolute',
+    top: -2,
+    left: -2,
+    right: -2,
+    bottom: -2,
+    borderRadius: 18,
+    zIndex: -1,
+  },
+  
+  // States
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -380,182 +535,61 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
-    fontWeight: '500',
+    marginTop: Spacing.lg,
+    textAlign: 'center',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.xl,
+  },
+  emptyContent: {
+    padding: Spacing.xl,
+    borderRadius: 24,
+    alignItems: 'center',
+    width: '100%',
+    maxWidth: 320,
+  },
+  emptyTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    marginTop: Spacing.lg,
+    marginBottom: Spacing.md,
+  },
+  emptyText: {
+    fontSize: 16,
+    textAlign: 'center',
+    lineHeight: 24,
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: Spacing.xl,
   },
   errorTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    marginTop: Spacing.md,
-    marginBottom: Spacing.lg,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: Spacing.lg,
-    marginBottom: Spacing.lg,
-  },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  backText: {
-    fontSize: 16,
-    fontWeight: '500',
-    marginLeft: Spacing.xs,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-  },
-  actionIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  coverCard: {
-    marginBottom: Spacing.lg,
-    padding: 0,
-  },
-  coverImage: {
-    width: '100%',
-    height: 200,
-    borderRadius: 16,
-  },
-  mainCard: {
-    marginBottom: Spacing.lg,
-  },
-  titleSection: {
-    marginBottom: Spacing.lg,
-  },
-  title: {
     fontSize: 24,
-    fontWeight: '600',
+    fontWeight: '700',
+    marginTop: Spacing.lg,
     marginBottom: Spacing.md,
   },
-  mentalCodeBadge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-    borderRadius: 16,
-    marginBottom: Spacing.sm,
-  },
-  mentalCodeText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 1,
-  },
-  statusBadge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-    borderRadius: 16,
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  descriptionSection: {
-    marginBottom: Spacing.lg,
-  },
-  whySection: {
-    marginBottom: Spacing.lg,
-  },
-  sectionTitle: {
+  errorText: {
     fontSize: 16,
-    fontWeight: '600',
-    marginBottom: Spacing.sm,
+    textAlign: 'center',
+    lineHeight: 24,
   },
-  description: {
-    fontSize: 14,
-    lineHeight: 22,
+  
+  // Inspiration
+  inspirationContainer: {
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.lg,
+    alignItems: 'center',
   },
-  whyText: {
+  inspirationText: {
     fontSize: 14,
-    lineHeight: 22,
+    textAlign: 'center',
     fontStyle: 'italic',
-  },
-  dateSection: {
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(139, 92, 246, 0.1)',
-    paddingTop: Spacing.md,
-  },
-  dateText: {
-    fontSize: 14,
-  },
-  actionsCard: {
-    marginBottom: Spacing.lg,
-  },
-  actionsTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: Spacing.lg,
-  },
-  actionsList: {
-    gap: Spacing.sm,
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.sm,
-    borderRadius: 12,
-    backgroundColor: 'rgba(139, 92, 246, 0.05)',
-  },
-  actionTextContainer: {
-    flex: 1,
-    marginLeft: Spacing.md,
-  },
-  actionText: {
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  actionSubtext: {
-    fontSize: 12,
-    fontWeight: '500',
-    marginTop: 2,
-  },
-  statsCard: {
-    marginBottom: Spacing.lg,
-  },
-  statsTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: Spacing.lg,
-  },
-  statsList: {
-    gap: Spacing.md,
-  },
-  statItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  statText: {
-    fontSize: 14,
-    marginLeft: Spacing.md,
-  },
-  dangerCard: {
-    marginBottom: Spacing.xl,
-  },
-  dangerTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: Spacing.sm,
-  },
-  dangerDescription: {
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: Spacing.lg,
-  },
-  deleteButton: {
-    alignSelf: 'flex-start',
+    letterSpacing: 0.5,
   },
 });
