@@ -205,13 +205,23 @@ export default function VisionBoardViewScreen() {
             </Text>
           </View>
 
-          <TouchableOpacity
-            onPress={calculateRandomPositions}
-            style={[styles.shuffleButton, { backgroundColor: colors.primary + '20' }]}
-            activeOpacity={0.8}
-          >
-            <MaterialIcons name="shuffle" size={22} color={colors.primary} />
-          </TouchableOpacity>
+          <View style={styles.headerButtons}>
+            <TouchableOpacity
+              onPress={() => router.push(`/vision-board?cocreationId=${cocreationId}`)}
+              style={[styles.editButton, { backgroundColor: colors.secondary + '20' }]}
+              activeOpacity={0.8}
+            >
+              <MaterialIcons name="edit" size={20} color={colors.secondary} />
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              onPress={calculateRandomPositions}
+              style={[styles.shuffleButton, { backgroundColor: colors.primary + '20' }]}
+              activeOpacity={0.8}
+            >
+              <MaterialIcons name="shuffle" size={20} color={colors.primary} />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Vision Board Canvas */}
@@ -369,6 +379,17 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     marginHorizontal: Spacing.md,
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  editButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   headerTitle: {
     fontSize: 22,

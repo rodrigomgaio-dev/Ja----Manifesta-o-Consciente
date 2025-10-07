@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/services/supabase';
-import { VisionBoardItem } from '@/services/types';
+import { VisionBoardItem, IndividualCocriation } from '@/services/types';
 
 export function useVisionBoard(cocriationId: string) {
   const [items, setItems] = useState<VisionBoardItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [cocriation, setCocriation] = useState<IndividualCocriation | null>(null);
 
   useEffect(() => {
     if (cocriationId) {
       loadVisionBoardItems();
+      loadCocriation();
     }
   }, [cocriationId]);
 
@@ -29,6 +31,24 @@ export function useVisionBoard(cocriationId: string) {
       console.error('Error loading vision board items:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadCocriation = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('individual_cocriations')
+        .select('*')
+        .eq('id', cocriationId)
+        .single();
+
+      if (error) {
+        console.error('Error loading cocriation:', error);
+      } else {
+        setCocriation(data);
+      }
+    } catch (error) {
+      console.error('Error loading cocriation:', error);
     }
   };
 
@@ -106,12 +126,72 @@ export function useVisionBoard(cocriationId: string) {
     }
   };
 
+  const finalizeVisionBoard = async () => {
+    try {
+      // Update the cocriation to mark vision board as completed
+      const { data, error } = await supabase
+        .from('individual_cocriations')
+        .update({ 
+          updated_at: new Date().toISOString(),
+          // We'll use a custom field or status to track vision board completion
+          // For now, we'll add a flag that indicates vision board is finished
+        })
+        .eq('id', cocriationId)
+        .select()
+        .single();
+
+      if (error) {
+        return { error };
+      }
+
+      // Add a special marker item to indicate vision board is completed
+      const { data: markerData, error: markerError } = await supabase
+        .from('vision_board_items')
+        .upsert({
+          cocreation_id: cocriationId,
+          type: 'marker' as any, // Special type to mark completion
+          content: 'VISION_BOARD_COMPLETED',
+          description: 'Vision Board completion marker',
+          position_x: -1, // Hidden position
+          position_y: -1,
+          width: 0,
+          height: 0,
+        }, {
+          onConflict: 'cocreation_id,content'
+        });
+
+      if (markerError) {
+        console.error('Error creating completion marker:', markerError);
+      }
+
+      // Refresh data
+      await loadCocriation();
+      await loadVisionBoardItems();
+      
+      return { data, error: null };
+    } catch (error) {
+      return { error };
+    }
+  };
+
+  const checkVisionBoardCompleted = () => {
+    return items.some(item => 
+      item.type === 'marker' && item.content === 'VISION_BOARD_COMPLETED'
+    );
+  };
+
   return {
     items,
     loading,
+    cocriation,
     addItem,
     updateItem,
     deleteItem,
-    refresh: loadVisionBoardItems,
+    finalizeVisionBoard,
+    checkVisionBoardCompleted,
+    refresh: () => {
+      loadVisionBoardItems();
+      loadCocriation();
+    },
   };
 }

@@ -31,10 +31,12 @@ export default function VisionBoardScreen() {
   const { cocreationId } = useLocalSearchParams<{ cocreationId: string }>();
   const { width: screenWidth } = useWindowDimensions();
   
-  const { items, loading, addItem, deleteItem, refresh } = useVisionBoard(cocreationId || '');
+  const { items, loading, addItem, deleteItem, finalizeVisionBoard, checkVisionBoardCompleted, refresh } = useVisionBoard(cocreationId || '');
 
   // State
   const [showImagePicker, setShowImagePicker] = useState(false);
+  const [isCompleted, setIsCompleted] = useState(false);
+  const [isFinalizingVisionBoard, setIsFinalizingVisionBoard] = useState(false);
 
   const showAlert = useCallback((title: string, message: string, onOk?: () => void) => {
     if (Platform.OS === 'web') {
@@ -93,6 +95,33 @@ export default function VisionBoardScreen() {
   const handleExit = useCallback(() => {
     router.back();
   }, []);
+
+  const handleFinalize = useCallback(async () => {
+    setIsFinalizingVisionBoard(true);
+    
+    try {
+      const result = await finalizeVisionBoard();
+      
+      if (result.error) {
+        console.error('Error finalizing vision board:', result.error);
+        showAlert('Erro', 'Não foi possível finalizar o Vision Board. Tente novamente.');
+      } else {
+        showAlert(
+          'Vision Board Finalizado',
+          'Sua manifestação consciente foi criada com sucesso! Agora você pode contemplá-la na tela de visualização.',
+          () => {
+            // Navigate to the view-only screen
+            router.replace(`/vision-board-view?cocreationId=${cocreationId}`);
+          }
+        );
+      }
+    } catch (error) {
+      console.error('Error finalizing vision board:', error);
+      showAlert('Erro Inesperado', 'Algo deu errado. Tente novamente.');
+    } finally {
+      setIsFinalizingVisionBoard(false);
+    }
+  }, [finalizeVisionBoard, showAlert, cocreationId]);
 
   if (!user) {
     return (
@@ -192,14 +221,9 @@ export default function VisionBoardScreen() {
           </TouchableOpacity>
 
           <SacredButton
-            title="Finalizar Vision Board"
-            onPress={() => {
-              showAlert(
-                'Vision Board Concluído!',
-                'Sua manifestação consciente está ativa. Visualize seus sonhos diariamente.',
-                () => router.push('/(tabs)/individual')
-              );
-            }}
+            title={isFinalizingVisionBoard ? "Finalizando..." : "Finalizar Vision Board"}
+            onPress={handleFinalize}
+            loading={isFinalizingVisionBoard}
             style={styles.finishButton}
           />
         </View>

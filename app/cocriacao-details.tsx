@@ -18,6 +18,7 @@ import SacredButton from '@/components/ui/SacredButton';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useIndividualCocriations } from '@/hooks/useIndividualCocriations';
+import { useVisionBoard } from '@/hooks/useVisionBoard';
 import { Spacing } from '@/constants/Colors';
 
 export default function CocriacaoDetailsScreen() {
@@ -26,9 +27,11 @@ export default function CocriacaoDetailsScreen() {
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { cocriations, deleteCocriation, loading, refresh } = useIndividualCocriations();
+  const { checkVisionBoardCompleted } = useVisionBoard(id || '');
 
   const [cocriation, setCocriation] = useState<any>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isVisionBoardCompleted, setIsVisionBoardCompleted] = useState(false);
 
   // Update cocriation when cocriations array changes
   useEffect(() => {
@@ -37,8 +40,14 @@ export default function CocriacaoDetailsScreen() {
       const foundCocriation = cocriations.find(c => c.id === id);
       console.log('Found cocriation:', foundCocriation);
       setCocriation(foundCocriation);
+      
+      // Check if vision board is completed
+      if (foundCocriation) {
+        const completed = checkVisionBoardCompleted();
+        setIsVisionBoardCompleted(completed);
+      }
     }
-  }, [id, cocriations]);
+  }, [id, cocriations, checkVisionBoardCompleted]);
 
   // Refresh data when screen comes into focus
   useFocusEffect(
@@ -108,7 +117,13 @@ export default function CocriacaoDetailsScreen() {
   };
 
   const handleVisionBoard = () => {
-    router.push(`/vision-board?cocreationId=${cocriation.id}`);
+    if (isVisionBoardCompleted) {
+      // Navigate to view-only screen if completed
+      router.push(`/vision-board-view?cocreationId=${cocriation.id}`);
+    } else {
+      // Navigate to edit screen if not completed
+      router.push(`/vision-board?cocreationId=${cocriation.id}`);
+    }
   };
 
   const handleFutureLetter = () => {
@@ -275,9 +290,16 @@ export default function CocriacaoDetailsScreen() {
               onPress={handleVisionBoard}
             >
               <MaterialIcons name="dashboard" size={24} color={colors.primary} />
-              <Text style={[styles.actionText, { color: colors.primary }]}>
-                Vision Board
-              </Text>
+              <View style={styles.actionTextContainer}>
+                <Text style={[styles.actionText, { color: colors.primary }]}>
+                  Vision Board
+                </Text>
+                {isVisionBoardCompleted && (
+                  <Text style={[styles.actionSubtext, { color: colors.success }]}>
+                    ✓ Finalizado
+                  </Text>
+                )}
+              </View>
               <MaterialIcons name="chevron-right" size={20} color={colors.textMuted} />
             </TouchableOpacity>
 
@@ -488,11 +510,18 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: 'rgba(139, 92, 246, 0.05)',
   },
-  actionText: {
+  actionTextContainer: {
     flex: 1,
+    marginLeft: Spacing.md,
+  },
+  actionText: {
     fontSize: 16,
     fontWeight: '500',
-    marginLeft: Spacing.md,
+  },
+  actionSubtext: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginTop: 2,
   },
   statsCard: {
     marginBottom: Spacing.lg,
