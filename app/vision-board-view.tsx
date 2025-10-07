@@ -5,6 +5,8 @@ import {
   StyleSheet,
   TouchableOpacity,
   useWindowDimensions,
+  ScrollView,
+  Dimensions,
 } from 'react-native';
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,11 +18,7 @@ import Animated, {
   withTiming,
   withSpring,
   withDelay,
-  withRepeat,
-  withSequence,
-  runOnJS,
 } from 'react-native-reanimated';
-import { LinearGradient } from 'expo-linear-gradient';
 
 import GradientBackground from '@/components/ui/GradientBackground';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -28,7 +26,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useVisionBoard } from '@/hooks/useVisionBoard';
 import { Spacing } from '@/constants/Colors';
 
-interface PositionedImage {
+interface PositionedItem {
   id: string;
   content: string;
   width: number;
@@ -44,140 +42,102 @@ export default function VisionBoardViewScreen() {
   const insets = useSafeAreaInsets();
   const { cocreationId } = useLocalSearchParams<{ cocreationId: string }>();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
-  
-  const { items, loading } = useVisionBoard(cocreationId || '');
 
-  // Available area for positioning (considering safe areas and header)
-  const availableWidth = screenWidth - 20; // 10px padding on each side
-  const availableHeight = screenHeight - insets.top - insets.bottom - 100; // Account for header and padding
-  const headerHeight = 80;
+  // Hook para buscar os itens do VisionBoard
+  const { items: rawItems, loading } = useVisionBoard(cocreationId || '');
 
-  const [positionedImages, setPositionedImages] = useState<PositionedImage[]>([]);
-
-  // Filter only images from vision board items
+  // Filtrar apenas as imagens
   const imageItems = useMemo(() => {
-    return items.filter(item => item.type === 'image' && item.content);
-  }, [items]);
+    return rawItems.filter(item => item.type === 'image' && item.content);
+  }, [rawItems]);
 
-  // Function to check if two rectangles overlap
-  const rectanglesOverlap = useCallback((
-    rect1: { x: number; y: number; width: number; height: number },
-    rect2: { x: number; y: number; width: number; height: number },
-    margin: number = 10 // Reduced margin
-  ): boolean => {
-    return !(
-      rect1.x + rect1.width + margin < rect2.x ||
-      rect2.x + rect2.width + margin < rect1.x ||
-      rect1.y + rect1.height + margin < rect2.y ||
-      rect2.y + rect2.height + margin < rect1.y
-    );
-  }, []);
+  // --- Configurações do Canvas ---
+  // Tamanho do canvas (pode ser maior que a tela para permitir navegação)
+  // Vamos calcular um tamanho baseado no número de imagens e um tamanho médio
+  const canvasPadding = 100; // Espaço extra ao redor do conteúdo
+  const minCanvasSize = Math.max(screenWidth, screenHeight) * 1.5; // Tamanho mínimo
 
-  // Function to generate random position with collision detection
-  const generateRandomPosition = useCallback((
-    imageWidth: number, 
-    imageHeight: number, 
-    existingPositions: Array<{ x: number; y: number; width: number; height: number }>
-  ): { x: number; y: number } => {
-    const maxAttempts = 50;
-    const margin = 10; // Reduced margin
-
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      // Allow positioning closer to edges
-      const x = Math.random() * (availableWidth - imageWidth);
-      const y = Math.random() * (availableHeight - imageHeight) + headerHeight;
-
-      const newRect = { x, y, width: imageWidth, height: imageHeight };
-      
-      // Check collision with existing positions
-      const hasCollision = existingPositions.some(existingRect => 
-        rectanglesOverlap(newRect, existingRect, margin)
-      );
-
-      if (!hasCollision) {
-        return { x, y };
-      }
-    }
-
-    // If all attempts failed, return a random position (fallback)
-    return {
-      x: Math.random() * (availableWidth - imageWidth),
-      y: Math.random() * (availableHeight - imageHeight) + headerHeight,
-    };
-  }, [availableWidth, availableHeight, headerHeight, rectanglesOverlap]);
-
-  // Function to calculate random positions for all images
-  const calculateRandomPositions = useCallback(() => {
+  // --- Cálculo de Posicionamento Denso ---
+  const positionedItems = useMemo(() => {
     if (imageItems.length === 0) {
-      setPositionedImages([]);
-      return;
+      return [];
     }
 
-    const positioned: PositionedImage[] = [];
-    const existingPositions: Array<{ x: number; y: number; width: number; height: number }> = [];
+    // Tamanho médio das imagens
+    const baseImageSize = Math.min(screenWidth * 0.3, screenHeight * 0.25, 180);
+    const minImageSize = baseImageSize * 0.6;
+    const maxImageSize = baseImageSize * 1.4;
 
-    // Calculate target size based on number of images and screen dimensions
-    const totalArea = availableWidth * availableHeight;
-    const targetImageArea = totalArea / (imageItems.length || 1);
-    const targetImageSize = Math.sqrt(targetImageArea);
-    
-    // Set a minimum and maximum size
-    const minSize = Math.min(screenWidth * 0.15, screenHeight * 0.1, 100);
-    const maxSize = Math.min(screenWidth * 0.4, screenHeight * 0.3, 200);
-    
-    // Use the target size, but clamp it between min and max
-    const baseSize = Math.max(minSize, Math.min(maxSize, targetImageSize));
-    
-    // Add a small random variation (±10%) to avoid uniformity
-    const sizeVariation = 0.9 + Math.random() * 0.2; // Between 90% and 110%
-    const finalSize = Math.max(minSize, Math.min(maxSize, baseSize * sizeVariation));
+    // Espaçamento entre imagens
+    const spacing = 10;
 
+    // Variáveis para calcular o tamanho do canvas
+    let canvasWidth = minCanvasSize;
+    let canvasHeight = minCanvasSize;
+    let currentX = canvasPadding;
+    let currentY = canvasPadding;
+    let rowHeight = 0; // Altura da linha atual sendo preenchida
+
+    const items: PositionedItem[] = [];
     imageItems.forEach((item, index) => {
-      // Use the calculated finalSize for all images
+      // Calcular tamanho da imagem
+      const sizeVariation = 0.8 + Math.random() * 0.4; // Entre 80% e 120%
+      const finalSize = Math.max(minImageSize, Math.min(maxImageSize, baseImageSize * sizeVariation));
+
       const imageWidth = item.width ? Math.min(item.width, finalSize) : finalSize;
       const imageHeight = item.height ? Math.min(item.height, finalSize) : finalSize;
 
-      const position = generateRandomPosition(imageWidth, imageHeight, existingPositions);
+      // Verificar se a imagem cabe na linha atual
+      if (currentX + imageWidth > canvasWidth - canvasPadding) {
+        // Não cabe, pular para a próxima linha
+        currentX = canvasPadding;
+        currentY += rowHeight + spacing;
+        rowHeight = 0; // Resetar altura da linha
+      }
 
-      const positionedImage: PositionedImage = {
+      // Atualizar a altura da linha atual
+      rowHeight = Math.max(rowHeight, imageHeight);
+
+      // Posicionar a imagem
+      items.push({
         id: item.id,
         content: item.content,
         width: imageWidth,
         height: imageHeight,
-        x: position.x,
-        y: position.y,
-        animationDelay: index * 100, // Stagger animation by 100ms per image
-      };
-
-      positioned.push(positionedImage);
-      existingPositions.push({
-        x: position.x,
-        y: position.y,
-        width: imageWidth,
-        height: imageHeight,
+        x: currentX,
+        y: currentY,
+        animationDelay: index * 100, // Stagger
       });
+
+      // Atualizar coordenadas para a próxima imagem
+      currentX += imageWidth + spacing;
+
+      // Atualizar o tamanho do canvas conforme necessário
+      canvasWidth = Math.max(canvasWidth, currentX + canvasPadding);
+      canvasHeight = Math.max(canvasHeight, currentY + imageHeight + canvasPadding);
     });
 
-    setPositionedImages(positioned);
-  }, [imageItems, screenWidth, screenHeight, availableWidth, availableHeight, generateRandomPosition]);
+    return items;
+  }, [imageItems, screenWidth, screenHeight]);
 
-  // Recalculate positions when screen gains focus or when items change
-  useFocusEffect(
-    useCallback(() => {
-      if (imageItems.length > 0) {
-        // Small delay to ensure screen is fully focused
-        const timer = setTimeout(calculateRandomPositions, 100);
-        return () => clearTimeout(timer);
-      }
-    }, [imageItems, calculateRandomPositions])
-  );
+  // --- Funções de Navegação ---
+  const handleZoomIn = (scrollViewRef: React.RefObject<ScrollView>) => {
+    // Simplesmente aumentar o zoom em um fator
+    // Isso requer um estado ou ref para o zoom atual, que o ScrollView não fornece diretamente
+    // Para um controle mais preciso, uma biblioteca como react-native-gesture-handler seria necessária
+    // Por enquanto, vamos apenas centralizar o scroll em um ponto
+    scrollViewRef.current?.scrollTo({ x: 0, y: 0, animated: true });
+  };
 
-  // Initial calculation when items are first loaded
-  useEffect(() => {
-    if (imageItems.length > 0) {
-      calculateRandomPositions();
-    }
-  }, [imageItems, calculateRandomPositions]);
+  const handleZoomOut = (scrollViewRef: React.RefObject<ScrollView>) => {
+    // Voltar ao zoom padrão
+    scrollViewRef.current?.scrollTo({ x: 0, y: 0, animated: true });
+  };
+
+  const handleResetView = (scrollViewRef: React.RefObject<ScrollView>) => {
+    // Centralizar e resetar zoom
+    scrollViewRef.current?.scrollTo({ x: 0, y: 0, animated: true });
+  };
 
   if (!user) {
     return (
@@ -197,19 +157,21 @@ export default function VisionBoardViewScreen() {
     );
   }
 
+  const scrollViewRef = React.createRef<ScrollView>();
+
   return (
     <GradientBackground>
       <View style={[styles.container, { paddingTop: insets.top }]}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity 
-            onPress={() => router.back()} 
+          <TouchableOpacity
+            onPress={() => router.back()}
             style={[styles.backButton, { backgroundColor: colors.surface + '80' }]}
             activeOpacity={0.8}
           >
             <MaterialIcons name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
-          
+
           <View style={styles.headerContent}>
             <Text style={[styles.headerTitle, { color: colors.text }]}>
               Vision Board
@@ -219,26 +181,33 @@ export default function VisionBoardViewScreen() {
             </Text>
           </View>
 
+          {/* Botões de Zoom */}
           <View style={styles.headerButtons}>
             <TouchableOpacity
-              onPress={() => router.push(`/vision-board?cocreationId=${cocreationId}`)}
-              style={[styles.editButton, { backgroundColor: colors.secondary + '20' }]}
+              onPress={() => handleZoomOut(scrollViewRef)}
+              style={[styles.zoomButton, { backgroundColor: colors.surface + '80' }]}
               activeOpacity={0.8}
             >
-              <MaterialIcons name="edit" size={20} color={colors.secondary} />
+              <MaterialIcons name="zoom-out" size={20} color={colors.text} />
             </TouchableOpacity>
-            
             <TouchableOpacity
-              onPress={calculateRandomPositions}
-              style={[styles.shuffleButton, { backgroundColor: colors.primary + '20' }]}
+              onPress={() => handleResetView(scrollViewRef)}
+              style={[styles.zoomButton, { backgroundColor: colors.surface + '80' }]}
               activeOpacity={0.8}
             >
-              <MaterialIcons name="shuffle" size={20} color={colors.primary} />
+              <MaterialIcons name="center-focus-strong" size={20} color={colors.text} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => handleZoomIn(scrollViewRef)}
+              style={[styles.zoomButton, { backgroundColor: colors.surface + '80' }]}
+              activeOpacity={0.8}
+            >
+              <MaterialIcons name="zoom-in" size={20} color={colors.text} />
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* Vision Board Canvas */}
+        {/* Canvas com ScrollView para Zoom e Arraste */}
         <View style={styles.canvasContainer}>
           {loading ? (
             <View style={styles.loadingContainer}>
@@ -261,9 +230,20 @@ export default function VisionBoardViewScreen() {
               </View>
             </View>
           ) : (
-            <View style={styles.canvas}>
-              {/* Fundo Interativo - Gradiente Dinâmico */}
-              <LinearGradient
+            <ScrollView
+              ref={scrollViewRef}
+              style={styles.scrollView}
+              contentContainerStyle={styles.canvasContent}
+              showsVerticalScrollIndicator={false}
+              showsHorizontalScrollIndicator={false}
+              maximumZoomScale={3}
+              minimumZoomScale={0.5}
+              // scrollEnabled={true} // Habilita arraste
+              // zoomEnabled={true} // Habilita zoom (não funciona exatamente como no iOS, mas permite double-tap)
+              // Para controle preciso de zoom, seria necessário react-native-gesture-handler
+            >
+              {/* Fundo Interativo - Gradiente Dinâmico (opcional) */}
+              {/* <LinearGradient
                 colors={[
                   colors.surface + '20',
                   colors.primary + '10',
@@ -273,38 +253,21 @@ export default function VisionBoardViewScreen() {
                 style={StyleSheet.absoluteFill}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
-              />
+              /> */}
 
-              {/* Ambient background pattern */}
-              <View style={styles.ambientPattern}>
-                {Array.from({ length: 12 }).map((_, i) => (
-                  <View
-                    key={i}
-                    style={[
-                      styles.ambientDot,
-                      {
-                        backgroundColor: colors.primary + '15',
-                        left: `${Math.random() * 90 + 5}%`,
-                        top: `${Math.random() * 90 + 5}%`,
-                      }
-                    ]}
-                  />
-                ))}
-              </View>
-
-              {/* Vision Board Images */}
-              {positionedImages.map((image) => (
+              {/* Imagens posicionadas */}
+              {positionedItems.map((item) => (
                 <AnimatedVisionImage
-                  key={`${image.id}-${image.x}-${image.y}`} // Key includes position to trigger re-render
-                  image={image}
+                  key={`${item.id}-${item.x}-${item.y}`} // Key inclui posição para re-render
+                  item={item}
                   colors={colors}
                 />
               ))}
-            </View>
+            </ScrollView>
           )}
         </View>
 
-        {/* Inspiration Text */}
+        {/* Inspiração */}
         {imageItems.length > 0 && (
           <View style={styles.inspirationContainer}>
             <Text style={[styles.inspirationText, { color: colors.textMuted }]}>
@@ -317,73 +280,30 @@ export default function VisionBoardViewScreen() {
   );
 }
 
-// Separate component for animated vision board images
+// Componente para cada imagem posicionada com animação
 const AnimatedVisionImage: React.FC<{
-  image: PositionedImage;
+  item: PositionedItem;
   colors: any;
-}> = ({ image, colors }) => {
+}> = ({ item, colors }) => {
   const opacity = useSharedValue(0);
-  const scale = useSharedValue(0.3);
-  const translateY = useSharedValue(20);
-
-  // Valores para a flutuação
-  const floatX = useSharedValue(0);
-  const floatY = useSharedValue(0);
+  const scale = useSharedValue(0.5);
 
   useEffect(() => {
-    // Staggered entrance animation
+    // Animação de entrada
     opacity.value = withDelay(
-      image.animationDelay,
-      withTiming(1, { duration: 800 })
+      item.animationDelay,
+      withTiming(1, { duration: 600 })
     );
     scale.value = withDelay(
-      image.animationDelay,
-      withSpring(1, { damping: 12, stiffness: 100 })
+      item.animationDelay,
+      withSpring(1, { damping: 10, stiffness: 100 })
     );
-    translateY.value = withDelay(
-      image.animationDelay,
-      withSpring(0, { damping: 10, stiffness: 80 })
-    );
-
-    // Iniciar flutuação após a entrada
-    setTimeout(() => {
-      // Gerar valores aleatórios para o alcance da flutuação
-      const rangeX = 3 + Math.random() * 4; // Entre 3 e 7px
-      const rangeY = 3 + Math.random() * 4; // Entre 3 e 7px
-
-      // Animação de flutuação em loop
-      floatX.value = withRepeat(
-        withSequence(
-          withSpring(rangeX, { duration: 3000, damping: 10 }),
-          withSpring(-rangeX, { duration: 3000, damping: 10 }),
-          withSpring(0, { duration: 1000, damping: 10 }) // Volta suavemente para o centro
-        ),
-        -1, // Loop infinito
-        false
-      );
-
-      floatY.value = withRepeat(
-        withSequence(
-          withSpring(rangeY, { duration: 2500, damping: 10 }),
-          withSpring(-rangeY, { duration: 2500, damping: 10 }),
-          withSpring(0, { duration: 1000, damping: 10 }) // Volta suavemente para o centro
-        ),
-        -1, // Loop infinito
-        false
-      );
-    }, image.animationDelay + 800); // Começa após a animação de entrada
-
-  }, [image.animationDelay]);
+  }, [item.animationDelay]);
 
   const animatedStyle = useAnimatedStyle(() => {
     return {
       opacity: opacity.value,
-      transform: [
-        { scale: scale.value },
-        { translateY: translateY.value },
-        { translateX: floatX.value }, // Aplica o movimento X da flutuação
-        { translateY: translateY.value + floatY.value }, // Combina o translateY base com o da flutuação
-      ],
+      transform: [{ scale: scale.value }],
     };
   });
 
@@ -392,24 +312,23 @@ const AnimatedVisionImage: React.FC<{
       style={[
         styles.imageContainer,
         {
-          left: image.x,
-          top: image.y,
-          width: image.width,
-          height: image.height,
+          left: item.x,
+          top: item.y,
+          width: item.width,
+          height: item.height,
         },
         animatedStyle,
       ]}
     >
       <View style={[styles.imageFrame, { backgroundColor: colors.surface + '40' }]}>
         <Image
-          source={{ uri: image.content }}
+          source={{ uri: item.content }}
           style={styles.image}
           contentFit="cover"
           cachePolicy="memory-disk"
           transition={300}
         />
-        
-        {/* Subtle glow effect */}
+        {/* Brilho opcional */}
         <View style={[styles.imageGlow, { backgroundColor: colors.primary + '20' }]} />
       </View>
     </Animated.View>
@@ -420,14 +339,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  
-  // Header
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
-    height: 80,
     zIndex: 100,
   },
   backButton: {
@@ -444,12 +361,12 @@ const styles = StyleSheet.create({
   },
   headerButtons: {
     flexDirection: 'row',
-    gap: Spacing.sm,
+    gap: Spacing.xs,
   },
-  editButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  zoomButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -462,41 +379,16 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontStyle: 'italic',
   },
-  shuffleButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  
-  // Canvas Container
   canvasContainer: {
     flex: 1,
-    position: 'relative',
   },
-  canvas: {
+  scrollView: {
     flex: 1,
-    position: 'relative',
   },
-  
-  // Ambient Pattern
-  ambientPattern: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 1,
+  canvasContent: {
+    // O tamanho real do conteúdo será definido pelo layout das imagens
+    // Este estilo é aplicado ao conteúdo interno do ScrollView
   },
-  ambientDot: {
-    position: 'absolute',
-    width: 3,
-    height: 3,
-    borderRadius: 1.5,
-  },
-  
-  // Images
   imageContainer: {
     position: 'absolute',
     zIndex: 10,
@@ -504,30 +396,28 @@ const styles = StyleSheet.create({
   imageFrame: {
     width: '100%',
     height: '100%',
-    borderRadius: 16,
-    padding: 4,
-    elevation: 8,
+    borderRadius: 12,
+    padding: 2,
+    elevation: 4,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
   },
   image: {
     width: '100%',
     height: '100%',
-    borderRadius: 12,
+    borderRadius: 10,
   },
   imageGlow: {
     position: 'absolute',
-    top: -2,
-    left: -2,
-    right: -2,
-    bottom: -2,
-    borderRadius: 18,
+    top: -1,
+    left: -1,
+    right: -1,
+    bottom: -1,
+    borderRadius: 13,
     zIndex: -1,
   },
-  
-  // States
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -579,8 +469,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 24,
   },
-  
-  // Inspiration
   inspirationContainer: {
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.lg,
