@@ -16,7 +16,11 @@ import Animated, {
   withTiming,
   withSpring,
   withDelay,
+  withRepeat,
+  withSequence,
+  runOnJS,
 } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient'; // Importar o gradiente
 
 import GradientBackground from '@/components/ui/GradientBackground';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -248,6 +252,19 @@ export default function VisionBoardViewScreen() {
             </View>
           ) : (
             <View style={styles.canvas}>
+              {/* Fundo Interativo - Gradiente Dinâmico */}
+              <LinearGradient
+                colors={[
+                  colors.surface + '20',
+                  colors.primary + '10',
+                  colors.accent + '10',
+                  colors.surface + '20',
+                ]}
+                style={StyleSheet.absoluteFill}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              />
+
               {/* Ambient background pattern */}
               <View style={styles.ambientPattern}>
                 {Array.from({ length: 12 }).map((_, i) => (
@@ -299,6 +316,10 @@ const AnimatedVisionImage: React.FC<{
   const scale = useSharedValue(0.3);
   const translateY = useSharedValue(20);
 
+  // Valores para a flutuação
+  const floatX = useSharedValue(0);
+  const floatY = useSharedValue(0);
+
   useEffect(() => {
     // Staggered entrance animation
     opacity.value = withDelay(
@@ -313,6 +334,35 @@ const AnimatedVisionImage: React.FC<{
       image.animationDelay,
       withSpring(0, { damping: 10, stiffness: 80 })
     );
+
+    // Iniciar flutuação após a entrada
+    setTimeout(() => {
+      // Gerar valores aleatórios para o alcance da flutuação
+      const rangeX = 5 + Math.random() * 5; // Entre 5 e 10px
+      const rangeY = 5 + Math.random() * 5; // Entre 5 e 10px
+
+      // Animação de flutuação em loop
+      floatX.value = withRepeat(
+        withSequence(
+          withSpring(rangeX, { duration: 3000, damping: 10 }),
+          withSpring(-rangeX, { duration: 3000, damping: 10 }),
+          withSpring(0, { duration: 1000, damping: 10 }) // Volta suavemente para o centro
+        ),
+        -1, // Loop infinito
+        false
+      );
+
+      floatY.value = withRepeat(
+        withSequence(
+          withSpring(rangeY, { duration: 2500, damping: 10 }),
+          withSpring(-rangeY, { duration: 2500, damping: 10 }),
+          withSpring(0, { duration: 1000, damping: 10 }) // Volta suavemente para o centro
+        ),
+        -1, // Loop infinito
+        false
+      );
+    }, image.animationDelay + 800); // Começa após a animação de entrada
+
   }, [image.animationDelay]);
 
   const animatedStyle = useAnimatedStyle(() => {
@@ -321,6 +371,8 @@ const AnimatedVisionImage: React.FC<{
       transform: [
         { scale: scale.value },
         { translateY: translateY.value },
+        { translateX: floatX.value }, // Aplica o movimento X da flutuação
+        { translateY: translateY.value + floatY.value }, // Combina o translateY base com o da flutuação
       ],
     };
   });
