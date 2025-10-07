@@ -129,21 +129,18 @@ export function useVisionBoard(cocriationId: string) {
   const finalizeVisionBoard = async () => {
     try {
       // Update the cocriation to mark vision board as completed
-      // We'll add a custom field to track vision board completion status
       const { data, error } = await supabase
         .from('individual_cocriations')
         .update({ 
           updated_at: new Date().toISOString(),
-          // Add a completion status field for vision board
-          // This will be used to determine if vision board is completed
-          status: 'vision_board_completed'
+          vision_board_completed: true
         })
         .eq('id', cocriationId)
         .select()
         .single();
 
       if (error) {
-        console.error('Error updating cocriation status:', error);
+        console.error('Error updating vision board completion status:', error);
         return { error };
       }
 
@@ -160,8 +157,8 @@ export function useVisionBoard(cocriationId: string) {
   };
 
   const checkVisionBoardCompleted = () => {
-    // Check if the cocriation status indicates vision board is completed
-    return cocriation?.status === 'vision_board_completed' || cocriation?.status === 'completed';
+    // Check if the vision board completion field is true
+    return cocriation?.vision_board_completed === true;
   };
 
   return {

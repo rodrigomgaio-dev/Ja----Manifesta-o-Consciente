@@ -38,6 +38,7 @@ export interface Database {
           status: 'active' | 'completed' | 'paused';
           completion_date: string | null;
           nft_generated: boolean;
+          vision_board_completed: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -51,6 +52,7 @@ export interface Database {
           status?: 'active' | 'completed' | 'paused';
           completion_date?: string | null;
           nft_generated?: boolean;
+          vision_board_completed?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -64,6 +66,7 @@ export interface Database {
           status?: 'active' | 'completed' | 'paused';
           completion_date?: string | null;
           nft_generated?: boolean;
+          vision_board_completed?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -250,8 +253,10 @@ export interface IndividualCocriation {
   status: 'active' | 'completed' | 'paused';
   completion_date?: string;
   nft_generated: boolean;
+  vision_board_completed: boolean;
   created_at: string;
   updated_at: string;
+  cover_image_url?: string;
 }
 
 export interface VisionBoardItem {
