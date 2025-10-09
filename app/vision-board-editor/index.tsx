@@ -156,5 +156,106 @@ export default function VisionBoardEditorScreen() {
   // --- COMPONENTE PRINCIPAL ---
   console.log("[VisionBoardEditor] Renderizando componente principal com", items.length, "itens.");
 
-  // ... (resto do código do componente principal)
+  return (
+    <GradientBackground>
+      <View style={[styles.container, { paddingTop: insets.top }]}>
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
+            <MaterialIcons name="arrow-back" size={24} color={colors.text} />
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>
+            Editor do Vision Board
+          </Text>
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={() => {/* TODO: implementar adição de elementos */}}
+          >
+            <MaterialIcons name="add" size={24} color={colors.text} />
+          </TouchableOpacity>
+        </View>
+        
+        <View style={styles.canvas}>
+          <Text style={[styles.canvasPlaceholder, { color: colors.textSecondary }]}>
+            {items.length === 0 ? 'Toque no botão + para adicionar elementos' : `${items.length} elementos`}
+          </Text>
+        </View>
+      </View>
+    </GradientBackground>
+  );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  backButton: {
+    padding: Spacing.xs,
+    borderRadius: 8,
+  },
+  addButton: {
+    padding: Spacing.xs,
+    borderRadius: 8,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  canvas: {
+    flex: 1,
+    margin: Spacing.md,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  canvasPlaceholder: {
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  errorContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.md,
+  },
+  errorTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginTop: Spacing.md,
+    marginBottom: Spacing.sm,
+  },
+  errorText: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: Spacing.lg,
+  },
+  backButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.md,
+  },
+  loadingText: {
+    fontSize: 16,
+    marginTop: Spacing.md,
+    textAlign: 'center',
+  },
+});
