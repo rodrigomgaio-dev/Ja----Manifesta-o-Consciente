@@ -1,5 +1,5 @@
 // app/vision-board-editor/index.tsx
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,12 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withSpring,
+} from 'react-native-reanimated';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useVisionBoardItems } from '@/hooks/useVisionBoardItems';
@@ -24,65 +30,48 @@ export default function VisionBoardEditorScreen() {
   const insets = useSafeAreaInsets();
   const { cocreationId } = useLocalSearchParams<{ cocreationId: string }>();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const { items, loading, error } = useVisionBoardItems(cocreationId);
 
-  console.log("[VisionBoardEditor] Iniciando componente...");
-  console.log("[VisionBoardEditor] cocreationId recebido:", cocreationId);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const rotation = useSharedValue(0);
+  const scale = useSharedValue(0);
 
-  // Validar cocreationId
+  const toggleMenu = () => {
+    const newState = !menuOpen;
+    setMenuOpen(newState);
+    rotation.value = withSpring(newState ? 45 : 0, { damping: 12 });
+    scale.value = withTiming(newState ? 1 : 0, { duration: 300 });
+  };
+
+  const menuAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+    opacity: scale.value,
+  }));
+
   if (!cocreationId || typeof cocreationId !== 'string') {
-    console.error("[VisionBoardEditor] ERRO CRÍTICO: cocreationId inválido ou não fornecido!");
     return (
       <GradientBackground>
         <View style={[styles.container, { paddingTop: insets.top }]}>
-          <View style={styles.errorContainer}>
-            <MaterialIcons name="error" size={64} color={colors.error} />
-            <Text style={[styles.errorTitle, { color: colors.text }]}>
-              Erro Crítico
-            </Text>
-            <Text style={[styles.errorText, { color: colors.textSecondary }]}>
-              ID da Cocriação inválido ou não fornecido.
-            </Text>
-            <TouchableOpacity
-              style={[styles.backButton, { backgroundColor: colors.textMuted }]}
-              onPress={() => router.back()}
-            >
-              <Text style={[styles.backButtonText, { color: 'white' }]}>Voltar</Text>
-            </TouchableOpacity>
-          </View>
+          <ErrorView
+            message="ID da Cocriação inválido ou não fornecido."
+            onBack={() => router.back()}
+          />
         </View>
       </GradientBackground>
     );
   }
 
-  const { items, loading, error } = useVisionBoardItems(cocreationId);
-
   if (error) {
-    console.error("[VisionBoardEditor] Erro retornado pelo hook useVisionBoardItems:", error);
     return (
       <GradientBackground>
         <View style={[styles.container, { paddingTop: insets.top }]}>
-          <View style={styles.errorContainer}>
-            <MaterialIcons name="error" size={64} color={colors.error} />
-            <Text style={[styles.errorTitle, { color: colors.text }]}>
-              Erro ao Carregar
-            </Text>
-            <Text style={[styles.errorText, { color: colors.textSecondary }]}>
-              {error}
-            </Text>
-            <TouchableOpacity
-              style={[styles.backButton, { backgroundColor: colors.textMuted }]}
-              onPress={() => router.back()}
-            >
-              <Text style={[styles.backButtonText, { color: 'white' }]}>Voltar</Text>
-            </TouchableOpacity>
-          </View>
+          <ErrorView message={error} onBack={() => router.back()} />
         </View>
       </GradientBackground>
     );
   }
 
   if (loading) {
-    console.log("[VisionBoardEditor] Carregando dados...");
     return (
       <GradientBackground>
         <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -98,35 +87,22 @@ export default function VisionBoardEditorScreen() {
   }
 
   if (!user) {
-    console.log("[VisionBoardEditor] Usuário não autenticado.");
     return (
       <GradientBackground>
         <View style={[styles.container, { paddingTop: insets.top }]}>
-          <View style={styles.errorContainer}>
-            <MaterialIcons name="error" size={64} color={colors.error} />
-            <Text style={[styles.errorTitle, { color: colors.text }]}>
-              Acesso Negado
-            </Text>
-            <Text style={[styles.errorText, { color: colors.textSecondary }]}>
-              Você precisa estar logado para editar este Vision Board.
-            </Text>
-            <TouchableOpacity
-              style={[styles.backButton, { backgroundColor: colors.textMuted }]}
-              onPress={() => router.back()}
-            >
-              <Text style={[styles.backButtonText, { color: 'white' }]}>Voltar</Text>
-            </TouchableOpacity>
-          </View>
+          <ErrorView
+            message="Você precisa estar logado para editar este Vision Board."
+            onBack={() => router.back()}
+          />
         </View>
       </GradientBackground>
     );
   }
 
-  console.log("[VisionBoardEditor] Renderizando componente principal com", items.length, "itens.");
-
   return (
     <GradientBackground>
       <View style={[styles.container, { paddingTop: insets.top }]}>
+        {/* Cabeçalho */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
             <MaterialIcons name="arrow-back" size={24} color={colors.text} />
@@ -136,16 +112,10 @@ export default function VisionBoardEditorScreen() {
             Editor do Vision Board
           </Text>
 
-          <TouchableOpacity
-            style={styles.addButton}
-            onPress={() => {
-              // TODO: implementar adição de elementos
-            }}
-          >
-            <MaterialIcons name="add" size={24} color={colors.text} />
-          </TouchableOpacity>
+          <View style={{ width: 24 }} />
         </View>
 
+        {/* Canvas */}
         <View style={styles.canvas}>
           {items.map((item) => {
             if (item.type === 'image' && 'uri' in item) {
@@ -195,8 +165,93 @@ export default function VisionBoardEditorScreen() {
             </Text>
           )}
         </View>
+
+        {/* Menu flutuante */}
+        <Animated.View
+          style={[
+            styles.floatingMenu,
+            menuAnimatedStyle,
+            { bottom: insets.bottom + 100, right: 30 },
+          ]}
+        >
+          <TouchableOpacity
+            style={[styles.menuItem, { backgroundColor: colors.primary }]}
+            onPress={() => {
+              console.log("Adicionar imagem");
+              toggleMenu();
+            }}
+          >
+            <MaterialIcons name="image" size={22} color="white" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.menuItem, { backgroundColor: colors.primary }]}
+            onPress={() => {
+              console.log("Adicionar texto");
+              toggleMenu();
+            }}
+          >
+            <MaterialIcons name="text-fields" size={22} color="white" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.menuItem, { backgroundColor: colors.primary }]}
+            onPress={() => {
+              console.log("Adicionar emoji");
+              toggleMenu();
+            }}
+          >
+            <MaterialIcons name="emoji-emotions" size={22} color="white" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.menuItem, { backgroundColor: colors.primary }]}
+            onPress={() => {
+              console.log("Adicionar sticker");
+              toggleMenu();
+            }}
+          >
+            <MaterialIcons name="auto-awesome" size={22} color="white" />
+          </TouchableOpacity>
+        </Animated.View>
+
+        {/* Botão flutuante principal */}
+        <Animated.View
+          style={[
+            styles.floatingButtonContainer,
+            {
+              bottom: insets.bottom + 40,
+              right: 30,
+              transform: [{ rotate: `${rotation.value}deg` }],
+            },
+          ]}
+        >
+          <TouchableOpacity
+            style={[styles.floatingButton, { backgroundColor: colors.primary }]}
+            onPress={toggleMenu}
+          >
+            <MaterialIcons name="add" size={28} color="white" />
+          </TouchableOpacity>
+        </Animated.View>
       </View>
     </GradientBackground>
+  );
+}
+
+function ErrorView({ message, onBack }: { message: string; onBack: () => void }) {
+  const { colors } = useTheme();
+  return (
+    <View style={styles.errorContainer}>
+      <MaterialIcons name="error" size={64} color={colors.error} />
+      <Text style={[styles.errorTitle, { color: colors.text }]}>Erro</Text>
+      <Text style={[styles.errorText, { color: colors.textSecondary }]}>{message}</Text>
+      <TouchableOpacity
+        style={[styles.backButton, { backgroundColor: colors.textMuted }]}
+        onPress={onBack}
+      >
+        <Text style={[styles.backButtonText, { color: 'white' }]}>Voltar</Text>
+      </TouchableOpacity>
+    </View>
   );
 }
 
@@ -214,10 +269,6 @@ const styles = StyleSheet.create({
     borderBottomColor: 'rgba(255, 255, 255, 0.1)',
   },
   backButton: {
-    padding: Spacing.xs,
-    borderRadius: 8,
-  },
-  addButton: {
     padding: Spacing.xs,
     borderRadius: 8,
   },
@@ -270,5 +321,44 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginTop: Spacing.md,
     textAlign: 'center',
+  },
+
+  // Botão flutuante
+  floatingButtonContainer: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  floatingButton: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 3.5,
+  },
+
+  // Menu flutuante animado
+  floatingMenu: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  menuItem: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    marginVertical: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 2,
   },
 });
