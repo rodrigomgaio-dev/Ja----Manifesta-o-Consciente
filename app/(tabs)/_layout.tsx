@@ -1,3 +1,5 @@
+// app/(tabs)/_layout.tsx
+import React from 'react';
 import { Tabs } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useTheme } from '@/contexts/ThemeContext';
