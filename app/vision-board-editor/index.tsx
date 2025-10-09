@@ -11,7 +11,7 @@ import {
   Platform,
   useWindowDimensions,
   TouchableWithoutFeedback,
-  ScrollView, // <-- ADICIONAR ESTA IMPORTAÇÃO
+  ScrollView,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -96,7 +96,7 @@ const DraggableItem: React.FC<DraggableItemProps> = ({
 
   // Pan gesture handler for dragging
   const panGestureHandler = useAnimatedGestureHandler({
-    onStart: (_, context) => {
+    onStart: (_, context: any) => {
       context.startX = translateX.value;
       context.startY = translateY.value;
       
@@ -107,7 +107,7 @@ const DraggableItem: React.FC<DraggableItemProps> = ({
       // Select item
       runOnJS(onSelect)(item.id);
     },
-    onActive: (event, context) => {
+    onActive: (event, context: any) => {
       translateX.value = context.startX + event.translationX;
       translateY.value = context.startY + event.translationY;
     },
@@ -132,11 +132,11 @@ const DraggableItem: React.FC<DraggableItemProps> = ({
 
   // Pinch gesture handler for resizing (images only) - maintains aspect ratio
   const pinchGestureHandler = useAnimatedGestureHandler({
-    onStart: (_, context) => {
+    onStart: (_, context: any) => {
       context.startW = itemWidth.value;
       context.startH = itemHeight.value;
     },
-    onActive: (event, context) => {
+    onActive: (event, context: any) => {
       if (item.type === 'image') {
         const scale = Math.max(0.5, Math.min(event.scale, 3));
         itemScale.value = scale;
@@ -264,6 +264,7 @@ export default function VisionBoardEditorScreen() {
   // State
   const [showAddModal, setShowAddModal] = useState(false);
   const [showTextModal, setShowTextModal] = useState(false);
+  const [showEmojiModal, setShowEmojiModal] = useState(false); // <-- ADICIONADO AQUI
   const [textInput, setTextInput] = useState('');
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
@@ -662,7 +663,7 @@ export default function VisionBoardEditorScreen() {
                         Canvas Sagrado
                       </Text>
                       <Text style={[styles.emptyStateText, { color: colors.textSecondary }]}>
-                        Adicione imagens, textos ou emojis para começar sua manifestação{'\n'}
+                        Comece a criar sua manifestação{'\n'}
                         Toque nos botões para adicionar elementos
                       </Text>
                     </View>
@@ -1105,7 +1106,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '700',
     textAlign: 'center',
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.xl,
   },
   modalCloseButton: {
     padding: Spacing.sm,
