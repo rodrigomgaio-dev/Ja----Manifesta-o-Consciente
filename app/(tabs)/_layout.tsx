@@ -3,8 +3,16 @@ import React from 'react';
 import { Tabs } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useTheme } from '@/contexts/ThemeContext';
-import { Platform } from 'react-native';
+import { Platform, StyleSheet } from 'react-native'; // Adicionei StyleSheet
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+// Definindo os estilos
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  // Adicione outros estilos conforme necessário
+});
 
 export default function TabsLayout() {
   const { colors } = useTheme();
