@@ -11,7 +11,6 @@ import {
   Platform,
   useWindowDimensions,
   TouchableWithoutFeedback,
-  ScrollView,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -121,8 +120,8 @@ const DraggableItem: React.FC<DraggableItemProps> = ({
       
       // Update position in database
       runOnJS(onUpdate)(item.id, {
-        position_x: translateX.value,
-        position_y: translateY.value,
+        position_x: Number(translateX.value),
+        position_y: Number(translateY.value),
       });
     },
   });
@@ -154,8 +153,8 @@ const DraggableItem: React.FC<DraggableItemProps> = ({
       if (item.type === 'image') {
         // Update size in database
         runOnJS(onUpdate)(item.id, {
-          width: itemWidth.value,
-          height: itemHeight.value,
+          width: Number(itemWidth.value),
+          height: Number(itemHeight.value),
         });
       }
       itemScale.value = 1;
@@ -229,7 +228,7 @@ const DraggableItem: React.FC<DraggableItemProps> = ({
         ) : item.type === 'text' ? (
           <Animated.View style={[{ flex: 1 }, borderStyle]}>
             <Animated.View style={[styles.textItemContainer, { backgroundColor: colors.primary + 'DD' }]}>
-              <Text style={[styles.textItemContent, { color: 'white' }]} numberOfLines={3}>
+              <Text style={[styles.textItemContent, { color: 'white' }]}>
                 {item.content}
               </Text>
             </Animated.View>
@@ -255,11 +254,13 @@ export default function VisionBoardEditorScreen() {
   
   const { items, loading, addItem, updateItem, deleteItem, refresh } = useVisionBoardItems(cocreationId || '');
 
-  // Canvas dimensions - fits within screen
-  const canvasWidth = screenWidth * 0.95;
-  const canvasHeight = screenHeight * 0.7;
+  // Available area for positioning (considering safe areas and header)
+  const availableWidth = screenWidth - 40; // 20px padding on each side
+  const availableHeight = screenHeight - insets.top - insets.bottom - 120; // Account for header and padding
+  const headerHeight = 80;
 
   // State
+  const [showAddModal, setShowAddModal] = useState(false); // Corrigido: declarado aqui
   const [showTextModal, setShowTextModal] = useState(false);
   const [showEmojiModal, setShowEmojiModal] = useState(false);
   const [textInput, setTextInput] = useState('');
@@ -305,12 +306,12 @@ export default function VisionBoardEditorScreen() {
   const findEmptyPosition = useCallback((itemWidth: number, itemHeight: number) => {
     const margin = 20;
     const maxAttempts = 50;
-    const visibleWidth = canvasWidth - 40;
-    const visibleHeight = canvasHeight - 40;
+    const visibleWidth = availableWidth - 40;
+    const visibleHeight = availableHeight - 40;
     
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       const x = margin + Math.random() * (visibleWidth - itemWidth - margin * 2);
-      const y = margin + Math.random() * (visibleHeight - itemHeight - margin * 2);
+      const y = margin + Math.random() * (visibleHeight - itemHeight - margin * 2) + headerHeight;
       
       // Check collision with existing items
       const hasCollision = items.some(existingItem => {
@@ -333,9 +334,9 @@ export default function VisionBoardEditorScreen() {
     // Fallback: random position
     return {
       x: margin + Math.random() * (visibleWidth - itemWidth - margin * 2),
-      y: margin + Math.random() * (visibleHeight - itemHeight - margin * 2),
+      y: margin + Math.random() * (visibleHeight - itemHeight - margin * 2) + headerHeight,
     };
-  }, [items, canvasWidth, canvasHeight]);
+  }, [items, availableWidth, availableHeight, headerHeight]);
 
   const handleAddImage = useCallback(async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -384,6 +385,7 @@ export default function VisionBoardEditorScreen() {
         showAlert('Erro', 'Algo deu errado ao adicionar a imagem.');
       }
     }
+    setShowAddModal(false); // Corrigido: fechar modal após adicionar
   }, [findEmptyPosition, addItem, showAlert, screenWidth, itemZIndices]);
 
   const handleAddText = useCallback(async () => {
@@ -492,9 +494,7 @@ export default function VisionBoardEditorScreen() {
         showAlert('Erro', 'Não foi possível excluir o item.');
       } else {
         setHasUnsavedChanges(true);
-        if (selectedItemId === id) {
-          setSelectedItemId(null);
-        }
+        setSelectedItemId(null);
         console.log('Item excluído com sucesso!');
         
         // Remove from z-indices
@@ -508,7 +508,7 @@ export default function VisionBoardEditorScreen() {
       console.error('Error deleting item:', error);
       showAlert('Erro', 'Algo deu errado ao excluir o item.');
     }
-  }, [deleteItem, showAlert, selectedItemId]);
+  }, [deleteItem, showAlert]);
 
   const handleSelectItem = useCallback((id: string) => {
     setSelectedItemId(prev => prev === id ? null : id);
@@ -585,7 +585,10 @@ export default function VisionBoardEditorScreen() {
         <View style={[styles.container, { paddingTop: insets.top }]}>
           {/* Header */}
           <View style={styles.header}>
-            <TouchableOpacity onPress={handleExit} style={styles.headerButton}>
+            <TouchableOpacity 
+              onPress={handleExit} 
+              style={styles.headerButton}
+            >
               <MaterialIcons name="arrow-back" size={24} color={colors.text} />
             </TouchableOpacity>
             
@@ -598,7 +601,10 @@ export default function VisionBoardEditorScreen() {
               </Text>
             </View>
             
-            <TouchableOpacity onPress={handleSave} style={styles.headerButton}>
+            <TouchableOpacity 
+              onPress={handleSave} 
+              style={styles.headerButton}
+            >
               <MaterialIcons name="save" size={24} color={colors.primary} />
             </TouchableOpacity>
           </View>
@@ -608,8 +614,8 @@ export default function VisionBoardEditorScreen() {
             <ScrollView
               style={styles.canvasScrollView}
               contentContainerStyle={{
-                width: canvasWidth,
-                height: canvasHeight,
+                width: availableWidth,
+                height: availableHeight,
               }}
               showsVerticalScrollIndicator={false}
               showsHorizontalScrollIndicator={false}
@@ -617,22 +623,12 @@ export default function VisionBoardEditorScreen() {
               minimumZoomScale={0.5}
               bounces={false}
             >
-              <Animated.View 
-                style={[
-                  styles.canvas, 
-                  { 
-                    backgroundColor: colors.surface + '15',
-                    width: canvasWidth,
-                    height: canvasHeight,
-                  },
-                  canvasAnimatedStyle
-                ]}
-              >
+              <View style={[styles.canvas, { backgroundColor: colors.surface + '15' }]}>
                 {/* Background grid */}
                 <View style={styles.gridPattern}>
-                  {Array.from({ length: Math.ceil(canvasHeight / 40) }).map((_, row) => (
+                  {Array.from({ length: Math.ceil(availableHeight / 40) }).map((_, row) => (
                     <View key={`row-${row}`} style={styles.gridRow}>
-                      {Array.from({ length: Math.ceil(canvasWidth / 40) }).map((_, col) => (
+                      {Array.from({ length: Math.ceil(availableWidth / 40) }).map((_, col) => (
                         <View 
                           key={`dot-${row}-${col}`} 
                           style={[styles.gridDot, { backgroundColor: colors.border + '25' }]} 
@@ -649,8 +645,8 @@ export default function VisionBoardEditorScreen() {
                     item={item}
                     onUpdate={handleUpdateItem}
                     onDelete={handleDeleteItem}
-                    canvasWidth={canvasWidth}
-                    canvasHeight={canvasHeight}
+                    canvasWidth={availableWidth}
+                    canvasHeight={availableHeight}
                     isSelected={selectedItemId === item.id}
                     onSelect={handleSelectItem}
                     zIndex={itemZIndices[item.id] || 1}
@@ -660,16 +656,18 @@ export default function VisionBoardEditorScreen() {
                 {/* Empty state */}
                 {items.length === 0 && (
                   <View style={styles.emptyState}>
-                    <MaterialIcons name="auto-awesome" size={64} color={colors.textMuted} />
-                    <Text style={[styles.emptyStateTitle, { color: colors.text }]}>
-                      Canvas Vazio
-                    </Text>
-                    <Text style={[styles.emptyStateText, { color: colors.textSecondary }]}>
-                      Adicione imagens, textos ou emojis para começar sua manifestação
-                    </Text>
+                    <View style={[styles.emptyStateContent, { backgroundColor: colors.surface + '60' }]}>
+                      <MaterialIcons name="auto-awesome" size={48} color={colors.textMuted} />
+                      <Text style={[styles.emptyStateTitle, { color: colors.text }]}>
+                        Canvas Vazio
+                      </Text>
+                      <Text style={[styles.emptyStateText, { color: colors.textSecondary }]}>
+                        Adicione imagens, textos ou emojis para começar sua manifestação
+                      </Text>
+                    </View>
                   </View>
                 )}
-              </Animated.View>
+              </View>
             </ScrollView>
           </View>
 
@@ -677,7 +675,7 @@ export default function VisionBoardEditorScreen() {
           <View style={styles.floatingActions}>
             <TouchableOpacity
               style={[styles.floatingButton, { backgroundColor: colors.primary }]}
-              onPress={() => setShowAddModal(true)}
+              onPress={() => setShowAddModal(true)} // Corrigido: usar setShowAddModal
             >
               <MaterialIcons name="add-photo-alternate" size={24} color="white" />
             </TouchableOpacity>
@@ -924,6 +922,7 @@ const styles = StyleSheet.create({
   canvasScrollView: {
     flex: 1,
     borderRadius: 16,
+    overflow: 'hidden',
   },
   canvas: {
     flex: 1,
@@ -952,16 +951,6 @@ const styles = StyleSheet.create({
   },
   
   // Vision Board Items
-  draggableItem: {
-    position: 'absolute',
-    borderRadius: 12,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    backgroundColor: 'transparent',
-  },
   deleteButton: {
     position: 'absolute',
     top: -12,
@@ -978,6 +967,17 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 4,
   },
+  resizeHandle: {
+    position: 'absolute',
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    zIndex: 1000,
+  },
+  resizeHandleTopLeft: { top: -6, left: -6 },
+  resizeHandleTopRight: { top: -6, right: -6 },
+  resizeHandleBottomLeft: { bottom: -6, left: -6 },
+  resizeHandleBottomRight: { bottom: -6, right: -6 },
   itemContent: {
     width: '100%',
     height: '100%',
@@ -1006,29 +1006,22 @@ const styles = StyleSheet.create({
     fontSize: 32,
   },
   
-  // Resize Handles
-  resizeHandle: {
-    position: 'absolute',
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    zIndex: 1000,
-  },
-  resizeHandleTopLeft: { top: -6, left: -6 },
-  resizeHandleTopRight: { top: -6, right: -6 },
-  resizeHandleBottomLeft: { bottom: -6, left: -6 },
-  resizeHandleBottomRight: { bottom: -6, right: -6 },
-  
   // Empty State
   emptyState: {
-    flex: 1,
-    justifyContent: 'center',
+    position: 'absolute',
+    top: '40%',
+    left: '50%',
+    transform: [{ translateX: -140 }, { translateY: -80 }],
+  },
+  emptyStateContent: {
+    padding: Spacing.xl,
+    borderRadius: 24,
     alignItems: 'center',
-    paddingTop: 100,
+    width: 280,
   },
   emptyStateTitle: {
-    fontSize: 20,
-    fontWeight: '600',
+    fontSize: 22,
+    fontWeight: '700',
     marginTop: Spacing.md,
     marginBottom: Spacing.sm,
   },
@@ -1079,7 +1072,7 @@ const styles = StyleSheet.create({
     marginLeft: Spacing.xs,
   },
   
-  // Modals - General
+  // Modals - Geral
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.7)',
@@ -1111,6 +1104,8 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 24,
     fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: Spacing.lg,
   },
   modalCloseButton: {
     padding: Spacing.sm,
@@ -1133,6 +1128,9 @@ const styles = StyleSheet.create({
   },
   
   // Text Modal
+  textModalBody: {
+    padding: Spacing.lg,
+  },
   textInput: {
     borderRadius: 16,
     padding: Spacing.lg,
@@ -1182,6 +1180,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'space-around',
     gap: Spacing.sm,
+    marginBottom: Spacing.lg,
   },
   emojiButton: {
     width: 60,
