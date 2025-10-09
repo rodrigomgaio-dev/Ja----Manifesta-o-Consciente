@@ -1,44 +1,22 @@
-// app/vision-board-editor/index.tsx (atualizado com tratamento de erros)
+// app/vision-board-editor/index.tsx
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  Modal,
-  TextInput,
-  Alert,
-  Platform,
+  ActivityIndicator,
   useWindowDimensions,
-  ActivityIndicator, // Adicionado
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import * as ImagePicker from 'expo-image-picker';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  useAnimatedGestureHandler,
-  withSpring,
-  withTiming,
-  runOnJS,
-} from 'react-native-reanimated';
-import {
-  PanGestureHandler,
-  PinchGestureHandler,
-  GestureHandlerRootView,
-} from 'react-native-gesture-handler';
-
-import GradientBackground from '@/components/ui/GradientBackground';
-import SacredButton from '@/components/ui/SacredButton';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useVisionBoardItems } from '@/hooks/useVisionBoardItems';
+import GradientBackground from '@/components/ui/GradientBackground';
 import { Spacing } from '@/constants/Colors';
-
-// ... (resto das importações e tipos)
 
 export default function VisionBoardEditorScreen() {
   const { colors } = useTheme();
@@ -46,11 +24,9 @@ export default function VisionBoardEditorScreen() {
   const insets = useSafeAreaInsets();
   const { cocreationId } = useLocalSearchParams<{ cocreationId: string }>();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
-  
-  // --- LOGS DETALHADOS PARA DIAGNÓSTICO ---
+
   console.log("[VisionBoardEditor] Iniciando componente...");
   console.log("[VisionBoardEditor] cocreationId recebido:", cocreationId);
-  console.log("[VisionBoardEditor] Tipo de cocreationId:", typeof cocreationId);
 
   // Validar cocreationId
   if (!cocreationId || typeof cocreationId !== 'string') {
@@ -66,7 +42,7 @@ export default function VisionBoardEditorScreen() {
             <Text style={[styles.errorText, { color: colors.textSecondary }]}>
               ID da Cocriação inválido ou não fornecido.
             </Text>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[styles.backButton, { backgroundColor: colors.textMuted }]}
               onPress={() => router.back()}
             >
@@ -78,13 +54,8 @@ export default function VisionBoardEditorScreen() {
     );
   }
 
-  const { items, loading, error, addItem, updateItem, deleteItem, refresh } = useVisionBoardItems(cocreationId);
+  const { items, loading, error } = useVisionBoardItems(cocreationId);
 
-  // --- LOGS DETALHADOS PARA DIAGNÓSTICO ---
-  console.log("[VisionBoardEditor] Hook useVisionBoardItems chamado com sucesso.");
-  console.log("[VisionBoardEditor] Estado do hook:", { items, loading, error });
-
-  // --- TRATAMENTO DE ERRO DO HOOK ---
   if (error) {
     console.error("[VisionBoardEditor] Erro retornado pelo hook useVisionBoardItems:", error);
     return (
@@ -98,7 +69,7 @@ export default function VisionBoardEditorScreen() {
             <Text style={[styles.errorText, { color: colors.textSecondary }]}>
               {error}
             </Text>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[styles.backButton, { backgroundColor: colors.textMuted }]}
               onPress={() => router.back()}
             >
@@ -110,7 +81,6 @@ export default function VisionBoardEditorScreen() {
     );
   }
 
-  // --- ESTADO DE LOADING ---
   if (loading) {
     console.log("[VisionBoardEditor] Carregando dados...");
     return (
@@ -127,7 +97,6 @@ export default function VisionBoardEditorScreen() {
     );
   }
 
-  // --- VERIFICAÇÃO DE USUÁRIO ---
   if (!user) {
     console.log("[VisionBoardEditor] Usuário não autenticado.");
     return (
@@ -141,7 +110,7 @@ export default function VisionBoardEditorScreen() {
             <Text style={[styles.errorText, { color: colors.textSecondary }]}>
               Você precisa estar logado para editar este Vision Board.
             </Text>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[styles.backButton, { backgroundColor: colors.textMuted }]}
               onPress={() => router.back()}
             >
@@ -153,34 +122,78 @@ export default function VisionBoardEditorScreen() {
     );
   }
 
-  // --- COMPONENTE PRINCIPAL ---
   console.log("[VisionBoardEditor] Renderizando componente principal com", items.length, "itens.");
 
   return (
     <GradientBackground>
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
-          >
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
             <MaterialIcons name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
+
           <Text style={[styles.headerTitle, { color: colors.text }]}>
             Editor do Vision Board
           </Text>
+
           <TouchableOpacity
             style={styles.addButton}
-            onPress={() => {/* TODO: implementar adição de elementos */}}
+            onPress={() => {
+              // TODO: implementar adição de elementos
+            }}
           >
             <MaterialIcons name="add" size={24} color={colors.text} />
           </TouchableOpacity>
         </View>
-        
+
         <View style={styles.canvas}>
-          <Text style={[styles.canvasPlaceholder, { color: colors.textSecondary }]}>
-            {items.length === 0 ? 'Toque no botão + para adicionar elementos' : `${items.length} elementos`}
-          </Text>
+          {items.map((item) => {
+            if (item.type === 'image' && 'uri' in item) {
+              return (
+                <Image
+                  key={item.id}
+                  source={{ uri: item.uri }}
+                  style={{
+                    position: 'absolute',
+                    left: item.x,
+                    top: item.y,
+                    width: item.width,
+                    height: item.height,
+                    transform: [{ rotate: `${item.rotation}deg` }],
+                    zIndex: item.zindex,
+                    borderRadius: 8,
+                  }}
+                  contentFit="cover"
+                />
+              );
+            }
+
+            if (item.type === 'text' && 'content' in item) {
+              return (
+                <Text
+                  key={item.id}
+                  style={{
+                    position: 'absolute',
+                    left: item.x,
+                    top: item.y,
+                    fontSize: item.fontSize,
+                    color: item.color,
+                    zIndex: item.zindex,
+                  }}
+                >
+                  {item.content}
+                </Text>
+              );
+            }
+
+            return null;
+          })}
+
+          {items.length === 0 && (
+            <Text style={[styles.canvasPlaceholder, { color: colors.textSecondary }]}>
+              Toque no botão + para adicionar elementos
+            </Text>
+          )}
         </View>
       </View>
     </GradientBackground>
