@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   useWindowDimensions,
+  Alert,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,9 +19,11 @@ import Animated, {
   withTiming,
   withSpring,
 } from 'react-native-reanimated';
+import * as ImagePicker from 'expo-image-picker';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useVisionBoardItems } from '@/hooks/useVisionBoardItems';
+import { supabase } from '@/services/supabase';
 import GradientBackground from '@/components/ui/GradientBackground';
 import { Spacing } from '@/constants/Colors';
 
@@ -30,7 +33,7 @@ export default function VisionBoardEditorScreen() {
   const insets = useSafeAreaInsets();
   const { cocreationId } = useLocalSearchParams<{ cocreationId: string }>();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
-  const { items, loading, error } = useVisionBoardItems(cocreationId);
+  const { items, loading, error, addItem } = useVisionBoardItems(cocreationId);
 
   const [menuOpen, setMenuOpen] = useState(false);
   const rotation = useSharedValue(0);
@@ -48,14 +51,59 @@ export default function VisionBoardEditorScreen() {
     opacity: scale.value,
   }));
 
+  // --- Função para adicionar imagem ---
+  const handleAddImage = async () => {
+    try {
+      toggleMenu();
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.8,
+      });
+
+      if (result.canceled || !result.assets[0].uri) return;
+
+      const uri = result.assets[0].uri;
+      const filename = uri.split('/').pop()!;
+      const fileExt = filename.split('.').pop();
+      const supabasePath = `vision_board/${Date.now()}_${filename}`;
+
+      const response = await fetch(uri);
+      const blob = await response.blob();
+
+      const { error: uploadError } = await supabase.storage
+        .from('vision-board')
+        .upload(supabasePath, blob);
+
+      if (uploadError) throw uploadError;
+
+      const { publicURL, error: urlError } = supabase.storage
+        .from('vision-board')
+        .getPublicUrl(supabasePath);
+
+      if (urlError) throw urlError;
+
+      // Adiciona o item no board
+      await addItem({
+        type: 'image',
+        uri: publicURL,
+        x: 50,
+        y: 50,
+        width: 150,
+        height: 150,
+        rotation: 0,
+        zindex: items.length + 1,
+      });
+    } catch (err: any) {
+      Alert.alert("Erro ao adicionar imagem", err.message || "Erro desconhecido");
+      console.error("Erro handleAddImage:", err);
+    }
+  };
+
   if (!cocreationId || typeof cocreationId !== 'string') {
     return (
       <GradientBackground>
         <View style={[styles.container, { paddingTop: insets.top }]}>
-          <ErrorView
-            message="ID da Cocriação inválido ou não fornecido."
-            onBack={() => router.back()}
-          />
+          <ErrorView message="ID da Cocriação inválido ou não fornecido." onBack={() => router.back()} />
         </View>
       </GradientBackground>
     );
@@ -90,10 +138,7 @@ export default function VisionBoardEditorScreen() {
     return (
       <GradientBackground>
         <View style={[styles.container, { paddingTop: insets.top }]}>
-          <ErrorView
-            message="Você precisa estar logado para editar este Vision Board."
-            onBack={() => router.back()}
-          />
+          <ErrorView message="Você precisa estar logado para editar este Vision Board." onBack={() => router.back()} />
         </View>
       </GradientBackground>
     );
@@ -108,10 +153,7 @@ export default function VisionBoardEditorScreen() {
             <MaterialIcons name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
 
-          <Text style={[styles.headerTitle, { color: colors.text }]}>
-            Editor do Vision Board
-          </Text>
-
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Editor do Vision Board</Text>
           <View style={{ width: 24 }} />
         </View>
 
@@ -174,43 +216,19 @@ export default function VisionBoardEditorScreen() {
             { bottom: insets.bottom + 100, right: 30 },
           ]}
         >
-          <TouchableOpacity
-            style={[styles.menuItem, { backgroundColor: colors.primary }]}
-            onPress={() => {
-              console.log("Adicionar imagem");
-              toggleMenu();
-            }}
-          >
+          <TouchableOpacity style={[styles.menuItem, { backgroundColor: colors.primary }]} onPress={handleAddImage}>
             <MaterialIcons name="image" size={22} color="white" />
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.menuItem, { backgroundColor: colors.primary }]}
-            onPress={() => {
-              console.log("Adicionar texto");
-              toggleMenu();
-            }}
-          >
+          <TouchableOpacity style={[styles.menuItem, { backgroundColor: colors.primary }]} onPress={() => toggleMenu()}>
             <MaterialIcons name="text-fields" size={22} color="white" />
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.menuItem, { backgroundColor: colors.primary }]}
-            onPress={() => {
-              console.log("Adicionar emoji");
-              toggleMenu();
-            }}
-          >
+          <TouchableOpacity style={[styles.menuItem, { backgroundColor: colors.primary }]} onPress={() => toggleMenu()}>
             <MaterialIcons name="emoji-emotions" size={22} color="white" />
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.menuItem, { backgroundColor: colors.primary }]}
-            onPress={() => {
-              console.log("Adicionar sticker");
-              toggleMenu();
-            }}
-          >
+          <TouchableOpacity style={[styles.menuItem, { backgroundColor: colors.primary }]} onPress={() => toggleMenu()}>
             <MaterialIcons name="auto-awesome" size={22} color="white" />
           </TouchableOpacity>
         </Animated.View>
@@ -219,17 +237,10 @@ export default function VisionBoardEditorScreen() {
         <Animated.View
           style={[
             styles.floatingButtonContainer,
-            {
-              bottom: insets.bottom + 40,
-              right: 30,
-              transform: [{ rotate: `${rotation.value}deg` }],
-            },
+            { bottom: insets.bottom + 40, right: 30, transform: [{ rotate: `${rotation.value}deg` }] },
           ]}
         >
-          <TouchableOpacity
-            style={[styles.floatingButton, { backgroundColor: colors.primary }]}
-            onPress={toggleMenu}
-          >
+          <TouchableOpacity style={[styles.floatingButton, { backgroundColor: colors.primary }]} onPress={toggleMenu}>
             <MaterialIcons name="add" size={28} color="white" />
           </TouchableOpacity>
         </Animated.View>
@@ -245,10 +256,7 @@ function ErrorView({ message, onBack }: { message: string; onBack: () => void })
       <MaterialIcons name="error" size={64} color={colors.error} />
       <Text style={[styles.errorTitle, { color: colors.text }]}>Erro</Text>
       <Text style={[styles.errorText, { color: colors.textSecondary }]}>{message}</Text>
-      <TouchableOpacity
-        style={[styles.backButton, { backgroundColor: colors.textMuted }]}
-        onPress={onBack}
-      >
+      <TouchableOpacity style={[styles.backButton, { backgroundColor: colors.textMuted }]} onPress={onBack}>
         <Text style={[styles.backButtonText, { color: 'white' }]}>Voltar</Text>
       </TouchableOpacity>
     </View>
@@ -256,9 +264,7 @@ function ErrorView({ message, onBack }: { message: string; onBack: () => void })
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  container: { flex: 1 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -268,14 +274,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 255, 255, 0.1)',
   },
-  backButton: {
-    padding: Spacing.xs,
-    borderRadius: 8,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-  },
+  backButton: { padding: Spacing.xs, borderRadius: 8 },
+  headerTitle: { fontSize: 18, fontWeight: '600' },
   canvas: {
     flex: 1,
     margin: Spacing.md,
@@ -286,49 +286,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  canvasPlaceholder: {
-    fontSize: 16,
-    textAlign: 'center',
-  },
-  errorContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: Spacing.md,
-  },
-  errorTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginTop: Spacing.md,
-    marginBottom: Spacing.sm,
-  },
-  errorText: {
-    fontSize: 16,
-    textAlign: 'center',
-    marginBottom: Spacing.lg,
-  },
-  backButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  loadingContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: Spacing.md,
-  },
-  loadingText: {
-    fontSize: 16,
-    marginTop: Spacing.md,
-    textAlign: 'center',
-  },
+  canvasPlaceholder: { fontSize: 16, textAlign: 'center' },
+  errorContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.md },
+  errorTitle: { fontSize: 24, fontWeight: 'bold', marginTop: Spacing.md, marginBottom: Spacing.sm },
+  errorText: { fontSize: 16, textAlign: 'center', marginBottom: Spacing.lg },
+  backButtonText: { fontSize: 16, fontWeight: '600' },
+  loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.md },
+  loadingText: { fontSize: 16, marginTop: Spacing.md, textAlign: 'center' },
 
   // Botão flutuante
-  floatingButtonContainer: {
-    position: 'absolute',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  floatingButtonContainer: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },
   floatingButton: {
     width: 60,
     height: 60,
@@ -343,11 +310,7 @@ const styles = StyleSheet.create({
   },
 
   // Menu flutuante animado
-  floatingMenu: {
-    position: 'absolute',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  floatingMenu: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },
   menuItem: {
     width: 50,
     height: 50,
