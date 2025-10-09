@@ -11,6 +11,7 @@ import {
   Platform,
   useWindowDimensions,
   TouchableWithoutFeedback,
+  ScrollView, // <-- ADICIONAR ESTA IMPORTAÇÃO
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -80,6 +81,7 @@ const DraggableItem: React.FC<DraggableItemProps> = ({
   // Item dimensions
   const itemWidth = useSharedValue(item.width || 120);
   const itemHeight = useSharedValue(item.height || 120);
+  const aspectRatio = (item.width || 120) / (item.height || 120);
 
   // Initialize position and fade in
   useEffect(() => {
@@ -111,8 +113,10 @@ const DraggableItem: React.FC<DraggableItemProps> = ({
     },
     onEnd: () => {
       // Constrain to canvas bounds
-      translateX.value = Math.max(0, Math.min(translateX.value, canvasWidth - itemWidth.value));
-      translateY.value = Math.max(0, Math.min(translateY.value, canvasHeight - itemHeight.value));
+      const maxX = Math.max(0, Math.min(translateX.value, canvasWidth - itemWidth.value));
+      const maxY = Math.max(0, Math.min(translateY.value, canvasHeight - itemHeight.value));
+      translateX.value = maxX;
+      translateY.value = maxY;
       
       // Drop effect
       liftScale.value = withSpring(1);
@@ -126,7 +130,7 @@ const DraggableItem: React.FC<DraggableItemProps> = ({
     },
   });
 
-  // Pinch gesture handler for resizing (images only)
+  // Pinch gesture handler for resizing (images only) - maintains aspect ratio
   const pinchGestureHandler = useAnimatedGestureHandler({
     onStart: (_, context) => {
       context.startW = itemWidth.value;
@@ -134,19 +138,18 @@ const DraggableItem: React.FC<DraggableItemProps> = ({
     },
     onActive: (event, context) => {
       if (item.type === 'image') {
-        const newScale = Math.max(0.5, Math.min(event.scale, 3));
-        itemScale.value = newScale;
+        const scale = Math.max(0.5, Math.min(event.scale, 3));
+        itemScale.value = scale;
         
-        const newWidth = context.startW * newScale;
-        const newHeight = context.startH * newScale;
+        const newWidth = context.startW * scale;
+        const newHeight = newWidth / aspectRatio; // Maintain aspect ratio
         
-        // Maintain aspect ratio
-        const aspectRatio = context.startW / context.startH;
-        const clampedWidth = Math.max(40, Math.min(newWidth, canvasWidth - translateX.value));
-        const clampedHeight = clampedWidth / aspectRatio;
+        // Limit size to reasonable bounds and canvas bounds
+        const clampedW = Math.max(40, Math.min(newWidth, canvasWidth - translateX.value));
+        const clampedH = Math.max(40, Math.min(newHeight, canvasHeight - translateY.value));
         
-        itemWidth.value = clampedWidth;
-        itemHeight.value = clampedHeight;
+        itemWidth.value = clampedW;
+        itemHeight.value = clampedH;
       }
     },
     onEnd: () => {
@@ -228,7 +231,7 @@ const DraggableItem: React.FC<DraggableItemProps> = ({
         ) : item.type === 'text' ? (
           <Animated.View style={[{ flex: 1 }, borderStyle]}>
             <Animated.View style={[styles.textItemContainer, { backgroundColor: colors.primary + 'DD' }]}>
-              <Text style={[styles.textItemContent, { color: 'white' }]}>
+              <Text style={[styles.textItemContent, { color: 'white' }]} numberOfLines={3}>
                 {item.content}
               </Text>
             </Animated.View>
@@ -254,15 +257,13 @@ export default function VisionBoardEditorScreen() {
   
   const { items, loading, addItem, updateItem, deleteItem, refresh } = useVisionBoardItems(cocreationId || '');
 
-  // Available area for positioning (considering safe areas and header)
-  const availableWidth = screenWidth - 40; // 20px padding on each side
-  const availableHeight = screenHeight - insets.top - insets.bottom - 120; // Account for header and padding
-  const headerHeight = 80;
+  // Canvas dimensions - fits within screen
+  const canvasWidth = screenWidth * 0.95;
+  const canvasHeight = screenHeight * 0.7;
 
   // State
-  const [showAddModal, setShowAddModal] = useState(false); // Corrigido: declarado aqui
+  const [showAddModal, setShowAddModal] = useState(false);
   const [showTextModal, setShowTextModal] = useState(false);
-  const [showEmojiModal, setShowEmojiModal] = useState(false);
   const [textInput, setTextInput] = useState('');
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
@@ -306,12 +307,12 @@ export default function VisionBoardEditorScreen() {
   const findEmptyPosition = useCallback((itemWidth: number, itemHeight: number) => {
     const margin = 20;
     const maxAttempts = 50;
-    const visibleWidth = availableWidth - 40;
-    const visibleHeight = availableHeight - 40;
+    const visibleWidth = canvasWidth - 40;
+    const visibleHeight = canvasHeight - 40;
     
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       const x = margin + Math.random() * (visibleWidth - itemWidth - margin * 2);
-      const y = margin + Math.random() * (visibleHeight - itemHeight - margin * 2) + headerHeight;
+      const y = margin + Math.random() * (visibleHeight - itemHeight - margin * 2);
       
       // Check collision with existing items
       const hasCollision = items.some(existingItem => {
@@ -334,9 +335,9 @@ export default function VisionBoardEditorScreen() {
     // Fallback: random position
     return {
       x: margin + Math.random() * (visibleWidth - itemWidth - margin * 2),
-      y: margin + Math.random() * (visibleHeight - itemHeight - margin * 2) + headerHeight,
+      y: margin + Math.random() * (visibleHeight - itemHeight - margin * 2),
     };
-  }, [items, availableWidth, availableHeight, headerHeight]);
+  }, [items, canvasWidth, canvasHeight]);
 
   const handleAddImage = useCallback(async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -385,7 +386,7 @@ export default function VisionBoardEditorScreen() {
         showAlert('Erro', 'Algo deu errado ao adicionar a imagem.');
       }
     }
-    setShowAddModal(false); // Corrigido: fechar modal após adicionar
+    setShowAddModal(false);
   }, [findEmptyPosition, addItem, showAlert, screenWidth, itemZIndices]);
 
   const handleAddText = useCallback(async () => {
@@ -419,7 +420,6 @@ export default function VisionBoardEditorScreen() {
         setTextInput('');
         setShowTextModal(false);
         setHasUnsavedChanges(true);
-        console.log('Texto adicionado com sucesso!');
         
         // Set z-index for new item
         const maxZ = Math.max(...Object.values(itemZIndices), 0);
@@ -455,7 +455,6 @@ export default function VisionBoardEditorScreen() {
       } else {
         setShowEmojiModal(false);
         setHasUnsavedChanges(true);
-        console.log('Emoji adicionado com sucesso!');
         
         // Set z-index for new item
         const maxZ = Math.max(...Object.values(itemZIndices), 0);
@@ -495,7 +494,6 @@ export default function VisionBoardEditorScreen() {
       } else {
         setHasUnsavedChanges(true);
         setSelectedItemId(null);
-        console.log('Item excluído com sucesso!');
         
         // Remove from z-indices
         setItemZIndices(prev => {
@@ -585,26 +583,18 @@ export default function VisionBoardEditorScreen() {
         <View style={[styles.container, { paddingTop: insets.top }]}>
           {/* Header */}
           <View style={styles.header}>
-            <TouchableOpacity 
-              onPress={handleExit} 
-              style={styles.headerButton}
-            >
+            <TouchableOpacity onPress={handleExit} style={styles.headerButton}>
               <MaterialIcons name="arrow-back" size={24} color={colors.text} />
             </TouchableOpacity>
             
             <View style={styles.headerCenter}>
-              <Text style={[styles.headerTitle, { color: colors.text }]}>
-                Vision Board
-              </Text>
+              <Text style={[styles.headerTitle, { color: colors.text }]}>Vision Board</Text>
               <Text style={[styles.headerSubtitle, { color: colors.textMuted }]}>
                 Manifeste conscientemente
               </Text>
             </View>
             
-            <TouchableOpacity 
-              onPress={handleSave} 
-              style={styles.headerButton}
-            >
+            <TouchableOpacity onPress={handleSave} style={styles.headerButton}>
               <MaterialIcons name="save" size={24} color={colors.primary} />
             </TouchableOpacity>
           </View>
@@ -614,8 +604,8 @@ export default function VisionBoardEditorScreen() {
             <ScrollView
               style={styles.canvasScrollView}
               contentContainerStyle={{
-                width: availableWidth,
-                height: availableHeight,
+                width: canvasWidth,
+                height: canvasHeight,
               }}
               showsVerticalScrollIndicator={false}
               showsHorizontalScrollIndicator={false}
@@ -623,12 +613,22 @@ export default function VisionBoardEditorScreen() {
               minimumZoomScale={0.5}
               bounces={false}
             >
-              <View style={[styles.canvas, { backgroundColor: colors.surface + '15' }]}>
+              <Animated.View 
+                style={[
+                  styles.canvas, 
+                  { 
+                    backgroundColor: colors.surface + '15',
+                    width: canvasWidth,
+                    height: canvasHeight,
+                  },
+                  canvasAnimatedStyle
+                ]}
+              >
                 {/* Background grid */}
                 <View style={styles.gridPattern}>
-                  {Array.from({ length: Math.ceil(availableHeight / 40) }).map((_, row) => (
+                  {Array.from({ length: Math.ceil(canvasHeight / 40) }).map((_, row) => (
                     <View key={`row-${row}`} style={styles.gridRow}>
-                      {Array.from({ length: Math.ceil(availableWidth / 40) }).map((_, col) => (
+                      {Array.from({ length: Math.ceil(canvasWidth / 40) }).map((_, col) => (
                         <View 
                           key={`dot-${row}-${col}`} 
                           style={[styles.gridDot, { backgroundColor: colors.border + '25' }]} 
@@ -645,8 +645,8 @@ export default function VisionBoardEditorScreen() {
                     item={item}
                     onUpdate={handleUpdateItem}
                     onDelete={handleDeleteItem}
-                    canvasWidth={availableWidth}
-                    canvasHeight={availableHeight}
+                    canvasWidth={canvasWidth}
+                    canvasHeight={canvasHeight}
                     isSelected={selectedItemId === item.id}
                     onSelect={handleSelectItem}
                     zIndex={itemZIndices[item.id] || 1}
@@ -656,18 +656,19 @@ export default function VisionBoardEditorScreen() {
                 {/* Empty state */}
                 {items.length === 0 && (
                   <View style={styles.emptyState}>
-                    <View style={[styles.emptyStateContent, { backgroundColor: colors.surface + '60' }]}>
+                    <View style={[styles.emptyStateContent, { backgroundColor: colors.surface + '80' }]}>
                       <MaterialIcons name="auto-awesome" size={48} color={colors.textMuted} />
                       <Text style={[styles.emptyStateTitle, { color: colors.text }]}>
-                        Canvas Vazio
+                        Canvas Sagrado
                       </Text>
                       <Text style={[styles.emptyStateText, { color: colors.textSecondary }]}>
-                        Adicione imagens, textos ou emojis para começar sua manifestação
+                        Adicione imagens, textos ou emojis para começar sua manifestação{'\n'}
+                        Toque nos botões para adicionar elementos
                       </Text>
                     </View>
                   </View>
                 )}
-              </View>
+              </Animated.View>
             </ScrollView>
           </View>
 
@@ -675,7 +676,7 @@ export default function VisionBoardEditorScreen() {
           <View style={styles.floatingActions}>
             <TouchableOpacity
               style={[styles.floatingButton, { backgroundColor: colors.primary }]}
-              onPress={() => setShowAddModal(true)} // Corrigido: usar setShowAddModal
+              onPress={() => setShowAddModal(true)}
             >
               <MaterialIcons name="add-photo-alternate" size={24} color="white" />
             </TouchableOpacity>
@@ -922,7 +923,6 @@ const styles = StyleSheet.create({
   canvasScrollView: {
     flex: 1,
     borderRadius: 16,
-    overflow: 'hidden',
   },
   canvas: {
     flex: 1,
@@ -1026,9 +1026,9 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   emptyStateText: {
-    fontSize: 14,
+    fontSize: 15,
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: 22,
   },
   
   // Floating Actions
@@ -1117,7 +1117,7 @@ const styles = StyleSheet.create({
   modalOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: Spacing.lg,
+    paddingVertical: Spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(0,0,0,0.05)',
   },
@@ -1128,9 +1128,6 @@ const styles = StyleSheet.create({
   },
   
   // Text Modal
-  textModalBody: {
-    padding: Spacing.lg,
-  },
   textInput: {
     borderRadius: 16,
     padding: Spacing.lg,
