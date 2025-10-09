@@ -10,7 +10,8 @@ import {
   Alert,
   Platform,
   useWindowDimensions,
-  TouchableWithoutFeedback, // Import correto
+  TouchableWithoutFeedback,
+  ScrollView,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -72,7 +73,7 @@ const DraggableItem: React.FC<DraggableItemProps> = ({
   // Animated values
   const translateX = useSharedValue(item.position_x || 50);
   const translateY = useSharedValue(item.position_y || 50);
-  const scale = useSharedValue(1);
+  const liftScale = useSharedValue(1);
   const itemScale = useSharedValue(1);
   const opacity = useSharedValue(0);
   const rotation = useSharedValue(0);
@@ -99,7 +100,7 @@ const DraggableItem: React.FC<DraggableItemProps> = ({
       context.startY = translateY.value;
       
       // Lift effect
-      scale.value = withSpring(1.05);
+      liftScale.value = withSpring(1.05);
       rotation.value = withSpring(2);
       
       // Select item
@@ -115,7 +116,7 @@ const DraggableItem: React.FC<DraggableItemProps> = ({
       translateY.value = Math.max(0, Math.min(translateY.value, canvasHeight - itemHeight.value));
       
       // Drop effect
-      scale.value = withSpring(1);
+      liftScale.value = withSpring(1);
       rotation.value = withSpring(0);
       
       // Update position in database
@@ -128,19 +129,25 @@ const DraggableItem: React.FC<DraggableItemProps> = ({
 
   // Pinch gesture handler for resizing (images only)
   const pinchGestureHandler = useAnimatedGestureHandler({
-    onStart: () => {
-      itemScale.value = 1;
+    onStart: (_, context) => {
+      context.startW = itemWidth.value;
+      context.startH = itemHeight.value;
     },
-    onActive: (event) => {
+    onActive: (event, context) => {
       if (item.type === 'image') {
         const newScale = Math.max(0.5, Math.min(event.scale, 3));
         itemScale.value = newScale;
         
-        const newWidth = (item.width || 120) * newScale;
-        const newHeight = (item.height || 120) * newScale;
+        const newWidth = context.startW * newScale;
+        const newHeight = context.startH * newScale;
         
-        itemWidth.value = newWidth;
-        itemHeight.value = newHeight;
+        // Maintain aspect ratio
+        const aspectRatio = context.startW / context.startH;
+        const clampedWidth = Math.max(40, Math.min(newWidth, canvasWidth - translateX.value));
+        const clampedHeight = clampedWidth / aspectRatio;
+        
+        itemWidth.value = clampedWidth;
+        itemHeight.value = clampedHeight;
       }
     },
     onEnd: () => {
@@ -155,13 +162,6 @@ const DraggableItem: React.FC<DraggableItemProps> = ({
     },
   });
 
-  // Tap gesture handler
-  const tapGestureHandler = useAnimatedGestureHandler({
-    onEnd: () => {
-      runOnJS(onSelect)(item.id);
-    },
-  });
-
   // Animated styles
   const animatedStyle = useAnimatedStyle(() => {
     return {
@@ -169,7 +169,7 @@ const DraggableItem: React.FC<DraggableItemProps> = ({
       transform: [
         { translateX: translateX.value },
         { translateY: translateY.value },
-        { scale: scale.value },
+        { scale: liftScale.value * itemScale.value },
         { rotate: `${rotation.value}deg` },
       ],
       opacity: opacity.value,
@@ -190,62 +190,57 @@ const DraggableItem: React.FC<DraggableItemProps> = ({
   return (
     <PanGestureHandler onGestureEvent={panGestureHandler}>
       <Animated.View style={animatedStyle}>
-        <PinchGestureHandler 
-          onGestureEvent={pinchGestureHandler} 
-          enabled={item.type === 'image'}
-        >
-          <Animated.View style={[{ flex: 1 }, borderStyle]}>
-            <TapGestureHandler onGestureEvent={tapGestureHandler}>
+        {/* Delete button */}
+        {isSelected && (
+          <TouchableOpacity
+            style={[styles.deleteButton, { backgroundColor: colors.error }]}
+            onPress={() => onDelete(item.id)}
+            activeOpacity={0.8}
+          >
+            <MaterialIcons name="close" size={16} color="white" />
+          </TouchableOpacity>
+        )}
+
+        {/* Resize handles for images */}
+        {isSelected && item.type === 'image' && (
+          <>
+            <View style={[styles.resizeHandle, styles.resizeHandleTopLeft, { backgroundColor: colors.primary }]} />
+            <View style={[styles.resizeHandle, styles.resizeHandleTopRight, { backgroundColor: colors.primary }]} />
+            <View style={[styles.resizeHandle, styles.resizeHandleBottomLeft, { backgroundColor: colors.primary }]} />
+            <View style={[styles.resizeHandle, styles.resizeHandleBottomRight, { backgroundColor: colors.primary }]} />
+          </>
+        )}
+
+        {/* Item content */}
+        {item.type === 'image' ? (
+          <PinchGestureHandler onGestureEvent={pinchGestureHandler} enabled={item.type === 'image'}>
+            <Animated.View style={[{ flex: 1 }, borderStyle]}>
               <Animated.View style={{ flex: 1, borderRadius: 12, overflow: 'hidden' }}>
-                {/* Delete button */}
-                {isSelected && (
-                  <TouchableOpacity
-                    style={[styles.deleteButton, { backgroundColor: colors.error }]}
-                    onPress={() => onDelete(item.id)}
-                    activeOpacity={0.8}
-                  >
-                    <MaterialIcons name="close" size={16} color="white" />
-                  </TouchableOpacity>
-                )}
-
-                {/* Resize handles for images */}
-                {isSelected && item.type === 'image' && (
-                  <>
-                    <View style={[styles.resizeHandle, styles.resizeHandleTopLeft, { backgroundColor: colors.primary }]} />
-                    <View style={[styles.resizeHandle, styles.resizeHandleTopRight, { backgroundColor: colors.primary }]} />
-                    <View style={[styles.resizeHandle, styles.resizeHandleBottomLeft, { backgroundColor: colors.primary }]} />
-                    <View style={[styles.resizeHandle, styles.resizeHandleBottomRight, { backgroundColor: colors.primary }]} />
-                  </>
-                )}
-
-                {/* Item content */}
-                {item.type === 'image' && (
-                  <Image 
-                    source={{ uri: item.content }} 
-                    style={styles.itemContent}
-                    contentFit="cover"
-                    cachePolicy="memory-disk"
-                    transition={200}
-                  />
-                )}
-                
-                {item.type === 'text' && (
-                  <View style={[styles.textItemContainer, { backgroundColor: colors.primary + 'DD' }]}>
-                    <Text style={[styles.textItemContent, { color: 'white' }]} numberOfLines={3}>
-                      {item.content}
-                    </Text>
-                  </View>
-                )}
-                
-                {item.type === 'emoji' && (
-                  <View style={[styles.emojiItemContainer, { backgroundColor: colors.surface + 'BB' }]}>
-                    <Text style={styles.emojiItemContent}>{item.content}</Text>
-                  </View>
-                )}
+                <Image 
+                  source={{ uri: item.content }} 
+                  style={styles.itemContent}
+                  contentFit="cover"
+                  cachePolicy="memory-disk"
+                  transition={200}
+                />
               </Animated.View>
-            </TapGestureHandler>
+            </Animated.View>
+          </PinchGestureHandler>
+        ) : item.type === 'text' ? (
+          <Animated.View style={[{ flex: 1 }, borderStyle]}>
+            <Animated.View style={[styles.textItemContainer, { backgroundColor: colors.primary + 'DD' }]}>
+              <Text style={[styles.textItemContent, { color: 'white' }]} numberOfLines={3}>
+                {item.content}
+              </Text>
+            </Animated.View>
           </Animated.View>
-        </PinchGestureHandler>
+        ) : item.type === 'emoji' ? (
+          <Animated.View style={[{ flex: 1 }, borderStyle]}>
+            <Animated.View style={[styles.emojiItemContainer, { backgroundColor: colors.surface + 'BB' }]}>
+              <Text style={styles.emojiItemContent}>{item.content}</Text>
+            </Animated.View>
+          </Animated.View>
+        ) : null}
       </Animated.View>
     </PanGestureHandler>
   );
@@ -260,9 +255,9 @@ export default function VisionBoardEditorScreen() {
   
   const { items, loading, addItem, updateItem, deleteItem, refresh } = useVisionBoardItems(cocreationId || '');
 
-  // Responsive canvas size
-  const canvasWidth = screenWidth * 1.8;
-  const canvasHeight = screenHeight * 1.2;
+  // Canvas dimensions - fits within screen
+  const canvasWidth = screenWidth * 0.95;
+  const canvasHeight = screenHeight * 0.7;
 
   // State
   const [showTextModal, setShowTextModal] = useState(false);
@@ -310,8 +305,8 @@ export default function VisionBoardEditorScreen() {
   const findEmptyPosition = useCallback((itemWidth: number, itemHeight: number) => {
     const margin = 20;
     const maxAttempts = 50;
-    const visibleWidth = screenWidth - 40;
-    const visibleHeight = screenHeight * 0.5;
+    const visibleWidth = canvasWidth - 40;
+    const visibleHeight = canvasHeight - 40;
     
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       const x = margin + Math.random() * (visibleWidth - itemWidth - margin * 2);
@@ -340,7 +335,7 @@ export default function VisionBoardEditorScreen() {
       x: margin + Math.random() * (visibleWidth - itemWidth - margin * 2),
       y: margin + Math.random() * (visibleHeight - itemHeight - margin * 2),
     };
-  }, [items, screenWidth, screenHeight]);
+  }, [items, canvasWidth, canvasHeight]);
 
   const handleAddImage = useCallback(async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -370,12 +365,14 @@ export default function VisionBoardEditorScreen() {
           height: itemSize,
         };
 
-        console.log('Adding image item:', newItem);
+        console.log("[VisionBoardEditor] Preparando para chamar addItem com:", newItem);
         
         const response = await addItem(newItem);
         if (response.error) {
+          console.error("[VisionBoardEditor] Erro do Supabase:", response.error);
           showAlert('Erro', 'Não foi possível adicionar a imagem.');
         } else {
+          console.log('[VisionBoardEditor] Imagem adicionada com sucesso!');
           setHasUnsavedChanges(true);
           
           // Set z-index for new item
@@ -410,15 +407,17 @@ export default function VisionBoardEditorScreen() {
         height: itemHeight,
       };
 
-      console.log('Adding text item:', newItem);
+      console.log("Tentando adicionar texto:", newItem);
       
       const response = await addItem(newItem);
       if (response.error) {
+        console.error('Error adding text:', response.error);
         showAlert('Erro', 'Não foi possível adicionar o texto.');
       } else {
         setTextInput('');
         setShowTextModal(false);
         setHasUnsavedChanges(true);
+        console.log('Texto adicionado com sucesso!');
         
         // Set z-index for new item
         const maxZ = Math.max(...Object.values(itemZIndices), 0);
@@ -445,14 +444,16 @@ export default function VisionBoardEditorScreen() {
         height: itemSize,
       };
 
-      console.log('Adding emoji item:', newItem);
+      console.log("Adicionando emoji:", newItem);
       
       const response = await addItem(newItem);
       if (response.error) {
+        console.error('Error adding emoji:', response.error);
         showAlert('Erro', 'Não foi possível adicionar o emoji.');
       } else {
         setShowEmojiModal(false);
         setHasUnsavedChanges(true);
+        console.log('Emoji adicionado com sucesso!');
         
         // Set z-index for new item
         const maxZ = Math.max(...Object.values(itemZIndices), 0);
@@ -466,10 +467,11 @@ export default function VisionBoardEditorScreen() {
 
   const handleUpdateItem = useCallback(async (id: string, updates: any) => {
     try {
-      console.log('Updating item:', id, updates);
+      console.log(`Atualizando item ${id} com:`, updates);
       
       const response = await updateItem(id, updates);
       if (response.error) {
+        console.error('Error updating item:', response.error);
         showAlert('Erro', 'Não foi possível atualizar o item.');
       } else {
         setHasUnsavedChanges(true);
@@ -482,14 +484,18 @@ export default function VisionBoardEditorScreen() {
 
   const handleDeleteItem = useCallback(async (id: string) => {
     try {
-      console.log('Deleting item:', id);
+      console.log(`Excluindo item ${id}`);
       
       const response = await deleteItem(id);
       if (response.error) {
+        console.error('Error deleting item:', response.error);
         showAlert('Erro', 'Não foi possível excluir o item.');
       } else {
         setHasUnsavedChanges(true);
-        setSelectedItemId(null);
+        if (selectedItemId === id) {
+          setSelectedItemId(null);
+        }
+        console.log('Item excluído com sucesso!');
         
         // Remove from z-indices
         setItemZIndices(prev => {
@@ -502,7 +508,7 @@ export default function VisionBoardEditorScreen() {
       console.error('Error deleting item:', error);
       showAlert('Erro', 'Algo deu errado ao excluir o item.');
     }
-  }, [deleteItem, showAlert]);
+  }, [deleteItem, showAlert, selectedItemId]);
 
   const handleSelectItem = useCallback((id: string) => {
     setSelectedItemId(prev => prev === id ? null : id);
@@ -579,10 +585,7 @@ export default function VisionBoardEditorScreen() {
         <View style={[styles.container, { paddingTop: insets.top }]}>
           {/* Header */}
           <View style={styles.header}>
-            <TouchableOpacity 
-              onPress={handleExit} 
-              style={styles.headerButton}
-            >
+            <TouchableOpacity onPress={handleExit} style={styles.headerButton}>
               <MaterialIcons name="arrow-back" size={24} color={colors.text} />
             </TouchableOpacity>
             
@@ -595,10 +598,7 @@ export default function VisionBoardEditorScreen() {
               </Text>
             </View>
             
-            <TouchableOpacity 
-              onPress={handleSave} 
-              style={styles.headerButton}
-            >
+            <TouchableOpacity onPress={handleSave} style={styles.headerButton}>
               <MaterialIcons name="save" size={24} color={colors.primary} />
             </TouchableOpacity>
           </View>
@@ -617,14 +617,28 @@ export default function VisionBoardEditorScreen() {
               minimumZoomScale={0.5}
               bounces={false}
             >
-              <View style={[styles.canvas, { backgroundColor: colors.surface + '10' }]}>
-                {/* Background pattern */}
-                <View style={styles.canvasPattern}>
-                  {Array.from({ length: 20 }).map((_, i) => (
-                    <View
-                      key={i}
-                      style={[styles.canvasDot, { backgroundColor: colors.border + '20' }]}
-                    />
+              <Animated.View 
+                style={[
+                  styles.canvas, 
+                  { 
+                    backgroundColor: colors.surface + '15',
+                    width: canvasWidth,
+                    height: canvasHeight,
+                  },
+                  canvasAnimatedStyle
+                ]}
+              >
+                {/* Background grid */}
+                <View style={styles.gridPattern}>
+                  {Array.from({ length: Math.ceil(canvasHeight / 40) }).map((_, row) => (
+                    <View key={`row-${row}`} style={styles.gridRow}>
+                      {Array.from({ length: Math.ceil(canvasWidth / 40) }).map((_, col) => (
+                        <View 
+                          key={`dot-${row}-${col}`} 
+                          style={[styles.gridDot, { backgroundColor: colors.border + '25' }]} 
+                        />
+                      ))}
+                    </View>
                   ))}
                 </View>
 
@@ -646,18 +660,16 @@ export default function VisionBoardEditorScreen() {
                 {/* Empty state */}
                 {items.length === 0 && (
                   <View style={styles.emptyState}>
-                    <View style={[styles.emptyStateContent, { backgroundColor: colors.surface + '60' }]}>
-                      <MaterialIcons name="dashboard" size={48} color={colors.textMuted} />
-                      <Text style={[styles.emptyStateTitle, { color: colors.text }]}>
-                        Vision Board Vazio
-                      </Text>
-                      <Text style={[styles.emptyStateText, { color: colors.textSecondary }]}>
-                        Adicione imagens, textos e símbolos que representem seus sonhos
-                      </Text>
-                    </View>
+                    <MaterialIcons name="auto-awesome" size={64} color={colors.textMuted} />
+                    <Text style={[styles.emptyStateTitle, { color: colors.text }]}>
+                      Canvas Vazio
+                    </Text>
+                    <Text style={[styles.emptyStateText, { color: colors.textSecondary }]}>
+                      Adicione imagens, textos ou emojis para começar sua manifestação
+                    </Text>
                   </View>
                 )}
-              </View>
+              </Animated.View>
             </ScrollView>
           </View>
 
@@ -665,7 +677,7 @@ export default function VisionBoardEditorScreen() {
           <View style={styles.floatingActions}>
             <TouchableOpacity
               style={[styles.floatingButton, { backgroundColor: colors.primary }]}
-              onPress={handleAddImage}
+              onPress={() => setShowAddModal(true)}
             >
               <MaterialIcons name="add-photo-alternate" size={24} color="white" />
             </TouchableOpacity>
@@ -683,12 +695,10 @@ export default function VisionBoardEditorScreen() {
             >
               <MaterialIcons name="emoji-emotions" size={24} color="white" />
             </TouchableOpacity>
-          </View>
 
-          {/* Finish Button */}
-          <View style={styles.finishContainer}>
-            <SacredButton
-              title="Finalizar Vision Board"
+            {/* Floating Finish Button */}
+            <TouchableOpacity
+              style={[styles.finishFloatingButton, { backgroundColor: colors.primary }]}
               onPress={() => {
                 showAlert(
                   'Vision Board Concluído!',
@@ -696,18 +706,88 @@ export default function VisionBoardEditorScreen() {
                   () => router.push('/(tabs)/individual')
                 );
               }}
-              style={styles.finishButton}
-            />
+            >
+              <MaterialIcons name="check" size={28} color="white" />
+              <Text style={styles.finishFloatingButtonText}>Finalizar</Text>
+            </TouchableOpacity>
           </View>
 
-          {/* Text Input Modal - CORRIGIDO */}
-          <Modal visible={showTextModal} transparent animationType="fade">
-            <TouchableWithoutFeedback onPress={() => setShowTextModal(false)}>
+          {/* Add Element Modal */}
+          <Modal visible={showAddModal} transparent animationType="fade">
+            <TouchableWithoutFeedback onPress={() => setShowAddModal(false)}>
               <View style={styles.modalOverlay}>
                 <TouchableWithoutFeedback onPress={(e) => e.stopPropagation()}>
                   <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
                     <Text style={[styles.modalTitle, { color: colors.text }]}>
-                      Adicionar Texto
+                      Adicionar Elemento
+                    </Text>
+                    
+                    <View style={styles.modalBody}>
+                      <TouchableOpacity
+                        style={styles.modalOption}
+                        onPress={() => handleAddImage()}
+                      >
+                        <MaterialIcons name="image" size={24} color={colors.primary} />
+                        <Text style={[styles.modalOptionText, { color: colors.text }]}>
+                          Imagem
+                        </Text>
+                      </TouchableOpacity>
+                      
+                      <TouchableOpacity
+                        style={styles.modalOption}
+                        onPress={() => setShowTextModal(true)}
+                      >
+                        <MaterialIcons name="text-fields" size={24} color={colors.secondary} />
+                        <Text style={[styles.modalOptionText, { color: colors.text }]}>
+                          Texto
+                        </Text>
+                      </TouchableOpacity>
+                      
+                      <TouchableOpacity
+                        style={styles.modalOption}
+                        onPress={() => setShowEmojiModal(true)}
+                      >
+                        <MaterialIcons name="sentiment-satisfied" size={24} color={colors.accent} />
+                        <Text style={[styles.modalOptionText, { color: colors.text }]}>
+                          Emoji
+                        </Text>
+                      </TouchableOpacity>
+                      
+                      <TouchableOpacity
+                        style={styles.modalOption}
+                        onPress={() => {
+                          // TODO: Implement sticker picker
+                          showAlert('Em breve', 'Funcionalidade de Sticker estará disponível em breve.');
+                          setShowAddModal(false);
+                        }}
+                      >
+                        <MaterialIcons name="auto-awesome" size={24} color={colors.accent} />
+                        <Text style={[styles.modalOptionText, { color: colors.text }]}>
+                          Sticker
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                    
+                    <TouchableOpacity
+                      style={[styles.closeModalButton, { backgroundColor: colors.textMuted }]}
+                      onPress={() => setShowAddModal(false)}
+                    >
+                      <Text style={styles.modalButtonText}>Fechar</Text>
+                    </TouchableOpacity>
+                  </View>
+                </TouchableWithoutFeedback>
+              </View>
+            </TouchableWithoutFeedback>
+          </Modal>
+
+          {/* Text Input Modal */}
+          <Modal visible={showTextModal} transparent animationType="fade">
+            <TouchableWithoutFeedback onPress={() => setShowTextModal(false)}>
+              <View style={styles.modalOverlay}>
+                <TouchableWithoutFeedback onPress={(e) => e.stopPropagation()}>
+                  <View style={[styles.textModalContent, { backgroundColor: colors.surface }]}>
+                    <Text style={[styles.modalTitle, { color: colors.text }]}>
+                      Texto Sagrado
                     </Text>
                     
                     <TextInput
@@ -733,26 +813,26 @@ export default function VisionBoardEditorScreen() {
                       {textInput.length}/100 caracteres
                     </Text>
                     
-                    <View style={styles.modalButtons}>
+                    <View style={styles.textModalActions}>
                       <TouchableOpacity
-                        style={[styles.modalButton, { backgroundColor: colors.textMuted }]}
+                        style={[styles.textModalButton, { backgroundColor: colors.textMuted }]}
                         onPress={() => {
                           setTextInput('');
                           setShowTextModal(false);
                         }}
                       >
-                        <Text style={styles.modalButtonText}>Cancelar</Text>
+                        <Text style={styles.textModalButtonText}>Cancelar</Text>
                       </TouchableOpacity>
                       
                       <TouchableOpacity
                         style={[
-                          styles.modalButton, 
+                          styles.textModalButton, 
                           { backgroundColor: textInput.trim() ? colors.primary : colors.textMuted }
                         ]}
                         onPress={handleAddText}
                         disabled={!textInput.trim()}
                       >
-                        <Text style={styles.modalButtonText}>Adicionar</Text>
+                        <Text style={styles.textModalButtonText}>Adicionar</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -761,7 +841,7 @@ export default function VisionBoardEditorScreen() {
             </TouchableWithoutFeedback>
           </Modal>
 
-          {/* Emoji Selection Modal - CORRIGIDO */}
+          {/* Emoji Selection Modal */}
           <Modal visible={showEmojiModal} transparent animationType="slide">
             <TouchableWithoutFeedback onPress={() => setShowEmojiModal(false)}>
               <View style={styles.modalOverlay}>
@@ -844,7 +924,6 @@ const styles = StyleSheet.create({
   canvasScrollView: {
     flex: 1,
     borderRadius: 16,
-    overflow: 'hidden',
   },
   canvas: {
     flex: 1,
@@ -852,22 +931,24 @@ const styles = StyleSheet.create({
     borderRadius: 16,
   },
   
-  // Canvas Pattern
-  canvasPattern: {
+  // Background grid
+  gridPattern: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    flexDirection: 'column',
-    justifyContent: 'space-between',
   },
-  canvasDot: {
-    width: 2,
-    height: 2,
+  gridRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 20,
+    paddingHorizontal: 20,
+  },
+  gridDot: {
+    width: 1.5,
+    height: 1.5,
     borderRadius: 1,
-    marginHorizontal: 10,
-    marginVertical: 10,
   },
   
   // Vision Board Items
@@ -879,6 +960,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
+    backgroundColor: 'transparent',
   },
   deleteButton: {
     position: 'absolute',
@@ -902,22 +984,20 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   textItemContainer: {
-    width: '100%',
-    height: '100%',
+    flex: 1,
     borderRadius: 12,
     padding: Spacing.sm,
     justifyContent: 'center',
     alignItems: 'center',
   },
   textItemContent: {
-    color: 'white',
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
     textAlign: 'center',
+    lineHeight: 22,
   },
   emojiItemContainer: {
-    width: '100%',
-    height: '100%',
+    flex: 1,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
@@ -946,12 +1026,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 100,
   },
-  emptyStateContent: {
-    padding: Spacing.xl,
-    borderRadius: 24,
-    alignItems: 'center',
-    width: 280,
-  },
   emptyStateTitle: {
     fontSize: 20,
     fontWeight: '600',
@@ -968,8 +1042,10 @@ const styles = StyleSheet.create({
   floatingActions: {
     position: 'absolute',
     right: Spacing.lg,
-    bottom: 100,
+    bottom: Spacing.xl,
+    alignItems: 'center',
     gap: Spacing.md,
+    zIndex: 100,
   },
   floatingButton: {
     width: 56,
@@ -983,16 +1059,27 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
   },
-  
-  // Finish Button
-  finishContainer: {
-    padding: Spacing.lg,
+  finishFloatingButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderRadius: 28,
+    elevation: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    marginTop: Spacing.sm,
   },
-  finishButton: {
-    marginHorizontal: Spacing.md,
+  finishFloatingButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '700',
+    marginLeft: Spacing.xs,
   },
   
-  // Modals - Geral
+  // Modals - General
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.7)',
@@ -1013,12 +1100,39 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
     borderRadius: 24,
   },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: Spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.1)',
+  },
   modalTitle: {
     fontSize: 24,
     fontWeight: '700',
-    textAlign: 'center',
-    marginBottom: Spacing.xl,
   },
+  modalCloseButton: {
+    padding: Spacing.sm,
+    borderRadius: 8,
+  },
+  modalBody: {
+    padding: Spacing.lg,
+  },
+  modalOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: Spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.05)',
+  },
+  modalOptionText: {
+    fontSize: 18,
+    fontWeight: '500',
+    marginLeft: Spacing.lg,
+  },
+  
+  // Text Modal
   textInput: {
     borderRadius: 16,
     padding: Spacing.lg,
@@ -1034,17 +1148,18 @@ const styles = StyleSheet.create({
     marginTop: Spacing.xs,
     marginBottom: Spacing.lg,
   },
-  modalButtons: {
+  textModalActions: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     gap: Spacing.md,
   },
-  modalButton: {
+  textModalButton: {
     flex: 1,
     paddingVertical: Spacing.md,
     borderRadius: 12,
     alignItems: 'center',
   },
-  modalButtonText: {
+  textModalButtonText: {
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
@@ -1084,6 +1199,11 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
   },
+  modalButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
   
   // Error State
   errorContainer: {
@@ -1097,5 +1217,20 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginTop: Spacing.lg,
     marginBottom: Spacing.sm,
+  },
+  errorText: {
+    fontSize: 16,
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+  backButton: {
+    marginTop: Spacing.lg,
+    padding: Spacing.md,
+    borderRadius: 8,
+    // backgroundColor: 'rgba(0,0,0,0.1)', // Corrigido: Removido uso de 'colors'
+  },
+  backButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
