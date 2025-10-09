@@ -1,5 +1,4 @@
 import 'react-native-gesture-handler';
-
 import React, { useEffect } from 'react';
 import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
