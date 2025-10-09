@@ -6,7 +6,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { Platform, StyleSheet } from 'react-native'; // Adicionei StyleSheet
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-// Definindo os estilos
+// Criando o objeto styles com StyleSheet.create
 const styles = StyleSheet.create({
   container: {
     flex: 1,
