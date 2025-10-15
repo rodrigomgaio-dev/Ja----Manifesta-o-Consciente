@@ -25,12 +25,12 @@ export default function CocriacaoDetailsScreen() {
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { cocriations, deleteCocriation, loading, refresh } = useIndividualCocriations();
+  const { cocriations, deleteCocriation, loadSingle } = useIndividualCocriations();
 
   const [cocriation, setCocriation] = useState<any>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
-  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [modalConfig, setModalConfig] = useState<{
     title: string;
     message: string;
@@ -38,26 +38,42 @@ export default function CocriacaoDetailsScreen() {
     buttons?: any[];
   }>({ title: '', message: '', type: 'info' });
 
-  // Atualizar cocriation quando cocriations array muda
-  useEffect(() => {
-    console.log('Cocriations updated, searching for id:', id);
-    if (id && cocriations.length > 0) {
-      const foundCocriation = cocriations.find(c => c.id === id);
-      console.log('Found cocriation:', foundCocriation);
-      setCocriation(foundCocriation);
-      setIsInitialLoading(false);
-    } else if (!loading) {
-      setIsInitialLoading(false);
-    }
-  }, [id, cocriations, loading]);
+  // Carregar cocriação específica do cache ou banco
+  const loadCocriation = useCallback(async () => {
+    if (!id) return;
 
-  // Refresh data when screen comes into focus
+    // Primeiro, tenta do cache
+    const cached = cocriations.find(c => c.id === id);
+    if (cached) {
+      console.log('Cocriation found in cache:', cached);
+      setCocriation(cached);
+      return;
+    }
+
+    // Se não está no cache, carrega do banco
+    console.log('Loading cocriation from database:', id);
+    setIsLoading(true);
+    const result = await loadSingle(id);
+    if (result.data) {
+      setCocriation(result.data);
+    }
+    setIsLoading(false);
+  }, [id, cocriations, loadSingle]);
+
+  // Carregar ao montar e quando cocriations muda
+  useEffect(() => {
+    loadCocriation();
+  }, [loadCocriation]);
+
+  // Recarregar quando retorna ao foco (apenas se necessário)
   useFocusEffect(
     useCallback(() => {
-      console.log('Screen focused, refreshing data...');
-      setIsInitialLoading(true);
-      refresh();
-    }, [refresh])
+      // Apenas recarrega se a cocriação já existe no cache
+      // Isso evita carregamentos desnecessários
+      if (id && cocriations.some(c => c.id === id)) {
+        loadCocriation();
+      }
+    }, [id, cocriations.length])
   );
 
   const showModal = (
@@ -157,14 +173,14 @@ export default function CocriacaoDetailsScreen() {
     router.push(`/future-letter?cocreationId=${cocriation.id}`);
   };
 
-  // Mostrar loading apenas no carregamento inicial
-  if (isInitialLoading) {
+  // Mostrar loading apenas enquanto carrega
+  if (isLoading && !cocriation) {
     return (
       <GradientBackground>
         <View style={[styles.container, { paddingTop: insets.top }]}>
           <View style={styles.loadingContainer}>
             <Text style={[styles.loadingText, { color: colors.text }]}>
-              Carregando detalhes...
+              Carregando...
             </Text>
           </View>
         </View>
@@ -172,8 +188,8 @@ export default function CocriacaoDetailsScreen() {
     );
   }
 
-  // Mostrar erro apenas se não estiver carregando e não houver cocriação
-  if (!isInitialLoading && !cocriation && !isDeleting) {
+  // Mostrar erro apenas se não houver cocriação e não estiver deletando
+  if (!isLoading && !cocriation && !isDeleting) {
     return (
       <GradientBackground>
         <View style={[styles.container, { paddingTop: insets.top }]}>

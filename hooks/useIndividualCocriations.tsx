@@ -42,6 +42,41 @@ export function useIndividualCocriations() {
     }
   };
 
+  // Nova função para carregar uma única cocriação
+  const loadSingleCocriation = async (id: string) => {
+    if (!user) return { data: null, error: new Error('User not authenticated') };
+
+    try {
+      const { data, error } = await supabase
+        .from('individual_cocriations')
+        .select('*')
+        .eq('id', id)
+        .eq('user_id', user.id)
+        .single();
+
+      if (error) {
+        console.error('Error loading single cocriation:', error);
+        return { data: null, error };
+      }
+
+      // Atualiza o cache local
+      setCocriations(prev => {
+        const index = prev.findIndex(c => c.id === id);
+        if (index >= 0) {
+          const updated = [...prev];
+          updated[index] = data;
+          return updated;
+        }
+        return [data, ...prev];
+      });
+
+      return { data, error: null };
+    } catch (error) {
+      console.error('Unexpected error loading single cocriation:', error);
+      return { data: null, error };
+    }
+  };
+
   const createCocriation = async (cocriation: {
     title: string;
     description?: string;
@@ -174,6 +209,7 @@ export function useIndividualCocriations() {
     deleteCocriation,
     completeCocriation,
     refresh: loadCocriations,
+    loadSingle: loadSingleCocriation,
   };
 }
 
