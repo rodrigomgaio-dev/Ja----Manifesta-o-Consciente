@@ -2,23 +2,23 @@ export const Colors = {
   light: {
     // Cores primárias espirituais
     primary: '#8B5CF6', // Violeta místico
-    secondary: '#F59E0B', // Dourado sagrado
-    accent: '#06B6D4', // Azul celestial
+    secondary: '#EC4899', // Rosa vibrante
+    accent: '#3B82F6', // Azul celestial
     
     // Gradientes
     gradientPrimary: ['#8B5CF6', '#A855F7', '#C084FC'],
-    gradientSecondary: ['#F59E0B', '#FBBF24', '#FCD34D'],
-    gradientBackground: ['#FEFBFF', '#F3E8FF', '#EDE9FE'],
+    gradientSecondary: ['#EC4899', '#F472B6', '#FBCFE8'],
+    gradientBackground: ['#E0D5F5', '#C7B8EA', '#B8A5E3'],
     
     // Superfícies
-    background: '#FEFBFF',
-    surface: 'rgba(255, 255, 255, 0.9)',
-    card: 'rgba(255, 255, 255, 0.7)',
+    background: '#E0D5F5',
+    surface: 'rgba(255, 255, 255, 0.15)',
+    card: 'rgba(255, 255, 255, 0.15)',
     
     // Textos
-    text: '#1F2937',
-    textSecondary: '#6B7280',
-    textMuted: '#9CA3AF',
+    text: '#FFFFFF',
+    textSecondary: 'rgba(255, 255, 255, 0.85)',
+    textMuted: 'rgba(255, 255, 255, 0.6)',
     
     // Estados
     success: '#10B981',
@@ -27,7 +27,7 @@ export const Colors = {
     
     // Bordas e divisores
     border: 'rgba(139, 92, 246, 0.2)',
-    divider: 'rgba(107, 114, 128, 0.1)',
+    divider: 'rgba(255, 255, 255, 0.1)',
   },
   
   dark: {

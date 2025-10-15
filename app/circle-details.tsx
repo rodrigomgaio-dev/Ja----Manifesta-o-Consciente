@@ -102,7 +102,7 @@ export default function CircleDetailsScreen() {
     }
   };
 
-  if (loading) {
+  if (loading && !circle) {
     return (
       <GradientBackground>
         <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -116,7 +116,7 @@ export default function CircleDetailsScreen() {
     );
   }
 
-    if (!circle) {
+    if (!loading && !circle) {
     return (
       <GradientBackground>
         <View style={[styles.container, { paddingTop: insets.top }]}>

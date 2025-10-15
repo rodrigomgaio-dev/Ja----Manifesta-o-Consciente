@@ -21,11 +21,12 @@ export default function PainelScreen() {
   const activeCircles = circles.filter(c => c.status === 'active' || c.status === 'forming');
 
   const renderCocriation = (cocriation: any) => (
-    <TouchableOpacity 
-      key={cocriation.id} 
+    <SacredCard
+      key={cocriation.id}
+      animated
       onPress={() => router.push(`/cocriacao-details?id=${cocriation.id}`)}
+      style={styles.itemCard}
     >
-      <SacredCard style={styles.itemCard}>
         {cocriation.cover_image_url && (
           <Image 
             source={{ uri: cocriation.cover_image_url }} 
@@ -55,15 +56,15 @@ export default function PainelScreen() {
           </View>
         </View>
       </SacredCard>
-    </TouchableOpacity>
   );
 
   const renderCircle = (circle: any) => (
-    <TouchableOpacity 
-      key={circle.id} 
+    <SacredCard
+      key={circle.id}
+      animated
       onPress={() => router.push(`/circle-details?id=${circle.id}`)}
+      style={styles.itemCard}
     >
-      <SacredCard style={styles.itemCard}>
         {circle.cover_image_url && (
           <Image 
             source={{ uri: circle.cover_image_url }} 
@@ -92,7 +93,6 @@ export default function PainelScreen() {
           </View>
         </View>
       </SacredCard>
-    </TouchableOpacity>
   );
 
   const isLoading = loadingIndividual || loadingCircles;

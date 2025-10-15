@@ -20,11 +20,12 @@ export default function IndividualScreen() {
     router.push('/create-individual');
   };
   const renderCocriation = (cocriation: any) => (
-    <TouchableOpacity 
-      key={cocriation.id} 
+    <SacredCard 
+      key={cocriation.id}
+      animated
       onPress={() => router.push(`/cocriacao-details?id=${cocriation.id}`)}
+      style={styles.cocriationCard}
     >
-      <SacredCard style={styles.cocriationCard}>
         {cocriation.cover_image_url && (
           <Image 
             source={{ uri: cocriation.cover_image_url }} 
@@ -87,7 +88,6 @@ export default function IndividualScreen() {
           </TouchableOpacity>
         </View>
       </SacredCard>
-    </TouchableOpacity>
   );
 
   return (

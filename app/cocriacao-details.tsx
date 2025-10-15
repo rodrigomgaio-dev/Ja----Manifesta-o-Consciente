@@ -131,7 +131,7 @@ export default function CocriacaoDetailsScreen() {
     router.push(`/future-letter?cocreationId=${cocriation.id}`);
   };
 
-  if (loading) {
+  if (loading && !cocriation) {
     return (
       <GradientBackground>
         <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -145,7 +145,7 @@ export default function CocriacaoDetailsScreen() {
     );
   }
 
-  if (!cocriation) {
+  if (!loading && !cocriation) {
     return (
       <GradientBackground>
         <View style={[styles.container, { paddingTop: insets.top }]}>

@@ -20,11 +20,12 @@ export default function CirculosScreen() {
   };
 
   const renderCircle = (circle: any) => (
-    <TouchableOpacity 
-      key={circle.id} 
+    <SacredCard
+      key={circle.id}
+      animated
       onPress={() => router.push(`/circle-details?id=${circle.id}`)}
+      style={styles.circleCard}
     >
-      <SacredCard style={styles.circleCard}>
         {circle.cover_image_url && (
           <Image 
             source={{ uri: circle.cover_image_url }} 
@@ -75,7 +76,6 @@ export default function CirculosScreen() {
           </View>
         </View>
       </SacredCard>
-    </TouchableOpacity>
   );
 
   return (
