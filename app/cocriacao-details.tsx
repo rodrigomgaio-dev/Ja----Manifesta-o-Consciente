@@ -6,8 +6,6 @@ import {
   ScrollView,
   StyleSheet,
   TouchableOpacity,
-  Alert,
-  Platform,
 } from 'react-native';
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,6 +14,7 @@ import { Image } from 'expo-image';
 import GradientBackground from '@/components/ui/GradientBackground';
 import SacredCard from '@/components/ui/SacredCard';
 import SacredButton from '@/components/ui/SacredButton';
+import SacredModal from '@/components/ui/SacredModal';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useIndividualCocriations } from '@/hooks/useIndividualCocriations';
@@ -30,6 +29,13 @@ export default function CocriacaoDetailsScreen() {
 
   const [cocriation, setCocriation] = useState<any>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalConfig, setModalConfig] = useState<{
+    title: string;
+    message: string;
+    type: 'info' | 'success' | 'warning' | 'error';
+    buttons?: any[];
+  }>({ title: '', message: '', type: 'info' });
 
   // Atualizar cocriation quando cocriations array muda
   useEffect(() => {
@@ -49,15 +55,14 @@ export default function CocriacaoDetailsScreen() {
     }, [refresh])
   );
 
-  const showWebAlert = (title: string, message: string, buttons?: any[]) => {
-    if (Platform.OS === 'web') {
-      const confirmed = confirm(`${title}: ${message}`);
-      if (confirmed && buttons?.[0]?.onPress) {
-        buttons[0].onPress();
-      }
-    } else {
-      Alert.alert(title, message, buttons);
-    }
+  const showModal = (
+    title: string,
+    message: string,
+    type: 'info' | 'success' | 'warning' | 'error' = 'info',
+    buttons?: any[]
+  ) => {
+    setModalConfig({ title, message, type, buttons });
+    setModalVisible(true);
   };
 
   const handleEdit = () => {
@@ -65,17 +70,19 @@ export default function CocriacaoDetailsScreen() {
   };
 
   const handleDelete = () => {
-    showWebAlert(
+    showModal(
       'Confirmar Exclusão',
       'Tem certeza que deseja excluir esta cocriação? Esta ação não pode ser desfeita.',
+      'warning',
       [
         {
           text: 'Cancelar',
-          style: 'cancel',
+          variant: 'outline',
+          onPress: () => {},
         },
         {
           text: 'Excluir',
-          style: 'destructive',
+          variant: 'danger',
           onPress: confirmDelete,
         },
       ]
@@ -86,24 +93,42 @@ export default function CocriacaoDetailsScreen() {
     if (!cocriation) return;
 
     setIsDeleting(true);
+    setModalVisible(false);
 
     try {
       const result = await deleteCocriation(cocriation.id);
       
       if (result.error) {
         console.error('Error deleting cocriation:', result.error);
-        showWebAlert('Erro', 'Não foi possível excluir a cocriação. Tente novamente.');
+        showModal(
+          'Erro',
+          'Não foi possível excluir a cocriação. Tente novamente.',
+          'error'
+        );
+        setIsDeleting(false);
       } else {
-        showWebAlert(
+        showModal(
           'Sucesso',
           'Cocriação excluída com sucesso.',
-          [{ text: 'OK', onPress: () => router.back() }]
+          'success',
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                setModalVisible(false);
+                setTimeout(() => router.back(), 100);
+              },
+            },
+          ]
         );
       }
     } catch (error) {
       console.error('Unexpected error deleting cocriation:', error);
-      showWebAlert('Erro Inesperado', 'Algo deu errado. Tente novamente.');
-    } finally {
+      showModal(
+        'Erro Inesperado',
+        'Algo deu errado. Tente novamente.',
+        'error'
+      );
       setIsDeleting(false);
     }
   };
@@ -376,6 +401,16 @@ export default function CocriacaoDetailsScreen() {
             style={[styles.deleteButton, { borderColor: colors.error }]}
           />
         </SacredCard>
+
+        {/* Modal */}
+        <SacredModal
+          visible={modalVisible}
+          title={modalConfig.title}
+          message={modalConfig.message}
+          type={modalConfig.type}
+          buttons={modalConfig.buttons}
+          onClose={() => setModalVisible(false)}
+        />
       </ScrollView>
     </GradientBackground>
   );

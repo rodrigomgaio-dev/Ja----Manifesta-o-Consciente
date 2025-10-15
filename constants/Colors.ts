@@ -1,19 +1,20 @@
 export const Colors = {
   light: {
     // Cores primárias espirituais
-    primary: '#8B5CF6', // Violeta místico
+    primary: '#A855F7', // Violeta místico
     secondary: '#EC4899', // Rosa vibrante
     accent: '#3B82F6', // Azul celestial
+    gold: '#D4AF37', // Dourado
     
     // Gradientes
     gradientPrimary: ['#8B5CF6', '#A855F7', '#C084FC'],
     gradientSecondary: ['#EC4899', '#F472B6', '#FBCFE8'],
-    gradientBackground: ['#E0D5F5', '#C7B8EA', '#B8A5E3'],
+    gradientBackground: ['#1A0B3B', '#2D1B5E', '#4A2A7F'],
     
     // Superfícies
-    background: '#E0D5F5',
-    surface: 'rgba(255, 255, 255, 0.15)',
-    card: 'rgba(255, 255, 255, 0.15)',
+    background: '#1A0B3B',
+    surface: 'rgba(139, 92, 246, 0.15)',
+    card: 'rgba(139, 92, 246, 0.15)',
     
     // Textos
     text: '#FFFFFF',
@@ -26,7 +27,7 @@ export const Colors = {
     error: '#EF4444',
     
     // Bordas e divisores
-    border: 'rgba(139, 92, 246, 0.2)',
+    border: 'rgba(139, 92, 246, 0.3)',
     divider: 'rgba(255, 255, 255, 0.1)',
   },
   
@@ -35,6 +36,7 @@ export const Colors = {
     primary: '#A855F7',
     secondary: '#FBBF24',
     accent: '#22D3EE',
+    gold: '#D4AF37', // Dourado
     
     // Gradientes
     gradientPrimary: ['#7C3AED', '#8B5CF6', '#A855F7'],

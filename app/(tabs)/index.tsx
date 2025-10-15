@@ -61,7 +61,7 @@ export default function HomeScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={[styles.appName, { color: colors.text }]}>
+          <Text style={[styles.appName, { color: colors.gold || '#D4AF37' }]}>
             Jaé
           </Text>
           <Text style={[styles.tagline, { color: colors.textSecondary }]}>

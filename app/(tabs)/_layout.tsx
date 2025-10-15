@@ -1,46 +1,38 @@
-// app/(tabs)/_layout.tsx
 import React from 'react';
 import { Tabs } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useTheme } from '@/contexts/ThemeContext';
-import { Platform, StyleSheet } from 'react-native'; // Adicionei StyleSheet
+import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-// Criando o objeto styles com StyleSheet.create
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  // Adicione outros estilos conforme necessário
-});
-
 export default function TabsLayout() {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
 
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textMuted,
         tabBarStyle: {
-          backgroundColor: colors.surface,
-          borderTopColor: colors.border,
+          backgroundColor: isDark ? colors.surface : 'rgba(26, 11, 59, 0.95)',
           borderTopWidth: 1,
-          height: Platform.select({
-            ios: insets.bottom + 60,
-            android: insets.bottom + 60,
-            default: 70
-          }),
-          paddingTop: 8,
+          borderTopColor: colors.border,
+          elevation: 0,
           paddingBottom: Platform.select({
             ios: insets.bottom + 8,
             android: insets.bottom + 8,
             default: 8
           }),
+          paddingTop: 8,
+          height: Platform.select({
+            ios: insets.bottom + 60,
+            android: insets.bottom + 60,
+            default: 70
+          }),
           paddingHorizontal: 16,
         },
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textMuted,
         tabBarLabelStyle: {
           fontSize: 12,
           fontWeight: '500',
