@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   Modal,
   TextInput,
-  Alert,
   Platform,
   useWindowDimensions,
   TouchableWithoutFeedback,
@@ -33,7 +32,7 @@ import {
 } from 'react-native-gesture-handler';
 
 import GradientBackground from '@/components/ui/GradientBackground';
-import SacredButton from '@/components/ui/SacredButton';
+import SacredModal from '@/components/ui/SacredModal';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useVisionBoardItems } from '@/hooks/useVisionBoardItems';
@@ -264,11 +263,18 @@ export default function VisionBoardEditorScreen() {
   // State
   const [showAddModal, setShowAddModal] = useState(false);
   const [showTextModal, setShowTextModal] = useState(false);
-  const [showEmojiModal, setShowEmojiModal] = useState(false); // <-- ADICIONADO AQUI
+  const [showEmojiModal, setShowEmojiModal] = useState(false);
   const [textInput, setTextInput] = useState('');
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [itemZIndices, setItemZIndices] = useState<{ [key: string]: number }>({});
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalConfig, setModalConfig] = useState<{
+    title: string;
+    message: string;
+    type: 'info' | 'success' | 'warning' | 'error';
+    buttons?: any[];
+  }>({ title: '', message: '', type: 'info' });
+  const [visionBoardSaved, setVisionBoardSaved] = useState(false);
 
   // Zoom controls
   const zoom = useSharedValue(1);
@@ -282,26 +288,21 @@ export default function VisionBoardEditorScreen() {
       newZIndices[item.id] = index + 1;
     });
     setItemZIndices(newZIndices);
+    
+    // Se já tem itens, considera como salvo
+    if (items.length > 0) {
+      setVisionBoardSaved(true);
+    }
   }, [items]);
 
-  const showAlert = useCallback((title: string, message: string, onOk?: () => void) => {
-    if (Platform.OS === 'web') {
-      alert(`${title}: ${message}`);
-      onOk?.();
-    } else {
-      Alert.alert(title, message, onOk ? [{ text: 'OK', onPress: onOk }] : undefined);
-    }
-  }, []);
-
-  const showConfirm = useCallback((title: string, message: string, onConfirm: () => void) => {
-    if (Platform.OS === 'web') {
-      if (confirm(`${title}: ${message}`)) onConfirm();
-    } else {
-      Alert.alert(title, message, [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Confirmar', onPress: onConfirm },
-      ]);
-    }
+  const showModal = useCallback((
+    title: string,
+    message: string,
+    type: 'info' | 'success' | 'warning' | 'error' = 'info',
+    buttons?: any[]
+  ) => {
+    setModalConfig({ title, message, type, buttons });
+    setModalVisible(true);
   }, []);
 
   // Find empty position with collision detection
@@ -343,7 +344,7 @@ export default function VisionBoardEditorScreen() {
   const handleAddImage = useCallback(async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      showAlert('Permissão Necessária', 'Precisamos de permissão para acessar suas fotos.');
+      showModal('Permissão Necessária', 'Precisamos de permissão para acessar suas fotos.', 'warning');
       return;
     }
 
@@ -373,10 +374,9 @@ export default function VisionBoardEditorScreen() {
         const response = await addItem(newItem);
         if (response.error) {
           console.error("[VisionBoardEditor] Erro do Supabase:", response.error);
-          showAlert('Erro', 'Não foi possível adicionar a imagem.');
+          showModal('Erro', 'Não foi possível adicionar a imagem.', 'error');
         } else {
           console.log('[VisionBoardEditor] Imagem adicionada com sucesso!');
-          setHasUnsavedChanges(true);
           
           // Set z-index for new item
           const maxZ = Math.max(...Object.values(itemZIndices), 0);
@@ -384,15 +384,15 @@ export default function VisionBoardEditorScreen() {
         }
       } catch (error) {
         console.error('Error adding image:', error);
-        showAlert('Erro', 'Algo deu errado ao adicionar a imagem.');
+        showModal('Erro', 'Algo deu errado ao adicionar a imagem.', 'error');
       }
     }
     setShowAddModal(false);
-  }, [findEmptyPosition, addItem, showAlert, screenWidth, itemZIndices]);
+  }, [findEmptyPosition, addItem, showModal, screenWidth, itemZIndices]);
 
   const handleAddText = useCallback(async () => {
     if (!textInput.trim()) {
-      showAlert('Erro', 'Por favor, digite um texto.');
+      showModal('Erro', 'Por favor, digite um texto.', 'error');
       return;
     }
 
@@ -416,11 +416,10 @@ export default function VisionBoardEditorScreen() {
       const response = await addItem(newItem);
       if (response.error) {
         console.error('Error adding text:', response.error);
-        showAlert('Erro', 'Não foi possível adicionar o texto.');
+        showModal('Erro', 'Não foi possível adicionar o texto.', 'error');
       } else {
         setTextInput('');
         setShowTextModal(false);
-        setHasUnsavedChanges(true);
         
         // Set z-index for new item
         const maxZ = Math.max(...Object.values(itemZIndices), 0);
@@ -428,9 +427,9 @@ export default function VisionBoardEditorScreen() {
       }
     } catch (error) {
       console.error('Error adding text:', error);
-      showAlert('Erro', 'Algo deu errado ao adicionar o texto.');
+      showModal('Erro', 'Algo deu errado ao adicionar o texto.', 'error');
     }
-  }, [textInput, findEmptyPosition, addItem, showAlert, screenWidth, itemZIndices]);
+  }, [textInput, findEmptyPosition, addItem, showModal, screenWidth, itemZIndices]);
 
   const handleAddEmoji = useCallback(async (emoji: string) => {
     try {
@@ -452,10 +451,9 @@ export default function VisionBoardEditorScreen() {
       const response = await addItem(newItem);
       if (response.error) {
         console.error('Error adding emoji:', response.error);
-        showAlert('Erro', 'Não foi possível adicionar o emoji.');
+        showModal('Erro', 'Não foi possível adicionar o emoji.', 'error');
       } else {
         setShowEmojiModal(false);
-        setHasUnsavedChanges(true);
         
         // Set z-index for new item
         const maxZ = Math.max(...Object.values(itemZIndices), 0);
@@ -463,9 +461,9 @@ export default function VisionBoardEditorScreen() {
       }
     } catch (error) {
       console.error('Error adding emoji:', error);
-      showAlert('Erro', 'Algo deu errado ao adicionar o emoji.');
+      showModal('Erro', 'Algo deu errado ao adicionar o emoji.', 'error');
     }
-  }, [findEmptyPosition, addItem, showAlert, screenWidth, itemZIndices]);
+  }, [findEmptyPosition, addItem, showModal, screenWidth, itemZIndices]);
 
   const handleUpdateItem = useCallback(async (id: string, updates: any) => {
     try {
@@ -474,15 +472,13 @@ export default function VisionBoardEditorScreen() {
       const response = await updateItem(id, updates);
       if (response.error) {
         console.error('Error updating item:', response.error);
-        showAlert('Erro', 'Não foi possível atualizar o item.');
-      } else {
-        setHasUnsavedChanges(true);
+        showModal('Erro', 'Não foi possível atualizar o item.', 'error');
       }
     } catch (error) {
       console.error('Error updating item:', error);
-      showAlert('Erro', 'Algo deu errado ao atualizar o item.');
+      showModal('Erro', 'Algo deu errado ao atualizar o item.', 'error');
     }
-  }, [updateItem, showAlert]);
+  }, [updateItem, showModal]);
 
   const handleDeleteItem = useCallback(async (id: string) => {
     try {
@@ -491,9 +487,8 @@ export default function VisionBoardEditorScreen() {
       const response = await deleteItem(id);
       if (response.error) {
         console.error('Error deleting item:', response.error);
-        showAlert('Erro', 'Não foi possível excluir o item.');
+        showModal('Erro', 'Não foi possível excluir o item.', 'error');
       } else {
-        setHasUnsavedChanges(true);
         setSelectedItemId(null);
         
         // Remove from z-indices
@@ -505,9 +500,9 @@ export default function VisionBoardEditorScreen() {
       }
     } catch (error) {
       console.error('Error deleting item:', error);
-      showAlert('Erro', 'Algo deu errado ao excluir o item.');
+      showModal('Erro', 'Algo deu errado ao excluir o item.', 'error');
     }
-  }, [deleteItem, showAlert]);
+  }, [deleteItem, showModal]);
 
   const handleSelectItem = useCallback((id: string) => {
     setSelectedItemId(prev => prev === id ? null : id);
@@ -516,20 +511,6 @@ export default function VisionBoardEditorScreen() {
     const maxZ = Math.max(...Object.values(itemZIndices), 0);
     setItemZIndices(prev => ({ ...prev, [id]: maxZ + 1 }));
   }, [itemZIndices]);
-
-  const handleZoomReset = useCallback(() => {
-    zoom.value = withSpring(1);
-    canvasTranslateX.value = withSpring(0);
-    canvasTranslateY.value = withSpring(0);
-  }, []);
-
-  const handleZoomIn = useCallback(() => {
-    zoom.value = withSpring(Math.min(zoom.value * 1.2, 3));
-  }, []);
-
-  const handleZoomOut = useCallback(() => {
-    zoom.value = withSpring(Math.max(zoom.value * 0.8, 0.5));
-  }, []);
 
   const canvasAnimatedStyle = useAnimatedStyle(() => {
     return {
@@ -541,27 +522,53 @@ export default function VisionBoardEditorScreen() {
     };
   });
 
-  const handleExit = useCallback(() => {
-    if (hasUnsavedChanges) {
-      showConfirm(
-        'Alterações não salvas',
-        'Você tem alterações não salvas. Deseja sair mesmo assim?',
-        () => router.back()
+  const handleComplete = useCallback(() => {
+    if (items.length === 0) {
+      showModal(
+        'Vision Board Vazio',
+        'Adicione pelo menos um elemento ao seu Vision Board antes de concluir.',
+        'warning'
       );
-    } else {
-      router.back();
+      return;
     }
-  }, [hasUnsavedChanges, showConfirm]);
 
-  const handleSave = useCallback(async () => {
-    try {
-      await refresh();
-      setHasUnsavedChanges(false);
-      showAlert('Vision Board Salvo!', 'Suas alterações foram salvas com sucesso.');
-    } catch (error) {
-      showAlert('Erro', 'Não foi possível salvar as alterações.');
-    }
-  }, [refresh, showAlert]);
+    showModal(
+      'Concluir Vision Board?',
+      'Ao concluir, você não poderá mais editar os elementos. Tem certeza?',
+      'warning',
+      [
+        {
+          text: 'Adiar',
+          variant: 'outline',
+          onPress: () => {
+            setModalVisible(false);
+          },
+        },
+        {
+          text: 'Concluir',
+          variant: 'primary',
+          onPress: async () => {
+            setModalVisible(false);
+            // Marcar como salvo e navegar
+            setVisionBoardSaved(true);
+            // Pequeno delay para garantir que o modal fecha antes de mostrar o próximo
+            setTimeout(() => {
+              showModal(
+                'Cocriação Criada',
+                'Sua manifestação consciente está ativa. Visualize seus sonhos diariamente.',
+                'success',
+                undefined
+              );
+              // Navegar após fechar o modal de sucesso
+              setTimeout(() => {
+                router.push('/(tabs)/individual');
+              }, 1500);
+            }, 300);
+          },
+        },
+      ]
+    );
+  }, [items, showModal]);
 
   if (!user) {
     return (
@@ -584,9 +591,8 @@ export default function VisionBoardEditorScreen() {
         <View style={[styles.container, { paddingTop: insets.top }]}>
           {/* Header */}
           <View style={styles.header}>
-            <TouchableOpacity onPress={handleExit} style={styles.headerButton}>
-              <MaterialIcons name="arrow-back" size={24} color={colors.text} />
-            </TouchableOpacity>
+            {/* Espaço vazio para manter o título centralizado */}
+            <View style={{ width: 48 }} />
             
             <View style={styles.headerCenter}>
               <Text style={[styles.headerTitle, { color: colors.text }]}>Vision Board</Text>
@@ -595,9 +601,8 @@ export default function VisionBoardEditorScreen() {
               </Text>
             </View>
             
-            <TouchableOpacity onPress={handleSave} style={styles.headerButton}>
-              <MaterialIcons name="save" size={24} color={colors.primary} />
-            </TouchableOpacity>
+            {/* Espaço vazio para manter o título centralizado */}
+            <View style={{ width: 48 }} />
           </View>
 
           {/* Canvas Container */}
@@ -699,16 +704,10 @@ export default function VisionBoardEditorScreen() {
             {/* Floating Finish Button */}
             <TouchableOpacity
               style={[styles.finishFloatingButton, { backgroundColor: colors.primary }]}
-              onPress={() => {
-                showAlert(
-                  'Vision Board Concluído!',
-                  'Sua manifestação consciente está ativa. Visualize seus sonhos diariamente.',
-                  () => router.push('/(tabs)/individual')
-                );
-              }}
+              onPress={handleComplete}
             >
               <MaterialIcons name="check" size={28} color="white" />
-              <Text style={styles.finishFloatingButtonText}>Finalizar</Text>
+              <Text style={styles.finishFloatingButtonText}>Concluir</Text>
             </TouchableOpacity>
           </View>
 
@@ -756,8 +755,7 @@ export default function VisionBoardEditorScreen() {
                       <TouchableOpacity
                         style={styles.modalOption}
                         onPress={() => {
-                          // TODO: Implement sticker picker
-                          showAlert('Em breve', 'Funcionalidade de Sticker estará disponível em breve.');
+                          showModal('Em breve', 'Funcionalidade de Sticker estará disponível em breve.', 'info');
                           setShowAddModal(false);
                         }}
                       >
@@ -877,6 +875,16 @@ export default function VisionBoardEditorScreen() {
               </View>
             </TouchableWithoutFeedback>
           </Modal>
+
+          {/* Sacred Modal */}
+          <SacredModal
+            visible={modalVisible}
+            title={modalConfig.title}
+            message={modalConfig.message}
+            type={modalConfig.type}
+            buttons={modalConfig.buttons}
+            onClose={() => setModalVisible(false)}
+          />
         </View>
       </GradientBackground>
     </GestureHandlerRootView>
@@ -1224,7 +1232,6 @@ const styles = StyleSheet.create({
     marginTop: Spacing.lg,
     padding: Spacing.md,
     borderRadius: 8,
-    // backgroundColor: 'rgba(0,0,0,0.1)', // Corrigido: Removido uso de 'colors'
   },
   backButtonText: {
     fontSize: 16,

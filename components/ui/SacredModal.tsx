@@ -85,21 +85,28 @@ export default function SacredModal({
               {/* Buttons */}
               <View style={styles.buttonsContainer}>
                 {buttons.length > 0 ? (
-                  buttons.map((button, index) => (
-                    <SacredButton
-                      key={index}
-                      title={button.text}
-                      onPress={() => {
-                        button.onPress();
-                        if (onClose && button.variant !== 'outline') onClose();
-                      }}
-                      variant={button.variant || 'primary'}
-                      style={[
-                        styles.button,
-                        button.variant === 'danger' && styles.dangerButton,
-                      ]}
-                    />
-                  ))
+                  // Inverte a ordem dos botões: primeiro os não-outline (confirmar), depois os outline (cancelar)
+                  [...buttons]
+                    .sort((a, b) => {
+                      if (a.variant === 'outline' && b.variant !== 'outline') return 1;
+                      if (a.variant !== 'outline' && b.variant === 'outline') return -1;
+                      return 0;
+                    })
+                    .map((button, index) => (
+                      <SacredButton
+                        key={index}
+                        title={button.text}
+                        onPress={() => {
+                          button.onPress();
+                          if (onClose && button.variant !== 'outline') onClose();
+                        }}
+                        variant={button.variant || 'primary'}
+                        style={[
+                          styles.button,
+                          button.variant === 'danger' && styles.dangerButton,
+                        ]}
+                      />
+                    ))
                 ) : (
                   <SacredButton
                     title="OK"

@@ -18,6 +18,7 @@ import * as ImagePicker from 'expo-image-picker';
 import GradientBackground from '@/components/ui/GradientBackground';
 import SacredCard from '@/components/ui/SacredCard';
 import SacredButton from '@/components/ui/SacredButton';
+import SacredModal from '@/components/ui/SacredModal';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useIndividualCocriations } from '@/hooks/useIndividualCocriations';
@@ -40,6 +41,13 @@ export default function EditIndividualScreen() {
   });
   const [coverImage, setCoverImage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalConfig, setModalConfig] = useState<{
+    title: string;
+    message: string;
+    type: 'info' | 'success' | 'warning' | 'error';
+    onOk?: () => void;
+  }>({ title: '', message: '', type: 'info' });
 
   useEffect(() => {
     if (id && cocriations.length > 0) {
@@ -58,13 +66,14 @@ export default function EditIndividualScreen() {
     }
   }, [id, cocriations]);
 
-  const showWebAlert = (title: string, message: string, onOk?: () => void) => {
-    if (Platform.OS === 'web') {
-      alert(`${title}: ${message}`);
-      onOk?.();
-    } else {
-      Alert.alert(title, message, onOk ? [{ text: 'OK', onPress: onOk }] : undefined);
-    }
+  const showModal = (
+    title: string,
+    message: string,
+    type: 'info' | 'success' | 'warning' | 'error' = 'info',
+    onOk?: () => void
+  ) => {
+    setModalConfig({ title, message, type, onOk });
+    setModalVisible(true);
   };
 
   const handleInputChange = (field: string, value: string) => {
@@ -74,7 +83,7 @@ export default function EditIndividualScreen() {
   const selectCoverImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      showWebAlert('Permissão Necessária', 'Precisamos de permissão para acessar suas fotos.');
+      showModal('Permissão Necessária', 'Precisamos de permissão para acessar suas fotos.', 'warning');
       return;
     }
 
@@ -92,17 +101,17 @@ export default function EditIndividualScreen() {
 
   const handleSave = async () => {
     if (!user || !cocriation) {
-      showWebAlert('Erro', 'Informações necessárias não encontradas.');
+      showModal('Erro', 'Informações necessárias não encontradas.', 'error');
       return;
     }
 
     if (!formData.title.trim()) {
-      showWebAlert('Erro', 'Por favor, informe o título da cocriação');
+      showModal('Erro', 'Por favor, informe o título da cocriação', 'error');
       return;
     }
 
     if (!formData.description.trim()) {
-      showWebAlert('Erro', 'Por favor, descreva sua cocriação');
+      showModal('Erro', 'Por favor, descreva sua cocriação', 'error');
       return;
     }
 
@@ -123,12 +132,13 @@ export default function EditIndividualScreen() {
 
       if (result.error) {
         console.error('Error updating cocriation:', result.error);
-        showWebAlert('Erro', 'Não foi possível salvar as alterações. Tente novamente.');
+        showModal('Erro', 'Não foi possível salvar as alterações. Tente novamente.', 'error');
       } else {
         console.log('Cocriation updated successfully');
-        showWebAlert(
+        showModal(
           'Sucesso',
-          'Cocriação atualizada com sucesso!',
+          'Cocriação editada com sucesso.',
+          'success',
           () => {
             // Small delay to ensure state is updated before navigation
             setTimeout(() => {
@@ -139,7 +149,7 @@ export default function EditIndividualScreen() {
       }
     } catch (error) {
       console.error('Unexpected error updating cocriation:', error);
-      showWebAlert('Erro Inesperado', 'Algo deu errado. Tente novamente.');
+      showModal('Erro Inesperado', 'Algo deu errado. Tente novamente.', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -362,6 +372,20 @@ export default function EditIndividualScreen() {
             </Text>
           </SacredCard>
         </ScrollView>
+
+        {/* Modal */}
+        <SacredModal
+          visible={modalVisible}
+          title={modalConfig.title}
+          message={modalConfig.message}
+          type={modalConfig.type}
+          onClose={() => {
+            setModalVisible(false);
+            if (modalConfig.onOk) {
+              modalConfig.onOk();
+            }
+          }}
+        />
       </KeyboardAvoidingView>
     </GradientBackground>
   );
