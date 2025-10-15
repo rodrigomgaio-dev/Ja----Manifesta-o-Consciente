@@ -16,30 +16,31 @@ export default function TabsLayout() {
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
         tabBarStyle: {
-          backgroundColor: isDark ? colors.surface : 'rgba(26, 11, 59, 0.95)',
+          backgroundColor: isDark ? colors.surface : 'rgba(45, 27, 94, 0.95)',
           borderTopWidth: 1,
           borderTopColor: colors.border,
           elevation: 0,
           paddingBottom: Platform.select({
-            ios: insets.bottom + 8,
-            android: insets.bottom + 8,
-            default: 8
+            ios: insets.bottom + 12,
+            android: insets.bottom + 12,
+            default: 12
           }),
-          paddingTop: 8,
+          paddingTop: 12,
           height: Platform.select({
-            ios: insets.bottom + 60,
-            android: insets.bottom + 60,
-            default: 70
+            ios: insets.bottom + 80,
+            android: insets.bottom + 80,
+            default: 90
           }),
           paddingHorizontal: 16,
         },
         tabBarLabelStyle: {
           fontSize: 12,
           fontWeight: '500',
-          marginTop: 4,
+          marginTop: 6,
+          marginBottom: 2,
         },
         tabBarIconStyle: {
-          marginTop: 4,
+          marginTop: 0,
         },
       }}
     >

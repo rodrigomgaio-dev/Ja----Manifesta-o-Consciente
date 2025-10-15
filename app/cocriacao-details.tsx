@@ -30,6 +30,7 @@ export default function CocriacaoDetailsScreen() {
   const [cocriation, setCocriation] = useState<any>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [modalConfig, setModalConfig] = useState<{
     title: string;
     message: string;
@@ -44,13 +45,17 @@ export default function CocriacaoDetailsScreen() {
       const foundCocriation = cocriations.find(c => c.id === id);
       console.log('Found cocriation:', foundCocriation);
       setCocriation(foundCocriation);
+      setIsInitialLoading(false);
+    } else if (!loading) {
+      setIsInitialLoading(false);
     }
-  }, [id, cocriations]);
+  }, [id, cocriations, loading]);
 
   // Refresh data when screen comes into focus
   useFocusEffect(
     useCallback(() => {
       console.log('Screen focused, refreshing data...');
+      setIsInitialLoading(true);
       refresh();
     }, [refresh])
   );
@@ -107,20 +112,16 @@ export default function CocriacaoDetailsScreen() {
         );
         setIsDeleting(false);
       } else {
-        showModal(
-          'Sucesso',
-          'Cocriação excluída com sucesso.',
-          'success',
-          [
-            {
-              text: 'OK',
-              onPress: () => {
-                setModalVisible(false);
-                setTimeout(() => router.back(), 100);
-              },
-            },
-          ]
-        );
+        // Redireciona imediatamente após exclusão bem-sucedida
+        router.replace('/(tabs)/individual');
+        // Aguarda um momento e então mostra o modal de sucesso
+        setTimeout(() => {
+          showModal(
+            'Sucesso',
+            'Cocriação excluída com sucesso.',
+            'success'
+          );
+        }, 300);
       }
     } catch (error) {
       console.error('Unexpected error deleting cocriation:', error);
@@ -156,7 +157,8 @@ export default function CocriacaoDetailsScreen() {
     router.push(`/future-letter?cocreationId=${cocriation.id}`);
   };
 
-  if (loading && !cocriation) {
+  // Mostrar loading apenas no carregamento inicial
+  if (isInitialLoading) {
     return (
       <GradientBackground>
         <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -170,7 +172,8 @@ export default function CocriacaoDetailsScreen() {
     );
   }
 
-  if (!loading && !cocriation) {
+  // Mostrar erro apenas se não estiver carregando e não houver cocriação
+  if (!isInitialLoading && !cocriation && !isDeleting) {
     return (
       <GradientBackground>
         <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -188,6 +191,11 @@ export default function CocriacaoDetailsScreen() {
         </View>
       </GradientBackground>
     );
+  }
+
+  // Se estiver deletando ou não houver cocriação, não renderiza nada
+  if (!cocriation) {
+    return null;
   }
 
   // Determinar o texto do subtitulo do botão VisionBoard

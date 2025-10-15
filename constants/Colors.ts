@@ -9,7 +9,7 @@ export const Colors = {
     // Gradientes
     gradientPrimary: ['#8B5CF6', '#A855F7', '#C084FC'],
     gradientSecondary: ['#EC4899', '#F472B6', '#FBCFE8'],
-    gradientBackground: ['#1A0B3B', '#2D1B5E', '#4A2A7F'],
+    gradientBackground: ['#2D1B5E', '#4A2A7F', '#6B3FA8'],
     
     // Superfícies
     background: '#1A0B3B',
