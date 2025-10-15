@@ -99,10 +99,10 @@ export default function IndividualScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Text style={[styles.title, { color: colors.text }]}>
-            Cocriação Individual
+            Minhas Cocriações
           </Text>
           <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-            Sua jornada pessoal de manifestação
+            Vision Board e práticas pessoais
           </Text>
         </View>
 

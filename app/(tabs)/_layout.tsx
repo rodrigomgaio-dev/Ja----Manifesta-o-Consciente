@@ -61,9 +61,15 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="painel"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
         name="individual"
         options={{
-          title: 'Individual',
+          title: 'Minhas',
           tabBarIcon: ({ color, size }) => (
             <MaterialIcons name="person" size={size} color={color} />
           ),

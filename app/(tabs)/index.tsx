@@ -1,293 +1,228 @@
-// Teste de sincronização - Rodrigo - 18/09/2025
-import React, { useEffect } from 'react';
+import React from 'react';
 import {
   View,
   Text,
   ScrollView,
   StyleSheet,
-  Dimensions,
+  TouchableOpacity,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import GradientBackground from '@/components/ui/GradientBackground';
-import SacredCard from '@/components/ui/SacredCard';
-import SacredButton from '@/components/ui/SacredButton';
 import { useTheme } from '@/contexts/ThemeContext';
-import { useAuth } from '@/contexts/AuthContext';
-import { Spacing, BorderRadius } from '@/constants/Colors';
+import { Spacing } from '@/constants/Colors';
 import { router } from 'expo-router';
-
-const { width } = Dimensions.get('window');
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function HomeScreen() {
   const { colors } = useTheme();
-  const { user, loading: authLoading } = useAuth();
   const insets = useSafeAreaInsets();
 
-  // Redirect to login if not authenticated
-  useEffect(() => {
-    if (!authLoading && !user) {
-      router.replace('/login');
-      return;
+  const menuItems = [
+    {
+      icon: 'dashboard',
+      title: 'Painel',
+      description: 'Acompanhe suas cocriações',
+      route: '/(tabs)/painel',
+      iconBg: 'rgba(139, 92, 246, 0.2)',
+      iconColor: colors.primary,
+    },
+    {
+      icon: 'person',
+      title: 'Minhas Cocriações',
+      description: 'Vision Board e práticas pessoais',
+      route: '/(tabs)/individual',
+      iconBg: 'rgba(236, 72, 153, 0.2)',
+      iconColor: colors.secondary,
+    },
+    {
+      icon: 'group',
+      title: 'Círculos de Cocriação',
+      description: 'Círculos de até 13 pessoas',
+      route: '/(tabs)/circulos',
+      iconBg: 'rgba(59, 130, 246, 0.2)',
+      iconColor: colors.accent,
+    },
+    {
+      icon: 'spa',
+      title: 'Práticas Diárias',
+      description: 'Meditação, gratidão e mantras',
+      route: '/(tabs)/praticas',
+      iconBg: 'rgba(168, 85, 247, 0.2)',
+      iconColor: colors.primary,
+    },
+  ];
+
+  const renderStars = () => {
+    const stars = [];
+    for (let i = 0; i < 30; i++) {
+      stars.push(
+        <View
+          key={i}
+          style={[
+            styles.star,
+            {
+              top: `${Math.random() * 100}%`,
+              left: `${Math.random() * 100}%`,
+              opacity: Math.random() * 0.5 + 0.3,
+            },
+          ]}
+        />
+      );
     }
-  }, [user, authLoading]);
-
-  // Check for circle invite token only if user is authenticated
-  useEffect(() => {
-    if (user && typeof window !== 'undefined') {
-      const urlParams = new URLSearchParams(window.location.search);
-      const circleInviteToken = urlParams.get('circleInviteToken');
-
-      if (circleInviteToken) {
-        // Redireciona internamente para a tela de convite
-        router.replace({
-          pathname: '/circle-invite/[token]',
-          params: { token: circleInviteToken },
-        });
-      }
-    }
-  }, [user]);
-
-  // Don't render anything if not authenticated
-  if (!user) {
-    return null;
-  }
-
-  const handleCreateIndividual = () => {
-    router.push('/create-individual');
-  };
-
-  const handleCreateCircle = () => {
-    router.push('/create-circle');
-  };
-
-  const handleGoToIndividual = () => {
-    router.push('/(tabs)/individual');
-  };
-
-  const handleGoToCircles = () => {
-    router.push('/(tabs)/circulos');
+    return stars;
   };
 
   return (
     <GradientBackground>
+      <View style={styles.starsContainer}>{renderStars()}</View>
+      
       <ScrollView 
         style={[styles.container, { paddingTop: insets.top }]}
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 80 }}
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={[styles.greeting, { color: colors.textSecondary }]}>
-            Bem-vindo ao
-          </Text>
           <Text style={[styles.appName, { color: colors.text }]}>
             Jaé
           </Text>
-          <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-            Manifestação Consciente através da Presença
+          <Text style={[styles.tagline, { color: colors.textSecondary }]}>
+            Transforme a manifestação em um ritual de{'\n'}presença, silêncio e emoção
           </Text>
         </View>
 
-        {/* Quick Actions */}
-        <View style={styles.quickActions}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>
-            Começar Jornada
-          </Text>
-          <SacredCard glowing style={styles.actionCard}>
-            <View style={styles.cardHeader}>
-              <MaterialIcons 
-                name="person" 
-                size={28} 
-                color={colors.primary} 
-              />
-              <View style={styles.cardText}>
-                <Text style={[styles.cardTitle, { color: colors.text }]}>
-                  Cocriação Individual
-                </Text>
-                <Text style={[styles.cardDescription, { color: colors.textSecondary }]}>
-                  Crie seu Vision Board e manifeste seus desejos em silêncio
-                </Text>
-              </View>
-            </View>
-            <View style={styles.cardActions}>
-              <SacredButton
-                title="Nova Cocriação"
-                onPress={handleCreateIndividual}
-                size="sm"
-                style={styles.cardButton}
-              />
-              <SacredButton
-                title="Ver Minhas"
-                onPress={handleGoToIndividual}
-                variant="outline"
-                size="sm"
-                style={styles.cardButton}
-              />
-            </View>
-          </SacredCard>
-          <SacredCard style={styles.actionCard}>
-            <View style={styles.cardHeader}>
-              <MaterialIcons 
-                name="group" 
-                size={28} 
-                color={colors.accent} 
-              />
-              <View style={styles.cardText}>
-                <Text style={[styles.cardTitle, { color: colors.text }]}>
-                  Círculo de Cocriação
-                </Text>
-                <Text style={[styles.cardDescription, { color: colors.textSecondary }]}>
-                  Forme um círculo íntimo para manifestar juntos
-                </Text>
-              </View>
-            </View>
-            <View style={styles.cardActions}>
-              <SacredButton
-                title="Criar Círculo"
-                onPress={handleCreateCircle}
-                variant="outline"
-                size="sm"
-                style={styles.cardButton}
-              />
-              <SacredButton
-                title="Ver Meus"
-                onPress={handleGoToCircles}
-                variant="outline"
-                size="sm"
-                style={styles.cardButton}
-              />
-            </View>
-          </SacredCard>
+        {/* Menu Cards */}
+        <View style={styles.menuContainer}>
+          {menuItems.map((item, index) => (
+            <TouchableOpacity
+              key={index}
+              activeOpacity={0.8}
+              onPress={() => router.push(item.route as any)}
+            >
+              <LinearGradient
+                colors={['rgba(139, 92, 246, 0.1)', 'rgba(236, 72, 153, 0.05)']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.menuCard}
+              >
+                <View style={styles.menuCardContent}>
+                  <View style={[styles.iconContainer, { backgroundColor: item.iconBg }]}>
+                    <MaterialIcons 
+                      name={item.icon as any} 
+                      size={28} 
+                      color={item.iconColor} 
+                    />
+                  </View>
+                  
+                  <View style={styles.menuTextContainer}>
+                    <Text style={[styles.menuTitle, { color: colors.text }]}>
+                      {item.title}
+                    </Text>
+                    <Text style={[styles.menuDescription, { color: colors.textSecondary }]}>
+                      {item.description}
+                    </Text>
+                  </View>
+
+                  <MaterialIcons 
+                    name="chevron-right" 
+                    size={24} 
+                    color={colors.textMuted} 
+                  />
+                </View>
+              </LinearGradient>
+            </TouchableOpacity>
+          ))}
         </View>
 
-        {/* Daily Practices */}
-        <View style={styles.dailyPractices}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>
-            Práticas Diárias
-          </Text>
-          
-          <View style={styles.practicesGrid}>
-            {[
-              { icon: 'favorite', title: 'Gratidão', color: colors.secondary },
-              { icon: 'self-improvement', title: 'Meditação', color: colors.primary },
-              { icon: 'record-voice-over', title: 'Mantrams', color: colors.accent },
-              { icon: 'psychology', title: 'Afirmações', color: colors.primary },
-            ].map((practice, index) => (
-              <SacredCard key={index} style={styles.practiceCard}>
-                <MaterialIcons 
-                  name={practice.icon as any} 
-                  size={24} 
-                  color={practice.color} 
-                />
-                <Text style={[styles.practiceTitle, { color: colors.text }]}>
-                  {practice.title}
-                </Text>
-              </SacredCard>
-            ))}
-          </View>
-        </View>
-
-        {/* Sacred Quote */}
-        <SacredCard style={styles.quoteCard}>
+        {/* Quote */}
+        <View style={styles.quoteContainer}>
           <Text style={[styles.quote, { color: colors.textSecondary }]}>
-            "A manifestação acontece no silêncio da presença, onde intenção e emoção se encontram."
+            "A manifestação acontece no silêncio da presença, onde{'\n'}intenção e emoção se encontram."
           </Text>
-        </SacredCard>
+        </View>
       </ScrollView>
     </GradientBackground>
   );
 }
 
 const styles = StyleSheet.create({
+  starsContainer: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+  },
+  star: {
+    position: 'absolute',
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+  },
   container: {
     flex: 1,
     paddingHorizontal: Spacing.lg,
   },
   header: {
     alignItems: 'center',
-    marginTop: Spacing.xl,
+    marginTop: Spacing.xxl,
     marginBottom: Spacing.xxl,
   },
-  greeting: {
-    fontSize: 16,
-    marginBottom: Spacing.xs,
-  },
   appName: {
-    fontSize: 48,
+    fontSize: 56,
     fontWeight: '300',
-    letterSpacing: 4,
-    marginBottom: Spacing.sm,
-  },
-  subtitle: {
-    fontSize: 14,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  quickActions: {
-    marginBottom: Spacing.xl,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '600',
+    letterSpacing: 6,
     marginBottom: Spacing.lg,
+  },
+  tagline: {
+    fontSize: 16,
     textAlign: 'center',
+    lineHeight: 24,
+    letterSpacing: 0.5,
   },
-  actionCard: {
-    marginBottom: Spacing.md,
+  menuContainer: {
+    gap: Spacing.md,
+    marginBottom: Spacing.xxl,
   },
-  cardHeader: {
+  menuCard: {
+    borderRadius: 20,
+    padding: Spacing.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.2)',
+  },
+  menuCardContent: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: Spacing.md,
+    alignItems: 'center',
   },
-  cardText: {
+  iconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.md,
+  },
+  menuTextContainer: {
     flex: 1,
-    marginLeft: Spacing.md,
   },
-  cardTitle: {
+  menuTitle: {
     fontSize: 18,
     fontWeight: '600',
     marginBottom: Spacing.xs,
   },
-  cardDescription: {
+  menuDescription: {
     fontSize: 14,
-    lineHeight: 20,
+    lineHeight: 18,
   },
-  cardActions: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-  },
-  cardButton: {
-    flex: 1,
-  },
-  dailyPractices: {
-    marginBottom: Spacing.xl,
-  },
-  practicesGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  practiceCard: {
-    width: (width - Spacing.lg * 2 - Spacing.md) / 2,
+  quoteContainer: {
     alignItems: 'center',
-    marginBottom: Spacing.md,
-    paddingVertical: Spacing.lg,
-  },
-  practiceTitle: {
-    fontSize: 14,
-    fontWeight: '500',
-    marginTop: Spacing.sm,
-    textAlign: 'center',
-  },
-  quoteCard: {
-    marginBottom: Spacing.xl,
-    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
   },
   quote: {
-    fontSize: 16,
+    fontSize: 15,
     fontStyle: 'italic',
     textAlign: 'center',
-    lineHeight: 24,
+    lineHeight: 22,
+    opacity: 0.8,
   },
 });
