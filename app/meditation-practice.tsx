@@ -374,12 +374,12 @@ export default function MeditationPracticeScreen() {
         throw error;
       }
 
-      await loadMeditations();
-      showModal('Sucesso', 'Meditação excluída com sucesso!', 'success');
-    } catch (error) {
-      console.error('Error deleting meditation:', error);
-      showModal('Erro', 'Não foi possível excluir a meditação.', 'error');
-    }
+    //  await loadMeditations();
+    //  showModal('Sucesso', 'Meditação excluída com sucesso!', 'success');
+    //} catch (error) {
+    //  console.error('Error deleting meditation:', error);
+    //  showModal('Erro', 'Não foi possível excluir a meditação.', 'error');
+    //}
   };
 
   const formatDuration = (seconds: number) => {
