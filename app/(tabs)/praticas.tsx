@@ -75,7 +75,7 @@ export default function PraticasScreen() {
     {
       icon: 'psychology',
       title: 'Afirmações',
-      description: 'Reprograme sua mente consciente',
+      description: 'Reprograme sua mente',
       color: colors.primary,
       duration: '5-10 min',
     },
