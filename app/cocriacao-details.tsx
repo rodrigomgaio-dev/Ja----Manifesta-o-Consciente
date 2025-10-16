@@ -376,11 +376,19 @@ export default function CocriacaoDetailsScreen() {
               <MaterialIcons name="chevron-right" size={20} color={colors.textMuted} />
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.actionButton}>
+            <TouchableOpacity 
+              style={styles.actionButton}
+              onPress={() => router.push(`/practice-schedule?cocreationId=${cocriation.id}`)}
+            >
               <MaterialIcons name="self-improvement" size={24} color={colors.accent} />
-              <Text style={[styles.actionText, { color: colors.accent }]}>
-                Práticas Diárias
-              </Text>
+              <View style={styles.actionTextContainer}>
+                <Text style={[styles.actionText, { color: colors.accent }]}>
+                  Momentos de Cocriação
+                </Text>
+                <Text style={[styles.actionSubtext, { color: colors.textMuted }]}>
+                  Configure suas práticas
+                </Text>
+              </View>
               <MaterialIcons name="chevron-right" size={20} color={colors.textMuted} />
             </TouchableOpacity>
           </View>
