@@ -9,23 +9,26 @@ import {
   Alert,
   Platform,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Audio } from 'expo-av';
 import GradientBackground from '@/components/ui/GradientBackground';
 import SacredCard from '@/components/ui/SacredCard';
+import SacredModal from '@/components/ui/SacredModal';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { Spacing } from '@/constants/Colors';
+import { supabase } from '@/services/supabase';
 
-interface MeditationRecording {
+interface Meditation {
   id: string;
   name: string;
   category: string;
+  audio_url: string;
   duration: number;
-  timestamp: Date;
-  uri: string;
+  created_at: string;
 }
 
 const CATEGORIES = [
@@ -80,28 +83,79 @@ const MEDITATION_SCRIPTS: Record<string, string[]> = {
 
 export default function MeditationPracticeScreen() {
   const { colors } = useTheme();
+  const { user } = useAuth();
   const insets = useSafeAreaInsets();
+  const { cocreationId, circleId } = useLocalSearchParams<{ 
+    cocreationId?: string; 
+    circleId?: string;
+  }>();
 
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [meditationName, setMeditationName] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
-  const [recordings, setRecordings] = useState<MeditationRecording[]>([]);
+  const [meditations, setMeditations] = useState<Meditation[]>([]);
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [expandedScript, setExpandedScript] = useState<number | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalConfig, setModalConfig] = useState<{
+    title: string;
+    message: string;
+    type: 'info' | 'success' | 'warning' | 'error';
+  }>({ title: '', message: '', type: 'info' });
 
   const currentCategory = CATEGORIES.find(c => c.value === selectedCategory);
   const currentScripts = selectedCategory ? (MEDITATION_SCRIPTS[selectedCategory] || []) : [];
 
   useEffect(() => {
+    loadMeditations();
     return () => {
       if (sound) {
         sound.unloadAsync();
       }
     };
-  }, [sound]);
+  }, []);
+
+  const showModal = (
+    title: string,
+    message: string,
+    type: 'info' | 'success' | 'warning' | 'error' = 'info'
+  ) => {
+    setModalConfig({ title, message, type });
+    setModalVisible(true);
+  };
+
+  const loadMeditations = async () => {
+    try {
+      const query = supabase
+        .from('meditations')
+        .select('*')
+        .eq('user_id', user?.id)
+        .order('created_at', { ascending: false });
+
+      if (cocreationId) {
+        query.eq('cocreation_id', cocreationId);
+      } else if (circleId) {
+        query.eq('circle_id', circleId);
+      } else {
+        query.is('cocreation_id', null).is('circle_id', null);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Error loading meditations:', error);
+        return;
+      }
+
+      setMeditations(data || []);
+    } catch (error) {
+      console.error('Error loading meditations:', error);
+    }
+  };
 
   const requestPermissions = async () => {
     try {
@@ -116,20 +170,16 @@ export default function MeditationPracticeScreen() {
   const startRecording = async () => {
     try {
       if (!meditationName.trim()) {
-        Alert.alert(
-          'Nome Obrigatório',
-          'Por favor, dê um nome para sua meditação.',
-          [{ text: 'OK' }]
-        );
+        showModal('Nome Obrigatório', 'Por favor, dê um nome para sua meditação.', 'warning');
         return;
       }
 
       const hasPermission = await requestPermissions();
       if (!hasPermission) {
-        Alert.alert(
+        showModal(
           'Permissão Necessária',
           'Por favor, permita o acesso ao microfone para gravar sua meditação.',
-          [{ text: 'OK' }]
+          'warning'
         );
         return;
       }
@@ -159,7 +209,7 @@ export default function MeditationPracticeScreen() {
       });
     } catch (error) {
       console.error('Failed to start recording:', error);
-      Alert.alert('Erro', 'Não foi possível iniciar a gravação.');
+      showModal('Erro', 'Não foi possível iniciar a gravação.', 'error');
     }
   };
 
@@ -168,83 +218,176 @@ export default function MeditationPracticeScreen() {
       if (!recording) return;
 
       setIsRecording(false);
+      setLoading(true);
+
       await recording.stopAndUnloadAsync();
       const uri = recording.getURI();
-
-      if (uri) {
-        const newRecording: MeditationRecording = {
-          id: Date.now().toString(),
-          name: meditationName,
-          category: selectedCategory || 'general',
-          duration: recordingDuration,
-          timestamp: new Date(),
-          uri,
-        };
-
-        setRecordings(prev => [newRecording, ...prev]);
-        setMeditationName('');
-      }
-
-      setRecording(null);
-      setRecordingDuration(0);
 
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: false,
       });
+
+      if (uri) {
+        await uploadMeditation(uri);
+      }
+
+      setRecording(null);
+      setRecordingDuration(0);
     } catch (error) {
       console.error('Failed to stop recording:', error);
+      showModal('Erro', 'Não foi possível salvar a gravação.', 'error');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const playRecording = async (recordingItem: MeditationRecording) => {
+  const uploadMeditation = async (uri: string) => {
+    try {
+      // Read file
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      
+      let fileData: Blob | ArrayBuffer;
+      if (Platform.OS === 'web') {
+        fileData = blob;
+      } else {
+        // Convert blob to ArrayBuffer for mobile
+        const reader = new FileReader();
+        fileData = await new Promise<ArrayBuffer>((resolve, reject) => {
+          reader.onload = () => resolve(reader.result as ArrayBuffer);
+          reader.onerror = reject;
+          reader.readAsArrayBuffer(blob);
+        });
+      }
+
+      // Upload to storage
+      const fileName = `${user?.id}/${Date.now()}.m4a`;
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('meditations')
+        .upload(fileName, fileData, {
+          contentType: 'audio/m4a',
+          upsert: false,
+        });
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('meditations')
+        .getPublicUrl(fileName);
+
+      // Save to database
+      const meditationData: any = {
+        user_id: user?.id,
+        name: meditationName,
+        category: selectedCategory || 'general',
+        audio_url: urlData.publicUrl,
+        duration: recordingDuration,
+      };
+
+      if (cocreationId) {
+        meditationData.cocreation_id = cocreationId;
+      } else if (circleId) {
+        meditationData.circle_id = circleId;
+      }
+
+      const { error: dbError } = await supabase
+        .from('meditations')
+        .insert(meditationData);
+
+      if (dbError) {
+        throw dbError;
+      }
+
+      showModal('Sucesso', 'Meditação gravada e salva com sucesso!', 'success');
+      setMeditationName('');
+      await loadMeditations();
+    } catch (error) {
+      console.error('Error uploading meditation:', error);
+      showModal('Erro', 'Não foi possível salvar a meditação.', 'error');
+    }
+  };
+
+  const playMeditation = async (meditation: Meditation) => {
     try {
       if (sound) {
         await sound.unloadAsync();
       }
 
-      if (playingId === recordingItem.id) {
+      if (playingId === meditation.id) {
         setPlayingId(null);
         setSound(null);
         return;
       }
 
       const { sound: newSound } = await Audio.Sound.createAsync(
-        { uri: recordingItem.uri },
+        { uri: meditation.audio_url },
         { shouldPlay: true }
       );
 
       setSound(newSound);
-      setPlayingId(recordingItem.id);
+      setPlayingId(meditation.id);
 
       newSound.setOnPlaybackStatusUpdate((status) => {
         if (status.isLoaded && status.didJustFinish) {
           setPlayingId(null);
+          setSound(null);
         }
       });
     } catch (error) {
-      console.error('Failed to play recording:', error);
+      console.error('Failed to play meditation:', error);
+      showModal('Erro', 'Não foi possível reproduzir a meditação.', 'error');
     }
   };
 
-  const deleteRecording = (id: string) => {
-    Alert.alert(
-      'Excluir Meditação',
-      'Deseja realmente excluir esta gravação?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Excluir',
-          style: 'destructive',
-          onPress: () => {
-            if (playingId === id && sound) {
-              sound.unloadAsync();
-              setPlayingId(null);
-            }
-            setRecordings(prev => prev.filter(r => r.id !== id));
+  const deleteMeditation = async (meditation: Meditation) => {
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm('Deseja realmente excluir esta meditação?');
+      if (!confirmed) return;
+    } else {
+      Alert.alert(
+        'Excluir Meditação',
+        'Deseja realmente excluir esta meditação?',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          {
+            text: 'Excluir',
+            style: 'destructive',
+            onPress: async () => {
+              await performDelete(meditation);
+            },
           },
-        },
-      ]
-    );
+        ]
+      );
+      return;
+    }
+    await performDelete(meditation);
+  };
+
+  const performDelete = async (meditation: Meditation) => {
+    try {
+      if (playingId === meditation.id && sound) {
+        await sound.unloadAsync();
+        setPlayingId(null);
+      }
+
+      const { error } = await supabase
+        .from('meditations')
+        .delete()
+        .eq('id', meditation.id);
+
+      if (error) {
+        throw error;
+      }
+
+      await loadMeditations();
+      showModal('Sucesso', 'Meditação excluída com sucesso!', 'success');
+    } catch (error) {
+      console.error('Error deleting meditation:', error);
+      showModal('Erro', 'Não foi possível excluir a meditação.', 'error');
+    }
   };
 
   const formatDuration = (seconds: number) => {
@@ -253,7 +396,8 @@ export default function MeditationPracticeScreen() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const formatTimestamp = (date: Date) => {
+  const formatTimestamp = (dateString: string) => {
+    const date = new Date(dateString);
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffMins = Math.floor(diffMs / 60000);
@@ -469,7 +613,10 @@ export default function MeditationPracticeScreen() {
               colors={isRecording ? ['#EF4444', '#DC2626'] : currentCategory?.gradient || ['#8B5CF6', '#EC4899']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
-              style={styles.gradientButton}
+              style={[
+                styles.gradientButton,
+                (loading || (!meditationName.trim() && !isRecording)) && styles.disabledButton
+              ]}
             >
               <MaterialIcons 
                 name={isRecording ? 'stop' : 'mic'} 
@@ -477,7 +624,7 @@ export default function MeditationPracticeScreen() {
                 color="white" 
               />
               <Text style={styles.recordButtonText}>
-                {isRecording ? 'Parar Gravação' : 'Iniciar Gravação'}
+                {loading ? 'Salvando...' : isRecording ? 'Parar e Salvar' : 'Iniciar Gravação'}
               </Text>
             </LinearGradient>
           </TouchableOpacity>
@@ -487,20 +634,20 @@ export default function MeditationPracticeScreen() {
           </Text>
         </SacredCard>
 
-        {/* My Recordings */}
-        {recordings.length > 0 && (
+        {/* My Meditations */}
+        {meditations.length > 0 && (
           <SacredCard style={styles.recordingsCard}>
             <Text style={[styles.recordingsTitle, { color: colors.text }]}>
               Minhas Meditações Gravadas
             </Text>
 
-            {recordings.map((item) => {
-              const category = CATEGORIES.find(c => c.value === item.category);
-              const isPlaying = playingId === item.id;
+            {meditations.map((meditation) => {
+              const category = CATEGORIES.find(c => c.value === meditation.category);
+              const isPlaying = playingId === meditation.id;
 
               return (
                 <View 
-                  key={item.id}
+                  key={meditation.id}
                   style={[
                     styles.recordingItem,
                     { 
@@ -513,24 +660,24 @@ export default function MeditationPracticeScreen() {
                     <View style={styles.recordingHeader}>
                       <Text style={styles.recordingCategoryIcon}>{category?.icon}</Text>
                       <Text style={[styles.recordingCategory, { color: colors.text }]}>
-                        {item.name}
+                        {meditation.name}
                       </Text>
                     </View>
                     <Text style={[styles.recordingSubtitle, { color: colors.textSecondary }]}>
                       {category?.label}
                     </Text>
                     <Text style={[styles.recordingDuration, { color: colors.textSecondary }]}>
-                      Duração: {formatDuration(item.duration)}
+                      Duração: {formatDuration(meditation.duration)}
                     </Text>
                     <Text style={[styles.recordingTimestamp, { color: colors.textMuted }]}>
-                      Gravada {formatTimestamp(item.timestamp)}
+                      Gravada {formatTimestamp(meditation.created_at)}
                     </Text>
                   </View>
 
                   <View style={styles.recordingActions}>
                     <TouchableOpacity
                       style={[styles.playButton, { backgroundColor: category?.color + '20' }]}
-                      onPress={() => playRecording(item)}
+                      onPress={() => playMeditation(meditation)}
                     >
                       <MaterialIcons 
                         name={isPlaying ? 'pause' : 'play-arrow'} 
@@ -541,7 +688,7 @@ export default function MeditationPracticeScreen() {
 
                     <TouchableOpacity
                       style={styles.deleteButton}
-                      onPress={() => deleteRecording(item.id)}
+                      onPress={() => deleteMeditation(meditation)}
                     >
                       <MaterialIcons 
                         name="delete-outline" 
@@ -563,6 +710,15 @@ export default function MeditationPracticeScreen() {
           </Text>
         </SacredCard>
       </ScrollView>
+
+      {/* Modal */}
+      <SacredModal
+        visible={modalVisible}
+        title={modalConfig.title}
+        message={modalConfig.message}
+        type={modalConfig.type}
+        onClose={() => setModalVisible(false)}
+      />
     </GradientBackground>
   );
 }
@@ -759,6 +915,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.md,
+  },
+  disabledButton: {
+    opacity: 0.5,
   },
   recordButtonText: {
     color: 'white',
