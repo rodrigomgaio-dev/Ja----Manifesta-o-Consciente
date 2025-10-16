@@ -302,17 +302,17 @@ export default function MantramPracticeScreen() {
 
   const uploadMantram = async (uri: string) => {
     try {
-
       // Read file
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      
       let fileData: Blob | ArrayBuffer;
       if (Platform.OS === 'web') {
-        const response = await fetch(uri);
-        fileData = await response.blob();
+        fileData = blob;
       } else {
-        const response = await fetch(uri);
-        const blob = await response.blob();
+        // Convert blob to ArrayBuffer for mobile
         const reader = new FileReader();
-        fileData = await new Promise((resolve, reject) => {
+        fileData = await new Promise<ArrayBuffer>((resolve, reject) => {
           reader.onload = () => resolve(reader.result as ArrayBuffer);
           reader.onerror = reject;
           reader.readAsArrayBuffer(blob);
@@ -659,11 +659,11 @@ export default function MantramPracticeScreen() {
                 <Text style={[styles.exampleMantram, { color: colors.text }]}>
                   {example.mantram}
                 </Text>
-                {expandedExample === index && example.meaning && (
+                {(expandedExample === index && example.meaning !== '') ? (
                   <Text style={[styles.exampleMeaning, { color: colors.textSecondary }]}>
                     {example.meaning}
                   </Text>
-                )}
+                ) : null}
               </TouchableOpacity>
             ))}
           </View>
@@ -731,14 +731,14 @@ export default function MantramPracticeScreen() {
             maxLength={500}
           />
 
-          {isRecording && (
+          {isRecording ? (
             <View style={styles.recordingIndicator}>
               <View style={[styles.recordingDot, { backgroundColor: colors.error }]} />
               <Text style={[styles.recordingText, { color: colors.text }]}>
                 Gravando: {formatDuration(recordingDuration)}
               </Text>
             </View>
-          )}
+          ) : null}
 
           <TouchableOpacity
             style={styles.recordButton}
@@ -772,7 +772,7 @@ export default function MantramPracticeScreen() {
         </SacredCard>
 
         {/* My Mantrams */}
-        {mantrams.length > 0 && (
+        {mantrams.length > 0 ? (
           <SacredCard style={styles.mantramsCard}>
             <Text style={[styles.mantramsTitle, { color: colors.text }]}>
               Meus Mantrams Gravados
@@ -800,53 +800,55 @@ export default function MantramPracticeScreen() {
                         {mantram.name}
                       </Text>
                     </View>
-                    {mantram.text_content && (
+                    {mantram.text_content ? (
                       <Text style={[styles.mantramText, { color: colors.textSecondary }]} numberOfLines={2}>
                         {mantram.text_content}
                       </Text>
-                    )}
+                    ) : null}
                     <Text style={[styles.mantramDuration, { color: colors.textMuted }]}>
                       Duração: {formatDuration(mantram.duration)} • {formatTimestamp(mantram.created_at)}
                     </Text>
                   </View>
 
                   {/* Repetition Options */}
-                  {isPlaying ? (
-                    <View style={styles.playingControls}>
-                      <Text style={[styles.repetitionInfo, { color: colors.text }]}>
-                        {playRepetitions === -1 ? '∞ Loop' : `${currentRepetition}/${playRepetitions}`}
-                      </Text>
-                      <TouchableOpacity
-                        style={[styles.stopButton, { backgroundColor: colors.error + '20' }]}
-                        onPress={stopPlayback}
-                      >
-                        <MaterialIcons name="stop" size={28} color={colors.error} />
-                      </TouchableOpacity>
-                    </View>
-                  ) : (
-                    <View style={styles.repetitionButtons}>
-                      {REPETITION_OPTIONS.map((option) => (
+                  <View style={styles.controlsContainer}>
+                    {isPlaying ? (
+                      <View style={styles.playingControls}>
+                        <Text style={[styles.repetitionInfo, { color: colors.text }]}>
+                          {playRepetitions === -1 ? '∞ Loop' : `${currentRepetition}/${playRepetitions}`}
+                        </Text>
                         <TouchableOpacity
-                          key={option.value}
-                          style={[
-                            styles.repetitionButton,
-                            { backgroundColor: category?.color ? category.color + '20' : colors.accent + '20' }
-                          ]}
-                          onPress={() => playMantram(mantram, option.value)}
+                          style={[styles.stopButton, { backgroundColor: colors.error + '20' }]}
+                          onPress={stopPlayback}
                         >
-                          <MaterialIcons 
-                            name={option.icon as any} 
-                            size={20} 
-                            color={category?.color || colors.accent}
-                            style={{ marginRight: 4 }}
-                          />
-                          <Text style={[styles.repetitionLabel, { color: category?.color || colors.accent }]}>
-                            {option.label}
-                          </Text>
+                          <MaterialIcons name="stop" size={28} color={colors.error} />
                         </TouchableOpacity>
-                      ))}
-                    </View>
-                  )}
+                      </View>
+                    ) : (
+                      <View style={styles.repetitionButtons}>
+                        {REPETITION_OPTIONS.map((option) => (
+                          <TouchableOpacity
+                            key={option.value}
+                            style={[
+                              styles.repetitionButton,
+                              { backgroundColor: category?.color ? category.color + '20' : colors.accent + '20' }
+                            ]}
+                            onPress={() => playMantram(mantram, option.value)}
+                          >
+                            <MaterialIcons 
+                              name={option.icon as any} 
+                              size={20} 
+                              color={category?.color || colors.accent}
+                              style={{ marginRight: 4 }}
+                            />
+                            <Text style={[styles.repetitionLabel, { color: category?.color || colors.accent }]}>
+                              {option.label}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    )}
+                  </View>
 
                   <TouchableOpacity
                     style={styles.deleteButton}
@@ -862,7 +864,7 @@ export default function MantramPracticeScreen() {
               );
             })}
           </SacredCard>
-        )}
+        ) : null}
 
         {/* Sacred Quote */}
         <SacredCard style={styles.quoteCard}>
@@ -1143,6 +1145,10 @@ const styles = StyleSheet.create({
     borderLeftWidth: 4,
     borderRadius: 12,
     marginBottom: Spacing.md,
+    position: 'relative',
+  },
+  controlsContainer: {
+    width: '100%',
   },
   mantramInfo: {
     marginBottom: Spacing.md,
