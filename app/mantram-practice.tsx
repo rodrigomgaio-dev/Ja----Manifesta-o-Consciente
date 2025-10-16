@@ -6,7 +6,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   TextInput,
-  Alert,
   Platform,
   Modal,
 } from 'react-native';
@@ -158,7 +157,6 @@ export default function MantramPracticeScreen() {
   const [currentRepetition, setCurrentRepetition] = useState<number>(0);
   const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [recordingDuration, setRecordingDuration] = useState(0);
-  const [expandedExample, setExpandedExample] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [modalConfig, setModalConfig] = useState<{
@@ -166,6 +164,13 @@ export default function MantramPracticeScreen() {
     message: string;
     type: 'info' | 'success' | 'warning' | 'error';
   }>({ title: '', message: '', type: 'info' });
+  const [confirmModalVisible, setConfirmModalVisible] = useState(false);
+  const [confirmModalConfig, setConfirmModalConfig] = useState<{
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  }>({ title: '', message: '', onConfirm: () => {} });
+  const [copyTextBuffer, setCopyTextBuffer] = useState('');
 
   const currentCategory = CATEGORIES.find(c => c.value === selectedCategory);
   const currentExamples = selectedCategory ? (MANTRAM_EXAMPLES[selectedCategory] || []) : [];
@@ -427,18 +432,16 @@ export default function MantramPracticeScreen() {
   };
 
   const deleteMantram = (mantram: Mantram) => {
-    showModal(
-      'Confirmar Exclusão',
-      'Deseja realmente excluir este mantram?',
-      'warning'
-    );
-    // Store the mantram to delete and wait for modal confirmation
-    // For now, we'll implement direct deletion
-    // In a full implementation, you'd add a confirmation callback to SacredModal
-    setTimeout(() => performDelete(mantram), 100);
+    setConfirmModalConfig({
+      title: 'Confirmar Exclusão',
+      message: 'Deseja realmente excluir este mantram?',
+      onConfirm: () => performDelete(mantram),
+    });
+    setConfirmModalVisible(true);
   };
 
   const performDelete = async (mantram: Mantram) => {
+    setConfirmModalVisible(false);
     try {
       if (playingId === mantram.id && sound) {
         await sound.unloadAsync();
@@ -463,8 +466,17 @@ export default function MantramPracticeScreen() {
   };
 
   const copyExampleText = (text: string) => {
-    setMantramText(text);
-    showModal('Texto Copiado', 'O texto do mantram foi copiado para o campo de edição.', 'success');
+    setCopyTextBuffer(text);
+    setConfirmModalConfig({
+      title: 'Copiar Texto',
+      message: 'Deseja copiar este texto para o campo de edição?',
+      onConfirm: () => {
+        setMantramText(text);
+        setConfirmModalVisible(false);
+        showModal('Texto Copiado', 'O texto do mantram foi copiado para o campo de edição.', 'success');
+      },
+    });
+    setConfirmModalVisible(true);
   };
 
   const formatDuration = (seconds: number) => {
@@ -627,55 +639,23 @@ export default function MantramPracticeScreen() {
                     borderColor: currentCategory?.color + '30',
                   }
                 ]}
-                onPress={() => {
-                  if (expandedExample === index) {
-                    copyExampleText(example.mantram);
-                  } else {
-                    setExpandedExample(index);
-                  }
-                }}
+                onPress={() => copyExampleText(example.mantram)}
               >
                 <View style={styles.exampleHeader}>
                   <Text style={[styles.exampleType, { color: currentCategory?.color }]}>
                     {example.type}
                   </Text>
-                  <MaterialIcons 
-                    name={expandedExample === index ? 'expand-less' : 'expand-more'} 
-                    size={24} 
-                    color={colors.textMuted} 
-                  />
                 </View>
                 <Text style={[styles.exampleMantram, { color: colors.text }]}>
                   {example.mantram}
                 </Text>
-                {(expandedExample === index && example.meaning !== '') ? (
+                {example.meaning !== '' ? (
                   <Text style={[styles.exampleMeaning, { color: colors.textSecondary }]}>
                     {example.meaning}
                   </Text>
                 ) : null}
               </TouchableOpacity>
             ))}
-          </View>
-
-          {/* Tips */}
-          <View style={styles.tipsSection}>
-            <Text style={[styles.tipsTitle, { color: colors.text }]}>
-              📝 Dicas para usar os mantras:
-            </Text>
-            <View style={styles.tipsList}>
-              <Text style={[styles.tipText, { color: colors.textSecondary }]}>
-                • Repita diariamente, preferencialmente em momentos de calma (manhã ou noite)
-              </Text>
-              <Text style={[styles.tipText, { color: colors.textSecondary }]}>
-                • Sinta as palavras — não apenas recite, mas conecte-se com a emoção por trás delas
-              </Text>
-              <Text style={[styles.tipText, { color: colors.textSecondary }]}>
-                • Use 1 mantra por vez por alguns dias ou semanas para fortalecer sua intenção
-              </Text>
-              <Text style={[styles.tipText, { color: colors.textSecondary }]}>
-                • Combine com respiração consciente ou meditação para potencializar o efeito
-              </Text>
-            </View>
           </View>
         </SacredCard>
         )}
@@ -856,6 +836,39 @@ export default function MantramPracticeScreen() {
           </SacredCard>
         ) : null}
 
+        {/* Tips */}
+        <SacredCard style={styles.tipsCard}>
+          <Text style={[styles.tipsTitle, { color: colors.text }]}>
+            📝 Como usar os mantrams de forma eficaz:
+          </Text>
+          <View style={styles.tipsList}>
+            <View style={styles.tipItem}>
+              <MaterialIcons name="schedule" size={20} color={colors.accent} style={{ marginRight: Spacing.sm }} />
+              <Text style={[styles.tipText, { color: colors.textSecondary }]}>
+                Pratique diariamente, preferencialmente pela manhã ou antes de dormir
+              </Text>
+            </View>
+            <View style={styles.tipItem}>
+              <MaterialIcons name="favorite" size={20} color={colors.accent} style={{ marginRight: Spacing.sm }} />
+              <Text style={[styles.tipText, { color: colors.textSecondary }]}>
+                Sinta as palavras profundamente — conecte-se com a emoção e intenção
+              </Text>
+            </View>
+            <View style={styles.tipItem}>
+              <MaterialIcons name="repeat" size={20} color={colors.accent} style={{ marginRight: Spacing.sm }} />
+              <Text style={[styles.tipText, { color: colors.textSecondary }]}>
+                Mantenha o mesmo mantram por alguns dias ou semanas para fortalecer sua energia
+              </Text>
+            </View>
+            <View style={styles.tipItem}>
+              <MaterialIcons name="spa" size={20} color={colors.accent} style={{ marginRight: Spacing.sm }} />
+              <Text style={[styles.tipText, { color: colors.textSecondary }]}>
+                Combine com respiração consciente ou meditação para amplificar o efeito
+              </Text>
+            </View>
+          </View>
+        </SacredCard>
+
         {/* Sacred Quote */}
         <SacredCard style={styles.quoteCard}>
           <Text style={[styles.quote, { color: colors.textSecondary }]}>
@@ -863,6 +876,43 @@ export default function MantramPracticeScreen() {
           </Text>
         </SacredCard>
       </ScrollView>
+
+      {/* Confirmation Modal */}
+      <Modal
+        visible={confirmModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setConfirmModalVisible(false)}
+      >
+        <View style={styles.confirmModalOverlay}>
+          <View style={[styles.confirmModalContent, { backgroundColor: colors.card }]}>
+            <Text style={[styles.confirmModalTitle, { color: colors.text }]}>
+              {confirmModalConfig.title}
+            </Text>
+            <Text style={[styles.confirmModalMessage, { color: colors.textSecondary }]}>
+              {confirmModalConfig.message}
+            </Text>
+            <View style={styles.confirmModalButtons}>
+              <TouchableOpacity
+                style={[styles.confirmModalButton, { backgroundColor: colors.surface }]}
+                onPress={() => setConfirmModalVisible(false)}
+              >
+                <Text style={[styles.confirmModalButtonText, { color: colors.text }]}>
+                  Cancelar
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.confirmModalButton, { backgroundColor: colors.primary }]}
+                onPress={confirmModalConfig.onConfirm}
+              >
+                <Text style={[styles.confirmModalButtonText, { color: 'white' }]}>
+                  Confirmar
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Modal */}
       <SacredModal
@@ -1011,10 +1061,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   exampleHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.xs,
+    marginBottom: Spacing.sm,
   },
   exampleType: {
     fontSize: 13,
@@ -1034,23 +1081,25 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: 'rgba(139, 92, 246, 0.1)',
   },
-  tipsSection: {
-    marginTop: Spacing.lg,
-    paddingTop: Spacing.lg,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(139, 92, 246, 0.1)',
+  tipsCard: {
+    marginBottom: Spacing.lg,
   },
   tipsTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.lg,
   },
   tipsList: {
   },
+  tipItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: Spacing.md,
+  },
   tipText: {
-    fontSize: 13,
+    flex: 1,
+    fontSize: 14,
     lineHeight: 20,
-    marginBottom: Spacing.sm,
   },
   recordCard: {
     marginBottom: Spacing.lg,
@@ -1220,5 +1269,49 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     textAlign: 'center',
     lineHeight: 22,
+  },
+  confirmModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Spacing.xl,
+  },
+  confirmModalContent: {
+    width: '100%',
+    maxWidth: 400,
+    borderRadius: 20,
+    padding: Spacing.xl,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  confirmModalTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    marginBottom: Spacing.md,
+    textAlign: 'center',
+  },
+  confirmModalMessage: {
+    fontSize: 15,
+    lineHeight: 22,
+    marginBottom: Spacing.xl,
+    textAlign: 'center',
+  },
+  confirmModalButtons: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+  },
+  confirmModalButton: {
+    flex: 1,
+    paddingVertical: Spacing.md,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  confirmModalButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

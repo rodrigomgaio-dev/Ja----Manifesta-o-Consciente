@@ -6,6 +6,7 @@ import {
   ScrollView,
   StyleSheet,
   TouchableOpacity,
+  Modal,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -105,6 +106,12 @@ export default function AffirmationsPracticeScreen() {
     message: string;
     type: 'info' | 'success' | 'warning' | 'error';
   }>({ title: '', message: '', type: 'info' });
+  const [confirmModalVisible, setConfirmModalVisible] = useState(false);
+  const [confirmModalConfig, setConfirmModalConfig] = useState<{
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  }>({ title: '', message: '', onConfirm: () => {} });
 
   const currentCategory = CATEGORIES.find(c => c.value === selectedCategory);
   const currentAffirmations = selectedCategory ? (PREDEFINED_AFFIRMATIONS[selectedCategory] || []) : [];
@@ -152,8 +159,8 @@ export default function AffirmationsPracticeScreen() {
   };
 
   const handleSaveAffirmation = async () => {
-    if (customAffirmation.trim() === '' || !selectedCategory) {
-      showModal('Atenção', 'Por favor, selecione uma categoria e escreva sua afirmação.', 'warning');
+    if (customAffirmation.trim() === '') {
+      showModal('Atenção', 'Por favor, escreva sua afirmação.', 'warning');
       return;
     }
 
@@ -163,7 +170,7 @@ export default function AffirmationsPracticeScreen() {
       const affirmationData: any = {
         user_id: user?.id,
         text_content: customAffirmation.trim(),
-        category: selectedCategory,
+        category: selectedCategory || 'general',
       };
 
       if (cocreationId) {
@@ -283,7 +290,7 @@ export default function AffirmationsPracticeScreen() {
 
           <View style={styles.affirmationsList}>
             {currentAffirmations.map((affirmation, index) => (
-              <View 
+              <TouchableOpacity
                 key={index}
                 style={[
                   styles.affirmationItem,
@@ -292,11 +299,23 @@ export default function AffirmationsPracticeScreen() {
                     borderColor: currentCategory?.color + '30',
                   }
                 ]}
+                onPress={() => {
+                  setConfirmModalConfig({
+                    title: 'Copiar Afirmação',
+                    message: 'Deseja copiar este texto para o campo de edição?',
+                    onConfirm: () => {
+                      setCustomAffirmation(affirmation);
+                      setConfirmModalVisible(false);
+                      showModal('Texto Copiado', 'A afirmação foi copiada para o campo de edição.', 'success');
+                    },
+                  });
+                  setConfirmModalVisible(true);
+                }}
               >
                 <Text style={[styles.affirmationText, { color: colors.text }]}>
                   {affirmation}
                 </Text>
-              </View>
+              </TouchableOpacity>
             ))}
           </View>
         </SacredCard>
@@ -330,13 +349,13 @@ export default function AffirmationsPracticeScreen() {
           <TouchableOpacity
             style={styles.submitButton}
             onPress={handleSaveAffirmation}
-            disabled={loading || customAffirmation.trim() === '' || !selectedCategory}
+            disabled={loading || customAffirmation.trim() === ''}
           >
             <LinearGradient
               colors={currentCategory?.gradient || ['#8B5CF6', '#EC4899', '#F97316']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
-              style={[styles.gradientButton, (loading || !selectedCategory || customAffirmation.trim() === '') && styles.disabledButton]}
+              style={[styles.gradientButton, (loading || customAffirmation.trim() === '') && styles.disabledButton]}
             >
               <Text style={styles.submitButtonText}>
                 {loading ? 'Salvando...' : 'Salvar Afirmação'}
@@ -393,6 +412,43 @@ export default function AffirmationsPracticeScreen() {
         type={modalConfig.type}
         onClose={() => setModalVisible(false)}
       />
+
+      {/* Confirmation Modal */}
+      <Modal
+        visible={confirmModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setConfirmModalVisible(false)}
+      >
+        <View style={styles.confirmModalOverlay}>
+          <View style={[styles.confirmModalContent, { backgroundColor: colors.card }]}>
+            <Text style={[styles.confirmModalTitle, { color: colors.text }]}>
+              {confirmModalConfig.title}
+            </Text>
+            <Text style={[styles.confirmModalMessage, { color: colors.textSecondary }]}>
+              {confirmModalConfig.message}
+            </Text>
+            <View style={styles.confirmModalButtons}>
+              <TouchableOpacity
+                style={[styles.confirmModalButton, { backgroundColor: colors.surface }]}
+                onPress={() => setConfirmModalVisible(false)}
+              >
+                <Text style={[styles.confirmModalButtonText, { color: colors.text }]}>
+                  Cancelar
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.confirmModalButton, { backgroundColor: colors.primary }]}
+                onPress={confirmModalConfig.onConfirm}
+              >
+                <Text style={[styles.confirmModalButtonText, { color: 'white' }]}>
+                  Confirmar
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </GradientBackground>
   );
 }
@@ -559,5 +615,49 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     textAlign: 'center',
     lineHeight: 22,
+  },
+  confirmModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Spacing.xl,
+  },
+  confirmModalContent: {
+    width: '100%',
+    maxWidth: 400,
+    borderRadius: 20,
+    padding: Spacing.xl,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  confirmModalTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    marginBottom: Spacing.md,
+    textAlign: 'center',
+  },
+  confirmModalMessage: {
+    fontSize: 15,
+    lineHeight: 22,
+    marginBottom: Spacing.xl,
+    textAlign: 'center',
+  },
+  confirmModalButtons: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+  },
+  confirmModalButton: {
+    flex: 1,
+    paddingVertical: Spacing.md,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  confirmModalButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

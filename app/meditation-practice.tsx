@@ -6,8 +6,8 @@ import {
   ScrollView,
   StyleSheet,
   TouchableOpacity,
-  Alert,
   Platform,
+  Modal,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -106,6 +106,12 @@ export default function MeditationPracticeScreen() {
     message: string;
     type: 'info' | 'success' | 'warning' | 'error';
   }>({ title: '', message: '', type: 'info' });
+  const [confirmModalVisible, setConfirmModalVisible] = useState(false);
+  const [confirmModalConfig, setConfirmModalConfig] = useState<{
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  }>({ title: '', message: '', onConfirm: () => {} });
 
   const currentCategory = CATEGORIES.find(c => c.value === selectedCategory);
   const currentScripts = selectedCategory ? (MEDITATION_SCRIPTS[selectedCategory] || []) : [];
@@ -343,18 +349,16 @@ export default function MeditationPracticeScreen() {
   };
 
   const deleteMeditation = (meditation: Meditation) => {
-    showModal(
-      'Confirmar Exclusão',
-      'Deseja realmente excluir esta meditação?',
-      'warning'
-    );
-    // Store the meditation to delete and wait for modal confirmation
-    // For now, we'll implement direct deletion
-    // In a full implementation, you'd add a confirmation callback to SacredModal
-    setTimeout(() => performDelete(meditation), 100);
+    setConfirmModalConfig({
+      title: 'Confirmar Exclusão',
+      message: 'Deseja realmente excluir esta meditação?',
+      onConfirm: () => performDelete(meditation),
+    });
+    setConfirmModalVisible(true);
   };
 
   const performDelete = async (meditation: Meditation) => {
+    setConfirmModalVisible(false);
     try {
       if (playingId === meditation.id && sound) {
         await sound.unloadAsync();
@@ -707,6 +711,43 @@ export default function MeditationPracticeScreen() {
         type={modalConfig.type}
         onClose={() => setModalVisible(false)}
       />
+
+      {/* Confirmation Modal */}
+      <Modal
+        visible={confirmModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setConfirmModalVisible(false)}
+      >
+        <View style={styles.confirmModalOverlay}>
+          <View style={[styles.confirmModalContent, { backgroundColor: colors.card }]}>
+            <Text style={[styles.confirmModalTitle, { color: colors.text }]}>
+              {confirmModalConfig.title}
+            </Text>
+            <Text style={[styles.confirmModalMessage, { color: colors.textSecondary }]}>
+              {confirmModalConfig.message}
+            </Text>
+            <View style={styles.confirmModalButtons}>
+              <TouchableOpacity
+                style={[styles.confirmModalButton, { backgroundColor: colors.surface }]}
+                onPress={() => setConfirmModalVisible(false)}
+              >
+                <Text style={[styles.confirmModalButtonText, { color: colors.text }]}>
+                  Cancelar
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.confirmModalButton, { backgroundColor: colors.primary }]}
+                onPress={confirmModalConfig.onConfirm}
+              >
+                <Text style={[styles.confirmModalButtonText, { color: 'white' }]}>
+                  Confirmar
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </GradientBackground>
   );
 }
@@ -988,5 +1029,49 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     textAlign: 'center',
     lineHeight: 22,
+  },
+  confirmModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Spacing.xl,
+  },
+  confirmModalContent: {
+    width: '100%',
+    maxWidth: 400,
+    borderRadius: 20,
+    padding: Spacing.xl,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  confirmModalTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    marginBottom: Spacing.md,
+    textAlign: 'center',
+  },
+  confirmModalMessage: {
+    fontSize: 15,
+    lineHeight: 22,
+    marginBottom: Spacing.xl,
+    textAlign: 'center',
+  },
+  confirmModalButtons: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+  },
+  confirmModalButton: {
+    flex: 1,
+    paddingVertical: Spacing.md,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  confirmModalButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
