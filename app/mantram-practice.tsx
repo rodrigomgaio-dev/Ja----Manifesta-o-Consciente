@@ -21,7 +21,7 @@ import SacredModal from '@/components/ui/SacredModal';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Spacing } from '@/constants/Colors';
-import { getSupabaseClient } from '@/services/supabase';
+import { supabase } from '@/services/supabase';
 
 interface Mantram {
   id: string;
@@ -190,7 +190,6 @@ export default function MantramPracticeScreen() {
 
   const loadMantrams = async () => {
     try {
-      const supabase = getSupabaseClient();
       const query = supabase
         .from('mantrams')
         .select('*')
@@ -303,7 +302,6 @@ export default function MantramPracticeScreen() {
 
   const uploadMantram = async (uri: string) => {
     try {
-      const supabase = getSupabaseClient();
 
       // Read file
       let fileData: Blob | ArrayBuffer;
@@ -459,7 +457,6 @@ export default function MantramPracticeScreen() {
         setPlayingId(null);
       }
 
-      const supabase = getSupabaseClient();
       const { error } = await supabase
         .from('mantrams')
         .delete()
