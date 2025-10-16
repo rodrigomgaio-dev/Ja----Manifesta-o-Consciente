@@ -1,17 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
-  TextInput,
-  Platform,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import GradientBackground from '@/components/ui/GradientBackground';
 import SacredCard from '@/components/ui/SacredCard';
 import SacredButton from '@/components/ui/SacredButton';
@@ -21,47 +18,29 @@ import { useAuth } from '@/contexts/AuthContext';
 import { usePracticeSchedules } from '@/hooks/usePracticeSchedules';
 import { Spacing } from '@/constants/Colors';
 
-const DAYS_OF_WEEK = [
-  { label: 'Dom', value: 0 },
-  { label: 'Seg', value: 1 },
-  { label: 'Ter', value: 2 },
-  { label: 'Qua', value: 3 },
-  { label: 'Qui', value: 4 },
-  { label: 'Sex', value: 5 },
-  { label: 'Sáb', value: 6 },
-];
+const DAYS_MAP = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
-const PRACTICES = [
-  { label: 'Gratidão', value: 'gratitude', icon: 'favorite' },
-  { label: 'Meditação', value: 'meditation', icon: 'self-improvement' },
-  { label: 'Mantram', value: 'mantram', icon: 'music-note' },
-  { label: 'Afirmação', value: 'affirmation', icon: 'psychology' },
-];
+const TIME_TYPE_LABELS = {
+  specific: 'Horário específico',
+  wake_up: 'Ao Acordar',
+  before_sleep: 'Antes de Dormir',
+  flexible: 'Flexível',
+};
 
-const TIME_TYPES = [
-  { label: 'Escolher horário', value: 'specific', icon: 'access-time' },
-  { label: 'Ao Acordar', value: 'wake_up', icon: 'wb-sunny' },
-  { label: 'Antes de Dormir', value: 'before_sleep', icon: 'bedtime' },
-  { label: 'Flexível', value: 'flexible', icon: 'schedule' },
-];
+const PRACTICE_LABELS: Record<string, string> = {
+  gratitude: 'Gratidão',
+  meditation: 'Meditação',
+  mantram: 'Mantram',
+  affirmation: 'Afirmação',
+};
 
-export default function PracticeScheduleScreen() {
+export default function PracticeScheduleListScreen() {
   const { colors } = useTheme();
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const { cocreationId } = useLocalSearchParams<{ cocreationId: string }>();
-  const { schedule, loading, createSchedule, updateSchedule, deleteSchedule } = usePracticeSchedules(cocreationId || '');
+  const { schedules, loading, deleteSchedule } = usePracticeSchedules(cocreationId || '');
 
-  const [mode, setMode] = useState<'flow' | 'routine'>('flow');
-  const [selectedDays, setSelectedDays] = useState<number[]>([]);
-  const [isDailyMode, setIsDailyMode] = useState(false);
-  const [timeType, setTimeType] = useState<'specific' | 'wake_up' | 'before_sleep' | 'flexible'>('flexible');
-  const [specificTime, setSpecificTime] = useState(new Date());
-  const [showTimePicker, setShowTimePicker] = useState(false);
-  const [selectedPractices, setSelectedPractices] = useState<string[]>([]);
-  const [durationHours, setDurationHours] = useState('');
-  const [durationMinutes, setDurationMinutes] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [modalConfig, setModalConfig] = useState<{
     title: string;
@@ -69,40 +48,6 @@ export default function PracticeScheduleScreen() {
     type: 'info' | 'success' | 'warning' | 'error';
     buttons?: any[];
   }>({ title: '', message: '', type: 'info' });
-
-  useEffect(() => {
-    if (schedule) {
-      setMode(schedule.mode);
-      
-      if (schedule.mode === 'routine') {
-        if (schedule.days_of_week) {
-          setSelectedDays(schedule.days_of_week);
-          setIsDailyMode(false);
-        } else {
-          setIsDailyMode(true);
-        }
-        
-        setTimeType(schedule.time_type || 'flexible');
-        
-        if (schedule.specific_time) {
-          const [hours, minutes] = schedule.specific_time.split(':');
-          const date = new Date();
-          date.setHours(parseInt(hours), parseInt(minutes));
-          setSpecificTime(date);
-        }
-        
-        setSelectedPractices(schedule.practices || []);
-        
-        if (schedule.duration_hours) {
-          setDurationHours(schedule.duration_hours.toString());
-        }
-        
-        if (schedule.duration_minutes) {
-          setDurationMinutes(schedule.duration_minutes.toString());
-        }
-      }
-    }
-  }, [schedule]);
 
   const showModal = (
     title: string,
@@ -114,83 +59,20 @@ export default function PracticeScheduleScreen() {
     setModalVisible(true);
   };
 
-  const toggleDay = (day: number) => {
-    setSelectedDays(prev =>
-      prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
-    );
+  const handleCreateNew = () => {
+    router.push(`/practice-schedule-form?cocreationId=${cocreationId}`);
   };
 
-  const togglePractice = (practice: string) => {
-    setSelectedPractices(prev =>
-      prev.includes(practice) ? prev.filter(p => p !== practice) : [...prev, practice]
-    );
+  const handleEdit = (scheduleId: string) => {
+    router.push(`/practice-schedule-form?cocreationId=${cocreationId}&scheduleId=${scheduleId}`);
   };
 
-  const handleSave = async () => {
-    if (mode === 'routine') {
-      if (selectedPractices.length === 0) {
-        showModal('Erro', 'Selecione pelo menos uma prática.', 'error');
-        return;
-      }
-
-      if (!isDailyMode && selectedDays.length === 0) {
-        showModal('Erro', 'Selecione pelo menos um dia da semana ou escolha "Diário".', 'error');
-        return;
-      }
-    }
-
-    setIsSaving(true);
-
-    try {
-      const scheduleData = {
-        mode,
-        days_of_week: mode === 'routine' ? (isDailyMode ? null : selectedDays) : null,
-        time_type: mode === 'routine' ? timeType : null,
-        specific_time: mode === 'routine' && timeType === 'specific' 
-          ? `${specificTime.getHours().toString().padStart(2, '0')}:${specificTime.getMinutes().toString().padStart(2, '0')}`
-          : null,
-        practices: mode === 'routine' ? selectedPractices : [],
-        duration_hours: durationHours ? parseInt(durationHours) : null,
-        duration_minutes: durationMinutes ? parseInt(durationMinutes) : null,
-      };
-
-      let result;
-      if (schedule) {
-        result = await updateSchedule(schedule.id, scheduleData);
-      } else {
-        result = await createSchedule(scheduleData);
-      }
-
-      if (result.error) {
-        console.error('Error saving schedule:', result.error);
-        showModal('Erro', 'Não foi possível salvar o agendamento. Tente novamente.', 'error');
-      } else {
-        showModal(
-          'Sucesso',
-          mode === 'flow' 
-            ? 'Modo Fluir ativado. Pratique quando sentir a energia te chamar.'
-            : 'Rotina de práticas configurada com sucesso!',
-          'success',
-          undefined
-        );
-        setTimeout(() => {
-          router.back();
-        }, 1500);
-      }
-    } catch (error) {
-      console.error('Unexpected error saving schedule:', error);
-      showModal('Erro Inesperado', 'Algo deu errado. Tente novamente.', 'error');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleDelete = () => {
-    if (!schedule) return;
-
+  const handleDelete = (scheduleId: string, mode: string) => {
     showModal(
       'Confirmar Exclusão',
-      'Tem certeza que deseja remover este agendamento?',
+      mode === 'flow' 
+        ? 'Deseja remover o modo "Deixar Fluir"? Você poderá configurar novamente depois.'
+        : 'Tem certeza que deseja excluir esta rotina de prática?',
       'warning',
       [
         {
@@ -199,22 +81,149 @@ export default function PracticeScheduleScreen() {
           onPress: () => {},
         },
         {
-          text: 'Remover',
+          text: 'Excluir',
           variant: 'danger',
           onPress: async () => {
             setModalVisible(false);
-            const result = await deleteSchedule(schedule.id);
+            const result = await deleteSchedule(scheduleId);
             if (result.error) {
-              showModal('Erro', 'Não foi possível remover o agendamento.', 'error');
+              showModal('Erro', 'Não foi possível excluir. Tente novamente.', 'error');
             } else {
-              showModal('Sucesso', 'Agendamento removido com sucesso.', 'success');
-              setTimeout(() => {
-                router.back();
-              }, 1500);
+              showModal('Sucesso', 'Excluído com sucesso.', 'success');
             }
           },
         },
       ]
+    );
+  };
+
+  const renderScheduleCard = (schedule: any) => {
+    if (schedule.mode === 'flow') {
+      return (
+        <SacredCard key={schedule.id} glowing style={styles.scheduleCard}>
+          <View style={styles.scheduleHeader}>
+            <View style={styles.scheduleIconContainer}>
+              <MaterialIcons name="water-drop" size={32} color={colors.primary} />
+            </View>
+            <View style={styles.scheduleInfo}>
+              <Text style={[styles.scheduleTitle, { color: colors.text }]}>
+                Deixar Fluir
+              </Text>
+              <Text style={[styles.scheduleDescription, { color: colors.textSecondary }]}>
+                Pratique quando sentir a energia te chamar
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.scheduleActions}>
+            <TouchableOpacity
+              style={[styles.actionButton, { backgroundColor: colors.primary + '20' }]}
+              onPress={() => handleEdit(schedule.id)}
+            >
+              <MaterialIcons name="edit" size={18} color={colors.primary} />
+              <Text style={[styles.actionButtonText, { color: colors.primary }]}>
+                Alterar
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.actionButton, { backgroundColor: colors.error + '20' }]}
+              onPress={() => handleDelete(schedule.id, 'flow')}
+            >
+              <MaterialIcons name="delete" size={18} color={colors.error} />
+              <Text style={[styles.actionButtonText, { color: colors.error }]}>
+                Remover
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </SacredCard>
+      );
+    }
+
+    // Routine mode
+    const daysText = schedule.days_of_week 
+      ? schedule.days_of_week.map((d: number) => DAYS_MAP[d]).join(', ')
+      : 'Diário';
+
+    const timeText = schedule.time_type === 'specific' && schedule.specific_time
+      ? schedule.specific_time
+      : TIME_TYPE_LABELS[schedule.time_type as keyof typeof TIME_TYPE_LABELS] || 'Flexível';
+
+    const practicesText = schedule.practices
+      .map((p: string) => PRACTICE_LABELS[p] || p)
+      .join(', ');
+
+    const durationText = [];
+    if (schedule.duration_hours) durationText.push(`${schedule.duration_hours}h`);
+    if (schedule.duration_minutes) durationText.push(`${schedule.duration_minutes}min`);
+
+    return (
+      <SacredCard key={schedule.id} style={styles.scheduleCard}>
+        <View style={styles.scheduleHeader}>
+          <View style={styles.scheduleIconContainer}>
+            <MaterialIcons name="event-repeat" size={32} color={colors.accent} />
+          </View>
+          <View style={styles.scheduleInfo}>
+            <Text style={[styles.scheduleTitle, { color: colors.text }]}>
+              Rotina de Prática
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.scheduleDetails}>
+          <View style={styles.detailRow}>
+            <MaterialIcons name="calendar-today" size={16} color={colors.textMuted} />
+            <Text style={[styles.detailText, { color: colors.textSecondary }]}>
+              {daysText}
+            </Text>
+          </View>
+
+          <View style={styles.detailRow}>
+            <MaterialIcons name="access-time" size={16} color={colors.textMuted} />
+            <Text style={[styles.detailText, { color: colors.textSecondary }]}>
+              {timeText}
+            </Text>
+          </View>
+
+          <View style={styles.detailRow}>
+            <MaterialIcons name="spa" size={16} color={colors.textMuted} />
+            <Text style={[styles.detailText, { color: colors.textSecondary }]}>
+              {practicesText}
+            </Text>
+          </View>
+
+          {durationText.length > 0 && (
+            <View style={styles.detailRow}>
+              <MaterialIcons name="timer" size={16} color={colors.textMuted} />
+              <Text style={[styles.detailText, { color: colors.textSecondary }]}>
+                {durationText.join(' ')}
+              </Text>
+            </View>
+          )}
+        </View>
+
+        <View style={styles.scheduleActions}>
+          <TouchableOpacity
+            style={[styles.actionButton, { backgroundColor: colors.primary + '20' }]}
+            onPress={() => handleEdit(schedule.id)}
+          >
+            <MaterialIcons name="edit" size={18} color={colors.primary} />
+            <Text style={[styles.actionButtonText, { color: colors.primary }]}>
+              Editar
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.actionButton, { backgroundColor: colors.error + '20' }]}
+            onPress={() => handleDelete(schedule.id, 'routine')}
+          >
+            <MaterialIcons name="delete" size={18} color={colors.error} />
+            <Text style={[styles.actionButtonText, { color: colors.error }]}>
+              Excluir
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </SacredCard>
     );
   };
 
@@ -231,6 +240,9 @@ export default function PracticeScheduleScreen() {
       </GradientBackground>
     );
   }
+
+  const hasFlowMode = schedules.some(s => s.mode === 'flow');
+  const routineSchedules = schedules.filter(s => s.mode === 'routine');
 
   return (
     <GradientBackground>
@@ -249,15 +261,6 @@ export default function PracticeScheduleScreen() {
               Voltar
             </Text>
           </TouchableOpacity>
-
-          {schedule && (
-            <TouchableOpacity 
-              style={[styles.deleteIcon, { backgroundColor: colors.error + '20' }]}
-              onPress={handleDelete}
-            >
-              <MaterialIcons name="delete" size={20} color={colors.error} />
-            </TouchableOpacity>
-          )}
         </View>
 
         <View style={styles.titleSection}>
@@ -265,337 +268,67 @@ export default function PracticeScheduleScreen() {
             Momentos de Cocriação
           </Text>
           <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-            Configure suas práticas diárias
+            {schedules.length === 0 
+              ? 'Configure como deseja praticar'
+              : 'Suas práticas configuradas'}
           </Text>
         </View>
 
-        {/* Mode Selection */}
-        <SacredCard glowing style={styles.card}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>
-            Escolha seu Modo
-          </Text>
-
-          <View style={styles.modeContainer}>
-            <TouchableOpacity
-              style={[
-                styles.modeOption,
-                {
-                  backgroundColor: mode === 'flow' ? colors.primary + '20' : colors.surface,
-                  borderColor: mode === 'flow' ? colors.primary : colors.border,
-                },
-              ]}
-              onPress={() => setMode('flow')}
-            >
-              <MaterialIcons 
-                name="water-drop" 
-                size={32} 
-                color={mode === 'flow' ? colors.primary : colors.textMuted} 
-              />
-              <Text style={[
-                styles.modeTitle, 
-                { color: mode === 'flow' ? colors.primary : colors.text }
-              ]}>
-                Deixar Fluir
-              </Text>
-              <Text style={[styles.modeDescription, { color: colors.textSecondary }]}>
-                Pratique quando sentir a energia te chamar
-              </Text>
-              {mode === 'flow' && (
-                <MaterialIcons 
-                  name="check-circle" 
-                  size={24} 
-                  color={colors.primary} 
-                  style={styles.checkIcon}
-                />
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.modeOption,
-                {
-                  backgroundColor: mode === 'routine' ? colors.primary + '20' : colors.surface,
-                  borderColor: mode === 'routine' ? colors.primary : colors.border,
-                },
-              ]}
-              onPress={() => setMode('routine')}
-            >
-              <MaterialIcons 
-                name="event-repeat" 
-                size={32} 
-                color={mode === 'routine' ? colors.primary : colors.textMuted} 
-              />
-              <Text style={[
-                styles.modeTitle, 
-                { color: mode === 'routine' ? colors.primary : colors.text }
-              ]}>
-                Criar Rotina
-              </Text>
-              <Text style={[styles.modeDescription, { color: colors.textSecondary }]}>
-                Agende práticas regulares com horários
-              </Text>
-              {mode === 'routine' && (
-                <MaterialIcons 
-                  name="check-circle" 
-                  size={24} 
-                  color={colors.primary} 
-                  style={styles.checkIcon}
-                />
-              )}
-            </TouchableOpacity>
-          </View>
-        </SacredCard>
-
-        {/* Routine Configuration */}
-        {mode === 'routine' && (
-          <>
-            {/* Days Selection */}
-            <SacredCard style={styles.card}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                Dias da Semana
-              </Text>
-
-              <TouchableOpacity
-                style={[
-                  styles.dailyButton,
-                  {
-                    backgroundColor: isDailyMode ? colors.primary + '20' : colors.surface,
-                    borderColor: isDailyMode ? colors.primary : colors.border,
-                  },
-                ]}
-                onPress={() => {
-                  setIsDailyMode(!isDailyMode);
-                  if (!isDailyMode) {
-                    setSelectedDays([]);
-                  }
-                }}
-              >
-                <MaterialIcons 
-                  name="calendar-today" 
-                  size={20} 
-                  color={isDailyMode ? colors.primary : colors.textMuted} 
-                />
-                <Text style={[
-                  styles.dailyButtonText, 
-                  { color: isDailyMode ? colors.primary : colors.text }
-                ]}>
-                  Diário (Todos os dias)
-                </Text>
-                {isDailyMode && (
-                  <MaterialIcons name="check" size={20} color={colors.primary} />
-                )}
-              </TouchableOpacity>
-
-              {!isDailyMode && (
-                <View style={styles.daysGrid}>
-                  {DAYS_OF_WEEK.map(day => (
-                    <TouchableOpacity
-                      key={day.value}
-                      style={[
-                        styles.dayButton,
-                        {
-                          backgroundColor: selectedDays.includes(day.value) 
-                            ? colors.primary 
-                            : colors.surface,
-                          borderColor: selectedDays.includes(day.value) 
-                            ? colors.primary 
-                            : colors.border,
-                        },
-                      ]}
-                      onPress={() => toggleDay(day.value)}
-                    >
-                      <Text style={[
-                        styles.dayButtonText,
-                        { color: selectedDays.includes(day.value) ? 'white' : colors.text }
-                      ]}>
-                        {day.label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
-            </SacredCard>
-
-            {/* Time Type Selection */}
-            <SacredCard style={styles.card}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                Horário
-              </Text>
-
-              <View style={styles.timeTypeGrid}>
-                {TIME_TYPES.map(type => (
-                  <TouchableOpacity
-                    key={type.value}
-                    style={[
-                      styles.timeTypeButton,
-                      {
-                        backgroundColor: timeType === type.value ? colors.primary + '20' : colors.surface,
-                        borderColor: timeType === type.value ? colors.primary : colors.border,
-                      },
-                    ]}
-                    onPress={() => setTimeType(type.value as any)}
-                  >
-                    <MaterialIcons 
-                      name={type.icon as any} 
-                      size={24} 
-                      color={timeType === type.value ? colors.primary : colors.textMuted} 
-                    />
-                    <Text style={[
-                      styles.timeTypeText,
-                      { color: timeType === type.value ? colors.primary : colors.text }
-                    ]}>
-                      {type.label}
-                    </Text>
-                    {timeType === type.value && (
-                      <MaterialIcons 
-                        name="check-circle" 
-                        size={20} 
-                        color={colors.primary} 
-                        style={styles.timeTypeCheck}
-                      />
-                    )}
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              {timeType === 'specific' && (
-                <View style={styles.timePickerContainer}>
-                  <TouchableOpacity
-                    style={[styles.timePickerButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
-                    onPress={() => setShowTimePicker(true)}
-                  >
-                    <MaterialIcons name="access-time" size={20} color={colors.primary} />
-                    <Text style={[styles.timePickerText, { color: colors.text }]}>
-                      {specificTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                    </Text>
-                  </TouchableOpacity>
-
-                  {showTimePicker && (
-                    <DateTimePicker
-                      value={specificTime}
-                      mode="time"
-                      is24Hour={true}
-                      display="default"
-                      onChange={(event, selectedDate) => {
-                        setShowTimePicker(Platform.OS === 'ios');
-                        if (selectedDate) {
-                          setSpecificTime(selectedDate);
-                        }
-                      }}
-                    />
-                  )}
-                </View>
-              )}
-            </SacredCard>
-
-            {/* Practices Selection */}
-            <SacredCard style={styles.card}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                Práticas *
-              </Text>
-              <Text style={[styles.sectionDescription, { color: colors.textSecondary }]}>
-                Escolha pelo menos uma prática
-              </Text>
-
-              <View style={styles.practicesGrid}>
-                {PRACTICES.map(practice => (
-                  <TouchableOpacity
-                    key={practice.value}
-                    style={[
-                      styles.practiceButton,
-                      {
-                        backgroundColor: selectedPractices.includes(practice.value) 
-                          ? colors.primary + '20' 
-                          : colors.surface,
-                        borderColor: selectedPractices.includes(practice.value) 
-                          ? colors.primary 
-                          : colors.border,
-                      },
-                    ]}
-                    onPress={() => togglePractice(practice.value)}
-                  >
-                    <MaterialIcons 
-                      name={practice.icon as any} 
-                      size={28} 
-                      color={selectedPractices.includes(practice.value) ? colors.primary : colors.textMuted} 
-                    />
-                    <Text style={[
-                      styles.practiceText,
-                      { color: selectedPractices.includes(practice.value) ? colors.primary : colors.text }
-                    ]}>
-                      {practice.label}
-                    </Text>
-                    {selectedPractices.includes(practice.value) && (
-                      <MaterialIcons 
-                        name="check-circle" 
-                        size={20} 
-                        color={colors.primary} 
-                        style={styles.practiceCheck}
-                      />
-                    )}
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </SacredCard>
-
-            {/* Duration */}
-            <SacredCard style={styles.card}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                Duração (Opcional)
-              </Text>
-              <Text style={[styles.sectionDescription, { color: colors.textSecondary }]}>
-                Tempo estimado de prática
-              </Text>
-
-              <View style={styles.durationContainer}>
-                <View style={styles.durationInput}>
-                  <TextInput
-                    style={[
-                      styles.input,
-                      { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }
-                    ]}
-                    value={durationHours}
-                    onChangeText={setDurationHours}
-                    placeholder="0"
-                    placeholderTextColor={colors.textMuted}
-                    keyboardType="number-pad"
-                    maxLength={2}
-                  />
-                  <Text style={[styles.durationLabel, { color: colors.textSecondary }]}>
-                    horas
-                  </Text>
-                </View>
-
-                <View style={styles.durationInput}>
-                  <TextInput
-                    style={[
-                      styles.input,
-                      { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }
-                    ]}
-                    value={durationMinutes}
-                    onChangeText={setDurationMinutes}
-                    placeholder="0"
-                    placeholderTextColor={colors.textMuted}
-                    keyboardType="number-pad"
-                    maxLength={2}
-                  />
-                  <Text style={[styles.durationLabel, { color: colors.textSecondary }]}>
-                    minutos
-                  </Text>
-                </View>
-              </View>
-            </SacredCard>
-          </>
+        {/* Empty State */}
+        {schedules.length === 0 && (
+          <SacredCard glowing style={styles.emptyCard}>
+            <MaterialIcons name="spa" size={64} color={colors.primary} />
+            <Text style={[styles.emptyTitle, { color: colors.text }]}>
+              Configure seus Momentos
+            </Text>
+            <Text style={[styles.emptyDescription, { color: colors.textSecondary }]}>
+              Escolha entre deixar fluir ou criar uma rotina de práticas diárias
+            </Text>
+            <SacredButton
+              title="Começar"
+              onPress={handleCreateNew}
+              style={styles.emptyButton}
+            />
+          </SacredCard>
         )}
 
-        {/* Save Button */}
-        <View style={styles.submitContainer}>
-          <SacredButton
-            title={isSaving ? "Salvando..." : "Confirmar"}
-            onPress={handleSave}
-            loading={isSaving}
-          />
-        </View>
+        {/* Schedules List */}
+        {schedules.length > 0 && (
+          <>
+            <View style={styles.schedulesContainer}>
+              {schedules.map(schedule => renderScheduleCard(schedule))}
+            </View>
+
+            {/* Add New Button */}
+            {!hasFlowMode && (
+              <View style={styles.addButtonContainer}>
+                <SacredButton
+                  title="Adicionar Nova Rotina"
+                  onPress={handleCreateNew}
+                  icon={<MaterialIcons name="add" size={20} color="white" />}
+                />
+              </View>
+            )}
+
+            {/* Info if Flow Mode */}
+            {hasFlowMode && (
+              <SacredCard style={styles.infoCard}>
+                <MaterialIcons name="info-outline" size={24} color={colors.primary} />
+                <Text style={[styles.infoText, { color: colors.textSecondary }]}>
+                  No modo "Deixar Fluir", você pode adicionar rotinas específicas quando quiser criar uma estrutura mais definida.
+                </Text>
+                {routineSchedules.length === 0 && (
+                  <SacredButton
+                    title="Criar Rotina"
+                    onPress={handleCreateNew}
+                    variant="outline"
+                    style={styles.infoButton}
+                  />
+                )}
+              </SacredCard>
+            )}
+          </>
+        )}
 
         {/* Sacred Quote */}
         <SacredCard style={styles.quoteCard}>
@@ -634,9 +367,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     marginTop: Spacing.lg,
     marginBottom: Spacing.md,
   },
@@ -648,13 +378,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     marginLeft: Spacing.xs,
-  },
-  deleteIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   titleSection: {
     marginBottom: Spacing.xl,
@@ -668,159 +391,111 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontStyle: 'italic',
   },
-  card: {
+  emptyCard: {
+    alignItems: 'center',
+    paddingVertical: Spacing.xxl,
     marginBottom: Spacing.lg,
   },
-  sectionTitle: {
-    fontSize: 18,
+  emptyTitle: {
+    fontSize: 22,
     fontWeight: '600',
+    marginTop: Spacing.lg,
     marginBottom: Spacing.sm,
   },
-  sectionDescription: {
-    fontSize: 14,
+  emptyDescription: {
+    fontSize: 16,
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: Spacing.xl,
+    paddingHorizontal: Spacing.lg,
+  },
+  emptyButton: {
+    minWidth: 150,
+  },
+  schedulesContainer: {
+    gap: Spacing.lg,
     marginBottom: Spacing.lg,
   },
-  modeContainer: {
-    gap: Spacing.md,
-  },
-  modeOption: {
+  scheduleCard: {
     padding: Spacing.lg,
-    borderRadius: 16,
-    borderWidth: 2,
-    alignItems: 'center',
-    position: 'relative',
   },
-  modeTitle: {
+  scheduleHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: Spacing.lg,
+  },
+  scheduleIconContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.md,
+  },
+  scheduleInfo: {
+    flex: 1,
+  },
+  scheduleTitle: {
     fontSize: 18,
     fontWeight: '600',
-    marginTop: Spacing.md,
     marginBottom: Spacing.xs,
   },
-  modeDescription: {
+  scheduleDescription: {
     fontSize: 14,
-    textAlign: 'center',
+    lineHeight: 20,
   },
-  checkIcon: {
-    position: 'absolute',
-    top: Spacing.md,
-    right: Spacing.md,
+  scheduleDetails: {
+    gap: Spacing.sm,
+    marginBottom: Spacing.lg,
+    paddingLeft: Spacing.xs,
   },
-  dailyButton: {
+  detailRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: Spacing.md,
-    borderRadius: 12,
-    borderWidth: 2,
-    marginBottom: Spacing.lg,
-  },
-  dailyButtonText: {
-    fontSize: 16,
-    fontWeight: '500',
-    marginLeft: Spacing.sm,
-    flex: 1,
-  },
-  daysGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: Spacing.sm,
   },
-  dayButton: {
-    width: 45,
-    height: 45,
-    borderRadius: 22.5,
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dayButtonText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  timeTypeGrid: {
-    gap: Spacing.md,
-  },
-  timeTypeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: Spacing.md,
-    borderRadius: 12,
-    borderWidth: 2,
-    position: 'relative',
-  },
-  timeTypeText: {
-    fontSize: 16,
-    fontWeight: '500',
-    marginLeft: Spacing.md,
-    flex: 1,
-  },
-  timeTypeCheck: {
-    marginLeft: Spacing.sm,
-  },
-  timePickerContainer: {
-    marginTop: Spacing.lg,
-  },
-  timePickerButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: Spacing.md,
-    borderRadius: 12,
-    borderWidth: 2,
-  },
-  timePickerText: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginLeft: Spacing.md,
-  },
-  practicesGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.md,
-  },
-  practiceButton: {
-    width: '48%',
-    padding: Spacing.md,
-    borderRadius: 12,
-    borderWidth: 2,
-    alignItems: 'center',
-    position: 'relative',
-    minHeight: 100,
-    justifyContent: 'center',
-  },
-  practiceText: {
+  detailText: {
     fontSize: 14,
-    fontWeight: '600',
-    marginTop: Spacing.sm,
-    textAlign: 'center',
-  },
-  practiceCheck: {
-    position: 'absolute',
-    top: Spacing.xs,
-    right: Spacing.xs,
-  },
-  durationContainer: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-  },
-  durationInput: {
     flex: 1,
-    alignItems: 'center',
   },
-  input: {
-    width: '100%',
-    height: 50,
-    borderRadius: 12,
+  scheduleActions: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    paddingTop: Spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(139, 92, 246, 0.1)',
+  },
+  actionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.md,
-    fontSize: 18,
-    fontWeight: '600',
-    textAlign: 'center',
-    borderWidth: 1,
+    borderRadius: 12,
+    gap: Spacing.xs,
   },
-  durationLabel: {
+  actionButtonText: {
     fontSize: 14,
-    marginTop: Spacing.xs,
+    fontWeight: '600',
   },
-  submitContainer: {
+  addButtonContainer: {
     marginBottom: Spacing.lg,
+  },
+  infoCard: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: Spacing.md,
+    marginBottom: Spacing.lg,
+  },
+  infoText: {
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  infoButton: {
+    marginTop: Spacing.sm,
   },
   quoteCard: {
     alignItems: 'center',

@@ -22,43 +22,66 @@ export interface PracticeSchedule {
 export function usePracticeSchedules(cocreationId: string) {
   const { user } = useAuth();
   const { updateCocriation } = useIndividualCocriations();
-  const [schedule, setSchedule] = useState<PracticeSchedule | null>(null);
+  const [schedules, setSchedules] = useState<PracticeSchedule[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (user && cocreationId) {
-      loadSchedule();
+      loadSchedules();
     } else {
-      setSchedule(null);
+      setSchedules([]);
       setLoading(false);
     }
   }, [user, cocreationId]);
 
-  const loadSchedule = useCallback(async () => {
+  const loadSchedules = useCallback(async () => {
     if (!user || !cocreationId) return;
 
     try {
-      console.log('Loading practice schedule for cocreation:', cocreationId);
+      console.log('Loading practice schedules for cocreation:', cocreationId);
       
       const { data, error } = await supabase
         .from('practice_schedules')
         .select('*')
         .eq('cocreation_id', cocreationId)
         .eq('user_id', user.id)
-        .maybeSingle();
+        .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error loading practice schedule:', error);
+        console.error('Error loading practice schedules:', error);
       } else {
-        console.log('Loaded practice schedule:', data);
-        setSchedule(data);
+        console.log('Loaded practice schedules:', data);
+        setSchedules(data || []);
       }
     } catch (error) {
-      console.error('Unexpected error loading practice schedule:', error);
+      console.error('Unexpected error loading practice schedules:', error);
     } finally {
       setLoading(false);
     }
   }, [user, cocreationId]);
+
+  const loadSingle = useCallback(async (scheduleId: string) => {
+    if (!user) return { data: null, error: new Error('User not authenticated') };
+
+    try {
+      const { data, error } = await supabase
+        .from('practice_schedules')
+        .select('*')
+        .eq('id', scheduleId)
+        .eq('user_id', user.id)
+        .single();
+
+      if (error) {
+        console.error('Error loading schedule:', error);
+        return { data: null, error };
+      }
+
+      return { data, error: null };
+    } catch (error) {
+      console.error('Unexpected error loading schedule:', error);
+      return { data: null, error };
+    }
+  }, [user]);
 
   const createSchedule = async (scheduleData: {
     mode: 'flow' | 'routine';
@@ -104,7 +127,7 @@ export function usePracticeSchedules(cocreationId: string) {
       }
 
       console.log('Schedule created successfully:', data);
-      setSchedule(data);
+      setSchedules(prev => [data, ...prev]);
       
       // Marcar como completo na cocriação
       await updateCocriation(cocreationId, { 
@@ -144,7 +167,7 @@ export function usePracticeSchedules(cocreationId: string) {
       }
 
       console.log('Schedule updated successfully:', data);
-      setSchedule(data);
+      setSchedules(prev => prev.map(s => s.id === data.id ? data : s));
       
       // Marcar como completo na cocriação se ainda não estiver
       await updateCocriation(cocreationId, { 
@@ -173,7 +196,7 @@ export function usePracticeSchedules(cocreationId: string) {
         return { error };
       }
 
-      setSchedule(null);
+      setSchedules(prev => prev.filter(s => s.id !== scheduleId));
       return { error: null };
     } catch (error) {
       console.error('Unexpected error deleting schedule:', error);
@@ -182,11 +205,12 @@ export function usePracticeSchedules(cocreationId: string) {
   };
 
   return {
-    schedule,
+    schedules,
     loading,
     createSchedule,
     updateSchedule,
     deleteSchedule,
-    refresh: loadSchedule,
+    loadSingle,
+    refresh: loadSchedules,
   };
 }
