@@ -274,7 +274,7 @@ export default function GratitudePracticeScreen() {
               style={styles.gradientButton}
             >
               <Text style={styles.submitButtonText}>
-                Salvar Gratidões
+                Enviar Gratidões
               </Text>
             </LinearGradient>
           </TouchableOpacity>
