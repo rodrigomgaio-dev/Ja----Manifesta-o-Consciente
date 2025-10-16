@@ -27,8 +27,8 @@ const CATEGORIES = [
     label: 'Abundância', 
     value: 'abundance', 
     icon: '💰',
-    color: '#D4AF37',
-    gradient: ['#D4AF37', '#F4D03F', '#FFF176']
+    color: '#3B82F6',
+    gradient: ['#3B82F6', '#60A5FA', '#93C5FD']
   },
   { 
     label: 'Amor', 
@@ -327,18 +327,19 @@ const styles = StyleSheet.create({
   },
   categoryButton: {
     width: '47%',
-    paddingVertical: Spacing.lg,
+    paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.md,
-    borderRadius: 16,
+    borderRadius: 12,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
   },
   categoryIcon: {
-    fontSize: 32,
-    marginBottom: Spacing.sm,
+    fontSize: 20,
+    marginRight: Spacing.xs,
   },
   categoryLabel: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
   },
   affirmationsCard: {
