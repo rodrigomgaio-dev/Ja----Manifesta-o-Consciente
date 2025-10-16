@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,13 +13,18 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import GradientBackground from '@/components/ui/GradientBackground';
 import SacredCard from '@/components/ui/SacredCard';
+import SacredModal from '@/components/ui/SacredModal';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { Spacing } from '@/constants/Colors';
+import { supabase } from '@/services/supabase';
 
-interface AffirmationItem {
-  text: string;
+interface Affirmation {
+  id: string;
+  user_id: string;
+  text_content: string;
   category: string;
-  timestamp: Date;
+  created_at: string;
 }
 
 const CATEGORIES = [
@@ -82,6 +87,7 @@ const PREDEFINED_AFFIRMATIONS: Record<string, string[]> = {
 
 export default function AffirmationsPracticeScreen() {
   const { colors } = useTheme();
+  const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const { cocreationId, circleId, title } = useLocalSearchParams<{ 
     cocreationId?: string; 
@@ -91,27 +97,102 @@ export default function AffirmationsPracticeScreen() {
 
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [customAffirmation, setCustomAffirmation] = useState('');
-  const [myAffirmations, setMyAffirmations] = useState<AffirmationItem[]>([]);
+  const [affirmations, setAffirmations] = useState<Affirmation[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalConfig, setModalConfig] = useState<{
+    title: string;
+    message: string;
+    type: 'info' | 'success' | 'warning' | 'error';
+  }>({ title: '', message: '', type: 'info' });
 
   const currentCategory = CATEGORIES.find(c => c.value === selectedCategory);
   const currentAffirmations = selectedCategory ? (PREDEFINED_AFFIRMATIONS[selectedCategory] || []) : [];
 
-  const handleSaveAffirmation = () => {
+  useEffect(() => {
+    loadAffirmations();
+  }, []);
+
+  const showModal = (
+    title: string,
+    message: string,
+    type: 'info' | 'success' | 'warning' | 'error' = 'info'
+  ) => {
+    setModalConfig({ title, message, type });
+    setModalVisible(true);
+  };
+
+  const loadAffirmations = async () => {
+    try {
+      const query = supabase
+        .from('affirmations')
+        .select('*')
+        .eq('user_id', user?.id)
+        .order('created_at', { ascending: false });
+
+      if (cocreationId) {
+        query.eq('cocreation_id', cocreationId);
+      } else if (circleId) {
+        query.eq('circle_id', circleId);
+      } else {
+        query.is('cocreation_id', null).is('circle_id', null);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Error loading affirmations:', error);
+        return;
+      }
+
+      setAffirmations(data || []);
+    } catch (error) {
+      console.error('Error loading affirmations:', error);
+    }
+  };
+
+  const handleSaveAffirmation = async () => {
     if (customAffirmation.trim() === '' || !selectedCategory) {
+      showModal('Atenção', 'Por favor, selecione uma categoria e escreva sua afirmação.', 'warning');
       return;
     }
 
-    const newAffirmation: AffirmationItem = {
-      text: customAffirmation,
-      category: selectedCategory,
-      timestamp: new Date(),
-    };
+    try {
+      setLoading(true);
 
-    setMyAffirmations(prev => [newAffirmation, ...prev]);
-    setCustomAffirmation('');
+      const affirmationData: any = {
+        user_id: user?.id,
+        text_content: customAffirmation.trim(),
+        category: selectedCategory,
+      };
+
+      if (cocreationId) {
+        affirmationData.cocreation_id = cocreationId;
+      } else if (circleId) {
+        affirmationData.circle_id = circleId;
+      }
+
+      const { error } = await supabase
+        .from('affirmations')
+        .insert(affirmationData);
+
+      if (error) {
+        throw error;
+      }
+
+      showModal('Sucesso', 'Afirmação salva com sucesso!', 'success');
+      setCustomAffirmation('');
+      await loadAffirmations();
+    } catch (error) {
+      console.error('Error saving affirmation:', error);
+      showModal('Erro', 'Não foi possível salvar a afirmação.', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const formatTimestamp = (date: Date) => {
+  const formatTimestamp = (dateString: string) => {
+    const date = new Date(dateString);
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffMins = Math.floor(diffMs / 60000);
@@ -119,9 +200,9 @@ export default function AffirmationsPracticeScreen() {
     const diffDays = Math.floor(diffMs / 86400000);
 
     if (diffMins < 1) return 'Agora';
-    if (diffMins < 60) return `Adicionada há ${diffMins} min`;
-    if (diffHours < 24) return `Adicionada há ${diffHours}h`;
-    return `Adicionada há ${diffDays} dias`;
+    if (diffMins < 60) return `há ${diffMins} min`;
+    if (diffHours < 24) return `há ${diffHours}h`;
+    return `há ${diffDays} dias`;
   };
 
   return (
@@ -249,33 +330,33 @@ export default function AffirmationsPracticeScreen() {
           <TouchableOpacity
             style={styles.submitButton}
             onPress={handleSaveAffirmation}
-            disabled={customAffirmation.trim() === '' || !selectedCategory}
+            disabled={loading || customAffirmation.trim() === '' || !selectedCategory}
           >
             <LinearGradient
               colors={currentCategory?.gradient || ['#8B5CF6', '#EC4899', '#F97316']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
-              style={[styles.gradientButton, (!selectedCategory || customAffirmation.trim() === '') && styles.disabledButton]}
+              style={[styles.gradientButton, (loading || !selectedCategory || customAffirmation.trim() === '') && styles.disabledButton]}
             >
               <Text style={styles.submitButtonText}>
-                Salvar Afirmação
+                {loading ? 'Salvando...' : 'Salvar Afirmação'}
               </Text>
             </LinearGradient>
           </TouchableOpacity>
         </SacredCard>
 
         {/* My Affirmations */}
-        {myAffirmations.length > 0 && (
+        {affirmations.length > 0 && (
           <SacredCard style={styles.myAffirmationsCard}>
             <Text style={[styles.myAffirmationsTitle, { color: colors.text }]}>
               Minhas Afirmações
             </Text>
 
-            {myAffirmations.map((item, index) => {
+            {affirmations.map((item) => {
               const category = CATEGORIES.find(c => c.value === item.category);
               return (
                 <View 
-                  key={index} 
+                  key={item.id} 
                   style={[
                     styles.myAffirmationItem,
                     { 
@@ -285,10 +366,10 @@ export default function AffirmationsPracticeScreen() {
                   ]}
                 >
                   <Text style={[styles.myAffirmationText, { color: colors.text }]}>
-                    {item.text}
+                    {item.text_content}
                   </Text>
                   <Text style={[styles.myAffirmationTimestamp, { color: colors.textMuted }]}>
-                    {formatTimestamp(item.timestamp)}
+                    Adicionada {formatTimestamp(item.created_at)}
                   </Text>
                 </View>
               );
@@ -303,6 +384,15 @@ export default function AffirmationsPracticeScreen() {
           </Text>
         </SacredCard>
       </ScrollView>
+
+      {/* Modal */}
+      <SacredModal
+        visible={modalVisible}
+        title={modalConfig.title}
+        message={modalConfig.message}
+        type={modalConfig.type}
+        onClose={() => setModalVisible(false)}
+      />
     </GradientBackground>
   );
 }
