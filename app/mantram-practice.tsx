@@ -758,6 +758,7 @@ export default function MantramPracticeScreen() {
                 name={isRecording ? 'stop' : 'mic'} 
                 size={32} 
                 color="white" 
+                style={{ marginRight: Spacing.md }}
               />
               <Text style={styles.recordButtonText}>
                 {loading ? 'Salvando...' : isRecording ? 'Parar e Salvar' : 'Iniciar Gravação'}
@@ -836,7 +837,8 @@ export default function MantramPracticeScreen() {
                           <MaterialIcons 
                             name={option.icon as any} 
                             size={20} 
-                            color={category?.color || colors.accent} 
+                            color={category?.color || colors.accent}
+                            style={{ marginRight: 4 }}
                           />
                           <Text style={[styles.repetitionLabel, { color: category?.color || colors.accent }]}>
                             {option.label}
@@ -934,11 +936,11 @@ const styles = StyleSheet.create({
   },
   powerPoints: {
     width: '100%',
-    gap: Spacing.lg,
   },
   powerPoint: {
     flexDirection: 'row',
     alignItems: 'flex-start',
+    marginBottom: Spacing.lg,
   },
   powerPointText: {
     flex: 1,
@@ -964,7 +966,7 @@ const styles = StyleSheet.create({
   categoriesGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: Spacing.md,
+    marginHorizontal: -Spacing.xs,
   },
   categoryButton: {
     width: '47%',
@@ -974,6 +976,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    marginHorizontal: Spacing.xs,
+    marginBottom: Spacing.md,
   },
   categoryIcon: {
     fontSize: 20,
@@ -1006,13 +1010,13 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
   },
   examplesList: {
-    gap: Spacing.md,
     marginBottom: Spacing.lg,
   },
   exampleItem: {
     padding: Spacing.md,
     borderRadius: 12,
     borderWidth: 1,
+    marginBottom: Spacing.md,
   },
   exampleHeader: {
     flexDirection: 'row',
@@ -1050,11 +1054,11 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   tipsList: {
-    gap: Spacing.sm,
   },
   tipText: {
     fontSize: 13,
     lineHeight: 20,
+    marginBottom: Spacing.sm,
   },
   recordCard: {
     marginBottom: Spacing.lg,
@@ -1112,7 +1116,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: Spacing.md,
   },
   disabledButton: {
     opacity: 0.5,
@@ -1186,8 +1189,8 @@ const styles = StyleSheet.create({
   },
   repetitionButtons: {
     flexDirection: 'row',
-    gap: Spacing.sm,
     marginBottom: Spacing.sm,
+    marginHorizontal: -Spacing.xs / 2,
   },
   repetitionButton: {
     flex: 1,
@@ -1197,7 +1200,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
+    marginHorizontal: Spacing.xs / 2,
   },
   repetitionLabel: {
     fontSize: 13,
