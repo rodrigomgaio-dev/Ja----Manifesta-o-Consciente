@@ -5,8 +5,7 @@ import {
   ScrollView,
   StyleSheet,
   TouchableOpacity,
-  Alert,
-  Platform,
+  TextInput,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,79 +17,60 @@ import SacredCard from '@/components/ui/SacredCard';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Spacing } from '@/constants/Colors';
 
-interface MeditationRecording {
+interface MantramRecording {
   id: string;
-  category: string;
+  mantram: string;
+  repetitions: number;
   duration: number;
   timestamp: Date;
   uri: string;
 }
 
-const CATEGORIES = [
-  { 
-    label: 'Abundância', 
-    value: 'abundance', 
-    icon: '💰',
-    color: '#3B82F6',
-    gradient: ['#3B82F6', '#60A5FA', '#93C5FD']
+const SACRED_MANTRAMS = [
+  {
+    mantram: 'Om',
+    description: 'O som primordial do universo',
+    meaning: 'Representa a vibração cósmica original',
   },
-  { 
-    label: 'Amor', 
-    value: 'love', 
-    icon: '❤️',
-    color: '#EC4899',
-    gradient: ['#EC4899', '#F97316', '#FB923C']
+  {
+    mantram: 'Om Namah Shivaya',
+    description: 'Reverência à consciência interior',
+    meaning: 'Honro meu Eu Superior',
   },
-  { 
-    label: 'Saúde', 
-    value: 'health', 
-    icon: '⭐',
-    color: '#10B981',
-    gradient: ['#10B981', '#3B82F6', '#06B6D4']
+  {
+    mantram: 'Om Mani Padme Hum',
+    description: 'A joia do lótus',
+    meaning: 'Sabedoria e compaixão',
   },
-  { 
-    label: 'Sucesso', 
-    value: 'success', 
-    icon: '⚡',
-    color: '#F59E0B',
-    gradient: ['#F59E0B', '#D97706', '#B45309']
+  {
+    mantram: 'So Ham',
+    description: 'Eu sou Aquilo',
+    meaning: 'União com o Todo',
+  },
+  {
+    mantram: 'Om Shanti Shanti Shanti',
+    description: 'Paz universal',
+    meaning: 'Paz em todos os níveis do ser',
+  },
+  {
+    mantram: 'Sat Nam',
+    description: 'Verdade é minha identidade',
+    meaning: 'Conexão com minha verdade essencial',
   },
 ];
 
-const MEDITATION_SCRIPTS: Record<string, string[]> = {
-  abundance: [
-    'Respire profundamente e sinta a abundância fluindo através de você...\n\nVocê está completamente relaxado e receptivo à prosperidade infinita do universo...\n\nCada célula do seu corpo vibra com a frequência da abundância...\n\nVocê atrai dinheiro facilmente e naturalmente...\n\nSuas finanças crescem exponencialmente todos os dias...\n\nVocê é um ímã para oportunidades financeiras...\n\nSinta a gratidão pela riqueza que já existe em sua vida...',
-    'Imagine-se envolto em uma luz dourada de prosperidade...\n\nEsta luz penetra cada aspecto da sua vida, trazendo abundância infinita...\n\nVocê vê suas contas bancárias crescendo...\n\nOportunidades de renda surgem de todas as direções...\n\nVocê se sente merecedor de toda esta abundância...\n\nA prosperidade é seu estado natural...',
-  ],
-  love: [
-    'Respire fundo e conecte-se com o amor em seu coração...\n\nSinta seu coração se expandindo, irradiando amor incondicional...\n\nVocê é digno de amor profundo e verdadeiro...\n\nAmor flui para você de todas as direções...\n\nSeus relacionamentos são harmoniosos e amorosos...\n\nVocê atrai pessoas que te valorizam e respeitam...\n\nSinta-se completamente amado pelo universo...',
-    'Visualize uma luz rosa preenchendo seu coração...\n\nEsta luz se expande, tocando todos ao seu redor...\n\nVocê irradia amor e compaixão...\n\nRelacionamentos saudáveis fluem naturalmente para sua vida...\n\nVocê se ama completamente e incondicionalmente...\n\nO amor é sua essência natural...',
-  ],
-  health: [
-    'Respire profundamente e sinta a energia vital fluindo pelo seu corpo...\n\nCada respiração traz cura e renovação...\n\nSeu corpo é um templo sagrado, forte e vibrante...\n\nCada célula se regenera com perfeita saúde...\n\nVocê se sente energizado e vital...\n\nSeu sistema imunológico é forte e poderoso...\n\nVocê cuida do seu corpo com amor e gratidão...',
-    'Imagine uma luz branca curativa envolvendo todo seu corpo...\n\nEsta luz dissolve qualquer desconforto ou desequilíbrio...\n\nSeu corpo retorna ao seu estado natural de saúde perfeita...\n\nVocê se sente leve, energizado e vibrante...\n\nCada sistema do seu corpo funciona em harmonia perfeita...\n\nSaúde radiante é seu estado natural...',
-  ],
-  success: [
-    'Respire fundo e conecte-se com sua força interior...\n\nVocê é capaz de realizar qualquer objetivo...\n\nO sucesso flui naturalmente para você...\n\nCada ação que você toma cria resultados extraordinários...\n\nVocê está alinhado com seu propósito superior...\n\nOportunidades de sucesso aparecem constantemente...\n\nVocê merece todo o sucesso que conquista...',
-    'Visualize-se alcançando seus objetivos mais elevados...\n\nSinta a satisfação da realização...\n\nVocê é um líder inspirador e visionário...\n\nSuas ações têm impacto positivo no mundo...\n\nO sucesso é inevitável em sua jornada...\n\nVocê está manifestando seus sonhos na realidade...',
-  ],
-};
-
-export default function MeditationPracticeScreen() {
+export default function MantramPracticeScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
 
-  const [selectedCategory, setSelectedCategory] = useState<string>('abundance');
+  const [customMantram, setCustomMantram] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
-  const [recordings, setRecordings] = useState<MeditationRecording[]>([]);
+  const [recordings, setRecordings] = useState<MantramRecording[]>([]);
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [recordingDuration, setRecordingDuration] = useState(0);
-  const [expandedScript, setExpandedScript] = useState<number | null>(null);
-
-  const currentCategory = CATEGORIES.find(c => c.value === selectedCategory);
-  const currentScripts = MEDITATION_SCRIPTS[selectedCategory] || [];
+  const [expandedMantram, setExpandedMantram] = useState<number | null>(null);
 
   useEffect(() => {
     return () => {
@@ -112,13 +92,12 @@ export default function MeditationPracticeScreen() {
 
   const startRecording = async () => {
     try {
+      if (!customMantram.trim()) {
+        return;
+      }
+
       const hasPermission = await requestPermissions();
       if (!hasPermission) {
-        Alert.alert(
-          'Permissão Necessária',
-          'Por favor, permita o acesso ao microfone para gravar sua meditação.',
-          [{ text: 'OK' }]
-        );
         return;
       }
 
@@ -135,7 +114,6 @@ export default function MeditationPracticeScreen() {
       setIsRecording(true);
       setRecordingDuration(0);
 
-      // Update duration every second
       const interval = setInterval(() => {
         setRecordingDuration(prev => prev + 1);
       }, 1000);
@@ -147,7 +125,6 @@ export default function MeditationPracticeScreen() {
       });
     } catch (error) {
       console.error('Failed to start recording:', error);
-      Alert.alert('Erro', 'Não foi possível iniciar a gravação.');
     }
   };
 
@@ -160,15 +137,17 @@ export default function MeditationPracticeScreen() {
       const uri = recording.getURI();
 
       if (uri) {
-        const newRecording: MeditationRecording = {
+        const newRecording: MantramRecording = {
           id: Date.now().toString(),
-          category: selectedCategory,
+          mantram: customMantram,
+          repetitions: 0,
           duration: recordingDuration,
           timestamp: new Date(),
           uri,
         };
 
         setRecordings(prev => [newRecording, ...prev]);
+        setCustomMantram('');
       }
 
       setRecording(null);
@@ -182,7 +161,7 @@ export default function MeditationPracticeScreen() {
     }
   };
 
-  const playRecording = async (recordingItem: MeditationRecording) => {
+  const playRecording = async (recordingItem: MantramRecording) => {
     try {
       if (sound) {
         await sound.unloadAsync();
@@ -196,14 +175,14 @@ export default function MeditationPracticeScreen() {
 
       const { sound: newSound } = await Audio.Sound.createAsync(
         { uri: recordingItem.uri },
-        { shouldPlay: true }
+        { shouldPlay: true, isLooping: true }
       );
 
       setSound(newSound);
       setPlayingId(recordingItem.id);
 
       newSound.setOnPlaybackStatusUpdate((status) => {
-        if (status.isLoaded && status.didJustFinish) {
+        if (status.isLoaded && status.didJustFinish && !status.isLooping) {
           setPlayingId(null);
         }
       });
@@ -213,24 +192,11 @@ export default function MeditationPracticeScreen() {
   };
 
   const deleteRecording = (id: string) => {
-    Alert.alert(
-      'Excluir Meditação',
-      'Deseja realmente excluir esta gravação?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Excluir',
-          style: 'destructive',
-          onPress: () => {
-            if (playingId === id && sound) {
-              sound.unloadAsync();
-              setPlayingId(null);
-            }
-            setRecordings(prev => prev.filter(r => r.id !== id));
-          },
-        },
-      ]
-    );
+    if (playingId === id && sound) {
+      sound.unloadAsync();
+      setPlayingId(null);
+    }
+    setRecordings(prev => prev.filter(r => r.id !== id));
   };
 
   const formatDuration = (seconds: number) => {
@@ -273,46 +239,46 @@ export default function MeditationPracticeScreen() {
 
         {/* Title Header */}
         <View style={styles.titleHeader}>
-          <MaterialIcons name="self-improvement" size={48} color={colors.primary} />
+          <MaterialIcons name="record-voice-over" size={48} color={colors.primary} />
           <Text style={[styles.mainTitle, { color: colors.text }]}>
-            Momento de Meditação
+            Momento de Mantralização
           </Text>
           <Text style={[styles.mainSubtitle, { color: colors.textMuted }]}>
-            Encontre paz no silêncio interior
+            Vibre com sons sagrados
           </Text>
         </View>
 
         {/* Power of Your Voice */}
         <SacredCard glowing style={styles.powerCard}>
-          <MaterialIcons name="mic" size={40} color={colors.primary} />
+          <MaterialIcons name="graphic-eq" size={40} color={colors.accent} />
           <Text style={[styles.powerTitle, { color: colors.text }]}>
-            O Poder da Sua Própria Voz
+            O Poder da Sua Voz nos Mantrams
           </Text>
           <Text style={[styles.powerText, { color: colors.textSecondary }]}>
-            Quando você grava sua própria meditação guiada, três forças se multiplicam:
+            Quando você grava e repete seus próprios mantrams, você:
           </Text>
           
           <View style={styles.powerPoints}>
             <View style={styles.powerPoint}>
-              <MaterialIcons name="record-voice-over" size={24} color={colors.accent} />
+              <MaterialIcons name="vibration" size={24} color={colors.accent} />
               <View style={styles.powerPointText}>
                 <Text style={[styles.powerPointTitle, { color: colors.text }]}>
-                  O Poder de Falar
+                  Cria Ressonância Pessoal
                 </Text>
                 <Text style={[styles.powerPointDesc, { color: colors.textSecondary }]}>
-                  Sua voz materializa a intenção em vibração física
+                  Sua voz vibra em harmonia com seu campo energético
                 </Text>
               </View>
             </View>
 
             <View style={styles.powerPoint}>
-              <MaterialIcons name="hearing" size={24} color={colors.accent} />
+              <MaterialIcons name="repeat" size={24} color={colors.accent} />
               <View style={styles.powerPointText}>
                 <Text style={[styles.powerPointTitle, { color: colors.text }]}>
-                  A Clareza de Ouvir
+                  Multiplica a Intenção
                 </Text>
                 <Text style={[styles.powerPointDesc, { color: colors.textSecondary }]}>
-                  Sua mente aceita mais facilmente sua própria voz
+                  Cada repetição amplifica a energia do mantram
                 </Text>
               </View>
             </View>
@@ -321,103 +287,88 @@ export default function MeditationPracticeScreen() {
               <MaterialIcons name="auto-awesome" size={24} color={colors.accent} />
               <View style={styles.powerPointText}>
                 <Text style={[styles.powerPointTitle, { color: colors.text }]}>
-                  A Intenção Multiplicada
+                  Acelera a Manifestação
                 </Text>
                 <Text style={[styles.powerPointDesc, { color: colors.textSecondary }]}>
-                  Criar + Falar + Ouvir = Manifestação Acelerada
+                  Som + Intenção + Repetição = Transformação rápida
                 </Text>
               </View>
             </View>
           </View>
         </SacredCard>
 
-        {/* Category Selection */}
-        <SacredCard glowing style={styles.categoryCard}>
-          <Text style={[styles.categoryTitle, { color: colors.text }]}>
-            Escolha uma Categoria
+        {/* Sacred Mantrams Examples */}
+        <SacredCard style={styles.mantramsList}>
+          <Text style={[styles.mantramListTitle, { color: colors.text }]}>
+            Mantrams Sagrados Tradicionais
+          </Text>
+          <Text style={[styles.mantramListSubtitle, { color: colors.textMuted }]}>
+            Use como inspiração ou crie o seu próprio
           </Text>
 
-          <View style={styles.categoriesGrid}>
-            {CATEGORIES.map((category) => (
-              <TouchableOpacity
-                key={category.value}
-                style={[
-                  styles.categoryButton,
-                  {
-                    backgroundColor: selectedCategory === category.value 
-                      ? category.color + '30' 
-                      : colors.surface + '80',
-                    borderColor: selectedCategory === category.value 
-                      ? category.color 
-                      : colors.border,
-                    borderWidth: selectedCategory === category.value ? 2 : 1,
-                  },
-                ]}
-                onPress={() => setSelectedCategory(category.value)}
-              >
-                <Text style={styles.categoryIcon}>{category.icon}</Text>
-                <Text style={[
-                  styles.categoryLabel,
-                  { color: selectedCategory === category.value ? colors.text : colors.textSecondary }
-                ]}>
-                  {category.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </SacredCard>
-
-        {/* Meditation Scripts */}
-        <SacredCard style={styles.scriptsCard}>
-          <View style={styles.scriptsHeader}>
-            <Text style={styles.scriptsIcon}>{currentCategory?.icon}</Text>
-            <Text style={[styles.scriptsTitle, { color: colors.text }]}>
-              Exemplos de Meditação - {currentCategory?.label}
-            </Text>
-          </View>
-
-          <Text style={[styles.scriptsSubtitle, { color: colors.textMuted }]}>
-            Use estes textos como inspiração para gravar sua meditação guiada
-          </Text>
-
-          <View style={styles.scriptsList}>
-            {currentScripts.map((script, index) => (
+          <View style={styles.mantramsGrid}>
+            {SACRED_MANTRAMS.map((item, index) => (
               <TouchableOpacity
                 key={index}
                 style={[
-                  styles.scriptItem,
+                  styles.mantramItem,
                   { 
                     backgroundColor: colors.surface + '60',
-                    borderColor: currentCategory?.color + '30',
+                    borderColor: colors.primary + '30',
                   }
                 ]}
-                onPress={() => setExpandedScript(expandedScript === index ? null : index)}
+                onPress={() => setExpandedMantram(expandedMantram === index ? null : index)}
               >
-                <View style={styles.scriptHeader}>
-                  <Text style={[styles.scriptNumber, { color: currentCategory?.color }]}>
-                    Script {index + 1}
+                <View style={styles.mantramHeader}>
+                  <Text style={[styles.mantramText, { color: colors.text }]}>
+                    {item.mantram}
                   </Text>
                   <MaterialIcons 
-                    name={expandedScript === index ? 'expand-less' : 'expand-more'} 
+                    name={expandedMantram === index ? 'expand-less' : 'expand-more'} 
                     size={24} 
                     color={colors.textMuted} 
                   />
                 </View>
-                {expandedScript === index && (
-                  <Text style={[styles.scriptText, { color: colors.textSecondary }]}>
-                    {script}
-                  </Text>
+                {expandedMantram === index && (
+                  <View style={styles.mantramDetails}>
+                    <Text style={[styles.mantramDescription, { color: colors.textSecondary }]}>
+                      {item.description}
+                    </Text>
+                    <Text style={[styles.mantramMeaning, { color: colors.textMuted }]}>
+                      {item.meaning}
+                    </Text>
+                  </View>
                 )}
               </TouchableOpacity>
             ))}
           </View>
         </SacredCard>
 
-        {/* Recording Controls */}
+        {/* Create Your Mantram */}
         <SacredCard glowing style={styles.recordCard}>
           <Text style={[styles.recordTitle, { color: colors.text }]}>
-            Grave Sua Meditação Guiada
+            Grave Seu Próprio Mantram
           </Text>
+          
+          <Text style={[styles.recordSubtitle, { color: colors.textSecondary }]}>
+            Escolha ou crie um mantram que ressoe com você. Repita-o várias vezes enquanto grava.
+          </Text>
+
+          <TextInput
+            style={[
+              styles.mantramInput,
+              { 
+                backgroundColor: colors.surface + '60',
+                color: colors.text,
+                borderColor: colors.border,
+              }
+            ]}
+            value={customMantram}
+            onChangeText={setCustomMantram}
+            placeholder="Digite seu mantram aqui..."
+            placeholderTextColor={colors.textMuted + '80'}
+            maxLength={100}
+          />
 
           {isRecording && (
             <View style={styles.recordingIndicator}>
@@ -431,12 +382,16 @@ export default function MeditationPracticeScreen() {
           <TouchableOpacity
             style={styles.recordButton}
             onPress={isRecording ? stopRecording : startRecording}
+            disabled={!customMantram.trim() && !isRecording}
           >
             <LinearGradient
-              colors={isRecording ? ['#EF4444', '#DC2626'] : currentCategory?.gradient || ['#8B5CF6', '#EC4899']}
+              colors={isRecording ? ['#EF4444', '#DC2626'] : ['#8B5CF6', '#EC4899', '#F97316']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
-              style={styles.gradientButton}
+              style={[
+                styles.gradientButton,
+                (!customMantram.trim() && !isRecording) && styles.disabledButton
+              ]}
             >
               <MaterialIcons 
                 name={isRecording ? 'stop' : 'mic'} 
@@ -450,7 +405,7 @@ export default function MeditationPracticeScreen() {
           </TouchableOpacity>
 
           <Text style={[styles.recordHint, { color: colors.textMuted }]}>
-            Dica: Leia o script escolhido com calma e intenção
+            Dica: Repita seu mantram com intenção e foco. A repetição cria o poder.
           </Text>
         </SacredCard>
 
@@ -458,11 +413,10 @@ export default function MeditationPracticeScreen() {
         {recordings.length > 0 && (
           <SacredCard style={styles.recordingsCard}>
             <Text style={[styles.recordingsTitle, { color: colors.text }]}>
-              Minhas Meditações Gravadas
+              Meus Mantrams Gravados
             </Text>
 
             {recordings.map((item) => {
-              const category = CATEGORIES.find(c => c.value === item.category);
               const isPlaying = playingId === item.id;
 
               return (
@@ -472,34 +426,31 @@ export default function MeditationPracticeScreen() {
                     styles.recordingItem,
                     { 
                       backgroundColor: colors.surface + '60',
-                      borderLeftColor: category?.color,
+                      borderLeftColor: colors.accent,
                     }
                   ]}
                 >
                   <View style={styles.recordingInfo}>
-                    <View style={styles.recordingHeader}>
-                      <Text style={styles.recordingCategoryIcon}>{category?.icon}</Text>
-                      <Text style={[styles.recordingCategory, { color: colors.text }]}>
-                        {category?.label}
-                      </Text>
-                    </View>
+                    <Text style={[styles.recordingMantram, { color: colors.text }]}>
+                      {item.mantram}
+                    </Text>
                     <Text style={[styles.recordingDuration, { color: colors.textSecondary }]}>
                       Duração: {formatDuration(item.duration)}
                     </Text>
                     <Text style={[styles.recordingTimestamp, { color: colors.textMuted }]}>
-                      Gravada {formatTimestamp(item.timestamp)}
+                      Gravado {formatTimestamp(item.timestamp)}
                     </Text>
                   </View>
 
                   <View style={styles.recordingActions}>
                     <TouchableOpacity
-                      style={[styles.playButton, { backgroundColor: category?.color + '20' }]}
+                      style={[styles.playButton, { backgroundColor: colors.accent + '20' }]}
                       onPress={() => playRecording(item)}
                     >
                       <MaterialIcons 
                         name={isPlaying ? 'pause' : 'play-arrow'} 
                         size={28} 
-                        color={category?.color} 
+                        color={colors.accent} 
                       />
                     </TouchableOpacity>
 
@@ -523,7 +474,7 @@ export default function MeditationPracticeScreen() {
         {/* Sacred Quote */}
         <SacredCard style={styles.quoteCard}>
           <Text style={[styles.quote, { color: colors.textSecondary }]}>
-            "Sua voz carrega sua essência. Quando você ouve suas próprias palavras de manifestação, seu subconsciente reconhece a verdade e acelera a criação."
+            "O mantram é uma ferramenta de transformação. Quando você o repete com sua própria voz, você cria uma onda de vibração que reorganiza sua realidade."
           </Text>
         </SacredCard>
       </ScrollView>
@@ -569,7 +520,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   powerTitle: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '600',
     marginTop: Spacing.md,
     marginBottom: Spacing.sm,
@@ -602,79 +553,49 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
   },
-  categoryCard: {
+  mantramsList: {
     marginBottom: Spacing.lg,
   },
-  categoryTitle: {
+  mantramListTitle: {
     fontSize: 18,
     fontWeight: '600',
-    marginBottom: Spacing.lg,
-  },
-  categoriesGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.md,
-  },
-  categoryButton: {
-    width: '47%',
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    borderRadius: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  categoryIcon: {
-    fontSize: 20,
-    marginRight: Spacing.xs,
-  },
-  categoryLabel: {
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  scriptsCard: {
-    marginBottom: Spacing.lg,
-  },
-  scriptsHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
     marginBottom: Spacing.sm,
   },
-  scriptsIcon: {
-    fontSize: 28,
-    marginRight: Spacing.sm,
-  },
-  scriptsTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    flex: 1,
-  },
-  scriptsSubtitle: {
+  mantramListSubtitle: {
     fontSize: 13,
     fontStyle: 'italic',
     marginBottom: Spacing.lg,
   },
-  scriptsList: {
+  mantramsGrid: {
     gap: Spacing.md,
   },
-  scriptItem: {
+  mantramItem: {
     padding: Spacing.md,
     borderRadius: 12,
     borderWidth: 1,
   },
-  scriptHeader: {
+  mantramHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  scriptNumber: {
-    fontSize: 15,
+  mantramText: {
+    fontSize: 16,
     fontWeight: '600',
+    fontStyle: 'italic',
   },
-  scriptText: {
-    fontSize: 14,
-    lineHeight: 22,
+  mantramDetails: {
     marginTop: Spacing.md,
+    paddingTop: Spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(139, 92, 246, 0.1)',
+  },
+  mantramDescription: {
+    fontSize: 14,
+    marginBottom: Spacing.xs,
+  },
+  mantramMeaning: {
+    fontSize: 13,
     fontStyle: 'italic',
   },
   recordCard: {
@@ -684,6 +605,22 @@ const styles = StyleSheet.create({
   recordTitle: {
     fontSize: 20,
     fontWeight: '600',
+    marginBottom: Spacing.sm,
+    textAlign: 'center',
+  },
+  recordSubtitle: {
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: Spacing.lg,
+  },
+  mantramInput: {
+    width: '100%',
+    height: 50,
+    borderRadius: 12,
+    paddingHorizontal: Spacing.md,
+    fontSize: 16,
+    borderWidth: 1,
     marginBottom: Spacing.lg,
     textAlign: 'center',
   },
@@ -715,6 +652,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: Spacing.md,
   },
+  disabledButton: {
+    opacity: 0.5,
+  },
   recordButtonText: {
     color: 'white',
     fontSize: 18,
@@ -744,18 +684,11 @@ const styles = StyleSheet.create({
   recordingInfo: {
     flex: 1,
   },
-  recordingHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: Spacing.xs,
-  },
-  recordingCategoryIcon: {
-    fontSize: 20,
-    marginRight: Spacing.xs,
-  },
-  recordingCategory: {
+  recordingMantram: {
     fontSize: 16,
     fontWeight: '600',
+    fontStyle: 'italic',
+    marginBottom: Spacing.xs,
   },
   recordingDuration: {
     fontSize: 14,

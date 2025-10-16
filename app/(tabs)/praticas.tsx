@@ -39,6 +39,8 @@ export default function PraticasScreen() {
       router.push('/affirmations-practice');
     } else if (practiceType === 'Meditação') {
       router.push('/meditation-practice');
+    } else if (practiceType === 'Mantrams') {
+      router.push('/mantram-practice');
     } else {
       showModal(
         'Em Desenvolvimento',
@@ -267,6 +269,7 @@ const styles = StyleSheet.create({
   },
   practiceCard: {
     width: (width - Spacing.lg * 2 - Spacing.md) / 2,
+    minHeight: 200,
     marginBottom: Spacing.md,
     alignItems: 'center',
   },

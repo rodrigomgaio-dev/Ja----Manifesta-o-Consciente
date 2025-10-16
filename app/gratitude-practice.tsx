@@ -202,9 +202,7 @@ export default function GratitudePracticeScreen() {
 
         {/* Hero Section */}
         <View style={styles.heroSection}>
-          <View style={[styles.iconCircle, { borderColor: colors.primary + '40' }]}>
-            <MaterialIcons name="favorite" size={48} color={colors.primary} />
-          </View>
+          <MaterialIcons name="favorite" size={48} color={colors.primary} />
           
           <Text style={[styles.mainTitle, { color: colors.text }]}>
             Momento de Gratidão
@@ -383,29 +381,18 @@ const styles = StyleSheet.create({
   },
   heroSection: {
     alignItems: 'center',
-    marginBottom: Spacing.xl,
-    paddingVertical: Spacing.xl,
-  },
-  iconCircle: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    borderWidth: 3,
-    alignItems: 'center',
-    justifyContent: 'center',
     marginBottom: Spacing.lg,
-    backgroundColor: 'rgba(139, 92, 246, 0.1)',
   },
   mainTitle: {
-    fontSize: 32,
+    fontSize: 24,
     fontWeight: '600',
-    marginBottom: Spacing.sm,
+    marginTop: Spacing.sm,
     textAlign: 'center',
   },
   mainSubtitle: {
-    fontSize: 18,
+    fontSize: 14,
+    marginTop: Spacing.xs,
     textAlign: 'center',
-    lineHeight: 26,
   },
   contextHeader: {
     marginBottom: Spacing.xl,

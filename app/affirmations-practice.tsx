@@ -143,6 +143,17 @@ export default function AffirmationsPracticeScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Title Header */}
+        <View style={styles.titleHeader}>
+          <MaterialIcons name="psychology" size={48} color={colors.primary} />
+          <Text style={[styles.mainTitle, { color: colors.text }]}>
+            Momento de Afirmações
+          </Text>
+          <Text style={[styles.mainSubtitle, { color: colors.textMuted }]}>
+            Reprograme sua mente consciente
+          </Text>
+        </View>
+
         {/* Category Selection */}
         <SacredCard glowing style={styles.categoryCard}>
           <Text style={[styles.categoryTitle, { color: colors.text }]}>
@@ -311,6 +322,21 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     marginLeft: Spacing.xs,
+  },
+  titleHeader: {
+    alignItems: 'center',
+    marginBottom: Spacing.lg,
+  },
+  mainTitle: {
+    fontSize: 24,
+    fontWeight: '600',
+    marginTop: Spacing.sm,
+    textAlign: 'center',
+  },
+  mainSubtitle: {
+    fontSize: 14,
+    marginTop: Spacing.xs,
+    textAlign: 'center',
   },
   categoryCard: {
     marginBottom: Spacing.lg,
