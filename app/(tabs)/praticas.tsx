@@ -35,6 +35,8 @@ export default function PraticasScreen() {
   const handlePractice = (practiceType: string) => {
     if (practiceType === 'Gratidão') {
       router.push('/gratitude-practice');
+    } else if (practiceType === 'Afirmações') {
+      router.push('/affirmations-practice');
     } else {
       showModal(
         'Em Desenvolvimento',
