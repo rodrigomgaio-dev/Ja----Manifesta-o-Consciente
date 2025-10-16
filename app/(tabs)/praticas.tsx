@@ -37,6 +37,8 @@ export default function PraticasScreen() {
       router.push('/gratitude-practice');
     } else if (practiceType === 'Afirmações') {
       router.push('/affirmations-practice');
+    } else if (practiceType === 'Meditação') {
+      router.push('/meditation-practice');
     } else {
       showModal(
         'Em Desenvolvimento',
