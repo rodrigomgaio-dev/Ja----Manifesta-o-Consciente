@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
+  TextInput,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
@@ -20,6 +21,7 @@ import { Spacing } from '@/constants/Colors';
 
 interface MeditationRecording {
   id: string;
+  name: string;
   category: string;
   duration: number;
   timestamp: Date;
@@ -80,7 +82,8 @@ export default function MeditationPracticeScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
 
-  const [selectedCategory, setSelectedCategory] = useState<string>('abundance');
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [meditationName, setMeditationName] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [recordings, setRecordings] = useState<MeditationRecording[]>([]);
@@ -90,7 +93,7 @@ export default function MeditationPracticeScreen() {
   const [expandedScript, setExpandedScript] = useState<number | null>(null);
 
   const currentCategory = CATEGORIES.find(c => c.value === selectedCategory);
-  const currentScripts = MEDITATION_SCRIPTS[selectedCategory] || [];
+  const currentScripts = selectedCategory ? (MEDITATION_SCRIPTS[selectedCategory] || []) : [];
 
   useEffect(() => {
     return () => {
@@ -112,6 +115,15 @@ export default function MeditationPracticeScreen() {
 
   const startRecording = async () => {
     try {
+      if (!meditationName.trim()) {
+        Alert.alert(
+          'Nome Obrigatório',
+          'Por favor, dê um nome para sua meditação.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
       const hasPermission = await requestPermissions();
       if (!hasPermission) {
         Alert.alert(
@@ -162,13 +174,15 @@ export default function MeditationPracticeScreen() {
       if (uri) {
         const newRecording: MeditationRecording = {
           id: Date.now().toString(),
-          category: selectedCategory,
+          name: meditationName,
+          category: selectedCategory || 'general',
           duration: recordingDuration,
           timestamp: new Date(),
           uri,
         };
 
         setRecordings(prev => [newRecording, ...prev]);
+        setMeditationName('');
       }
 
       setRecording(null);
@@ -334,7 +348,7 @@ export default function MeditationPracticeScreen() {
         {/* Category Selection */}
         <SacredCard glowing style={styles.categoryCard}>
           <Text style={[styles.categoryTitle, { color: colors.text }]}>
-            Escolha uma Categoria
+            Escolha uma categoria para ver exemplos
           </Text>
 
           <View style={styles.categoriesGrid}>
@@ -353,7 +367,7 @@ export default function MeditationPracticeScreen() {
                     borderWidth: selectedCategory === category.value ? 2 : 1,
                   },
                 ]}
-                onPress={() => setSelectedCategory(category.value)}
+                onPress={() => setSelectedCategory(selectedCategory === category.value ? null : category.value)}
               >
                 <Text style={styles.categoryIcon}>{category.icon}</Text>
                 <Text style={[
@@ -368,6 +382,7 @@ export default function MeditationPracticeScreen() {
         </SacredCard>
 
         {/* Meditation Scripts */}
+        {selectedCategory && (
         <SacredCard style={styles.scriptsCard}>
           <View style={styles.scriptsHeader}>
             <Text style={styles.scriptsIcon}>{currentCategory?.icon}</Text>
@@ -412,12 +427,29 @@ export default function MeditationPracticeScreen() {
             ))}
           </View>
         </SacredCard>
+        )}
 
         {/* Recording Controls */}
         <SacredCard glowing style={styles.recordCard}>
           <Text style={[styles.recordTitle, { color: colors.text }]}>
             Grave Sua Meditação Guiada
           </Text>
+
+          <TextInput
+            style={[
+              styles.nameInput,
+              { 
+                backgroundColor: colors.surface + '60',
+                color: colors.text,
+                borderColor: colors.border,
+              }
+            ]}
+            value={meditationName}
+            onChangeText={setMeditationName}
+            placeholder="Nome da Meditação *"
+            placeholderTextColor={colors.textMuted + '80'}
+            maxLength={100}
+          />
 
           {isRecording && (
             <View style={styles.recordingIndicator}>
@@ -431,6 +463,7 @@ export default function MeditationPracticeScreen() {
           <TouchableOpacity
             style={styles.recordButton}
             onPress={isRecording ? stopRecording : startRecording}
+            disabled={!meditationName.trim() && !isRecording}
           >
             <LinearGradient
               colors={isRecording ? ['#EF4444', '#DC2626'] : currentCategory?.gradient || ['#8B5CF6', '#EC4899']}
@@ -480,9 +513,12 @@ export default function MeditationPracticeScreen() {
                     <View style={styles.recordingHeader}>
                       <Text style={styles.recordingCategoryIcon}>{category?.icon}</Text>
                       <Text style={[styles.recordingCategory, { color: colors.text }]}>
-                        {category?.label}
+                        {item.name}
                       </Text>
                     </View>
+                    <Text style={[styles.recordingSubtitle, { color: colors.textSecondary }]}>
+                      {category?.label}
+                    </Text>
                     <Text style={[styles.recordingDuration, { color: colors.textSecondary }]}>
                       Duração: {formatDuration(item.duration)}
                     </Text>
@@ -702,6 +738,15 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
   },
+  nameInput: {
+    width: '100%',
+    height: 50,
+    borderRadius: 12,
+    paddingHorizontal: Spacing.md,
+    fontSize: 16,
+    borderWidth: 1,
+    marginBottom: Spacing.lg,
+  },
   recordButton: {
     width: '100%',
     marginBottom: Spacing.md,
@@ -756,6 +801,10 @@ const styles = StyleSheet.create({
   recordingCategory: {
     fontSize: 16,
     fontWeight: '600',
+  },
+  recordingSubtitle: {
+    fontSize: 13,
+    marginBottom: Spacing.xs,
   },
   recordingDuration: {
     fontSize: 14,

@@ -89,15 +89,15 @@ export default function AffirmationsPracticeScreen() {
     title?: string;
   }>();
 
-  const [selectedCategory, setSelectedCategory] = useState<string>('abundance');
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [customAffirmation, setCustomAffirmation] = useState('');
   const [myAffirmations, setMyAffirmations] = useState<AffirmationItem[]>([]);
 
   const currentCategory = CATEGORIES.find(c => c.value === selectedCategory);
-  const currentAffirmations = PREDEFINED_AFFIRMATIONS[selectedCategory] || [];
+  const currentAffirmations = selectedCategory ? (PREDEFINED_AFFIRMATIONS[selectedCategory] || []) : [];
 
   const handleSaveAffirmation = () => {
-    if (customAffirmation.trim() === '') {
+    if (customAffirmation.trim() === '' || !selectedCategory) {
       return;
     }
 
@@ -157,7 +157,7 @@ export default function AffirmationsPracticeScreen() {
         {/* Category Selection */}
         <SacredCard glowing style={styles.categoryCard}>
           <Text style={[styles.categoryTitle, { color: colors.text }]}>
-            Escolha uma Categoria
+            Escolha uma categoria para ver exemplos
           </Text>
 
           <View style={styles.categoriesGrid}>
@@ -176,7 +176,7 @@ export default function AffirmationsPracticeScreen() {
                     borderWidth: selectedCategory === category.value ? 2 : 1,
                   },
                 ]}
-                onPress={() => setSelectedCategory(category.value)}
+                onPress={() => setSelectedCategory(selectedCategory === category.value ? null : category.value)}
               >
                 <Text style={styles.categoryIcon}>{category.icon}</Text>
                 <Text style={[
@@ -191,6 +191,7 @@ export default function AffirmationsPracticeScreen() {
         </SacredCard>
 
         {/* Current Category Affirmations */}
+        {selectedCategory && (
         <SacredCard style={styles.affirmationsCard}>
           <View style={styles.affirmationsHeader}>
             <Text style={styles.affirmationsIcon}>{currentCategory?.icon}</Text>
@@ -218,6 +219,7 @@ export default function AffirmationsPracticeScreen() {
             ))}
           </View>
         </SacredCard>
+        )}
 
         {/* Create Custom Affirmation */}
         <SacredCard style={styles.customCard}>
@@ -247,13 +249,13 @@ export default function AffirmationsPracticeScreen() {
           <TouchableOpacity
             style={styles.submitButton}
             onPress={handleSaveAffirmation}
-            disabled={customAffirmation.trim() === ''}
+            disabled={customAffirmation.trim() === '' || !selectedCategory}
           >
             <LinearGradient
               colors={currentCategory?.gradient || ['#8B5CF6', '#EC4899', '#F97316']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
-              style={styles.gradientButton}
+              style={[styles.gradientButton, (!selectedCategory || customAffirmation.trim() === '') && styles.disabledButton]}
             >
               <Text style={styles.submitButtonText}>
                 Salvar Afirmação
@@ -430,6 +432,9 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 18,
     fontWeight: '600',
+  },
+  disabledButton: {
+    opacity: 0.5,
   },
   myAffirmationsCard: {
     marginBottom: Spacing.lg,

@@ -147,7 +147,7 @@ export default function MantramPracticeScreen() {
     circleId?: string;
   }>();
 
-  const [selectedCategory, setSelectedCategory] = useState<string>('abundance');
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [mantramName, setMantramName] = useState('');
   const [mantramText, setMantramText] = useState('');
   const [isRecording, setIsRecording] = useState(false);
@@ -168,7 +168,7 @@ export default function MantramPracticeScreen() {
   }>({ title: '', message: '', type: 'info' });
 
   const currentCategory = CATEGORIES.find(c => c.value === selectedCategory);
-  const currentExamples = MANTRAM_EXAMPLES[selectedCategory] || [];
+  const currentExamples = selectedCategory ? (MANTRAM_EXAMPLES[selectedCategory] || []) : [];
 
   useEffect(() => {
     loadMantrams();
@@ -342,7 +342,7 @@ export default function MantramPracticeScreen() {
         user_id: user?.id,
         name: mantramName,
         text_content: mantramText.trim() || null,
-        category: selectedCategory,
+        category: selectedCategory || 'general',
         audio_url: urlData.publicUrl,
         duration: recordingDuration,
       };
@@ -581,7 +581,7 @@ export default function MantramPracticeScreen() {
         {/* Category Selection */}
         <SacredCard glowing style={styles.categoryCard}>
           <Text style={[styles.categoryTitle, { color: colors.text }]}>
-            Escolha uma Categoria
+            Escolha uma categoria para ver exemplos
           </Text>
 
           <View style={styles.categoriesGrid}>
@@ -600,7 +600,7 @@ export default function MantramPracticeScreen() {
                     borderWidth: selectedCategory === category.value ? 2 : 1,
                   },
                 ]}
-                onPress={() => setSelectedCategory(category.value)}
+                onPress={() => setSelectedCategory(selectedCategory === category.value ? null : category.value)}
               >
                 <Text style={styles.categoryIcon}>{category.icon}</Text>
                 <Text style={[
@@ -615,6 +615,7 @@ export default function MantramPracticeScreen() {
         </SacredCard>
 
         {/* Examples by Category */}
+        {selectedCategory && (
         <SacredCard style={styles.examplesCard}>
           <View style={styles.examplesHeader}>
             <Text style={styles.examplesIcon}>{currentCategory?.icon}</Text>
@@ -689,6 +690,7 @@ export default function MantramPracticeScreen() {
             </View>
           </View>
         </SacredCard>
+        )}
 
         {/* Create Your Mantram */}
         <SacredCard glowing style={styles.recordCard}>
