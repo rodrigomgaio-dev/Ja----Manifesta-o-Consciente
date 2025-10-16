@@ -34,6 +34,7 @@ export default function CocriacaoDetailsScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [hasLetterSent, setHasLetterSent] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   const [modalConfig, setModalConfig] = useState<{
     title: string;
     message: string;
@@ -290,18 +291,20 @@ export default function CocriacaoDetailsScreen() {
 
         {/* Main Info */}
         <SacredCard glowing style={styles.mainCard}>
-          <View style={styles.titleSection}>
-            <Text style={[styles.title, { color: colors.text }]}>
-              {cocriation.title}
-            </Text>
-            
-            {cocriation.mental_code && (
-              <View style={[styles.mentalCodeBadge, { backgroundColor: colors.primary }]}>
-                <Text style={styles.mentalCodeText}>
-                  {cocriation.mental_code}
-                </Text>
-              </View>
-            )}
+          <View style={styles.compactHeader}>
+            <View style={styles.compactTitleSection}>
+              <Text style={[styles.title, { color: colors.text }]}>
+                {cocriation.title}
+              </Text>
+              
+              {cocriation.mental_code && (
+                <View style={[styles.mentalCodeBadge, { backgroundColor: colors.primary }]}>
+                  <Text style={styles.mentalCodeText}>
+                    {cocriation.mental_code}
+                  </Text>
+                </View>
+              )}
+            </View>
 
             <View style={[styles.statusBadge, { 
               backgroundColor: cocriation.status === 'active' ? colors.primary + '20' : 
@@ -317,50 +320,68 @@ export default function CocriacaoDetailsScreen() {
             </View>
           </View>
 
-          {cocriation.description && (
-            <View style={styles.descriptionSection}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                Descrição
+          {/* Expand/Collapse Button */}
+          {(cocriation.description || cocriation.why_reason) && (
+            <TouchableOpacity 
+              style={styles.expandButton}
+              onPress={() => setIsExpanded(!isExpanded)}
+            >
+              <Text style={[styles.expandButtonText, { color: colors.primary }]}>
+                {isExpanded ? 'Ver menos' : 'Ver mais'}
               </Text>
-              <Text style={[styles.description, { color: colors.textSecondary }]}>
-                {cocriation.description}
-              </Text>
-            </View>
+              <MaterialIcons 
+                name={isExpanded ? 'expand-less' : 'expand-more'} 
+                size={20} 
+                color={colors.primary} 
+              />
+            </TouchableOpacity>
           )}
 
-          {cocriation.why_reason && (
-            <View style={styles.whySection}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                Seu Porquê
-              </Text>
-              <Text style={[styles.whyText, { color: colors.textSecondary }]}>
-                {cocriation.why_reason}
-              </Text>
+          {/* Expanded Content */}
+          {isExpanded && (
+            <View style={styles.expandedContent}>
+              {cocriation.description && (
+                <View style={styles.descriptionSection}>
+                  <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                    Descrição
+                  </Text>
+                  <Text style={[styles.description, { color: colors.textSecondary }]}>
+                    {cocriation.description}
+                  </Text>
+                </View>
+              )}
+
+              {cocriation.why_reason && (
+                <View style={styles.whySection}>
+                  <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                    Seu Porquê
+                  </Text>
+                  <Text style={[styles.whyText, { color: colors.textSecondary }]}>
+                    {cocriation.why_reason}
+                  </Text>
+                </View>
+              )}
+
+              <View style={styles.dateSection}>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                  Criada em
+                </Text>
+                <Text style={[styles.dateText, { color: colors.textSecondary }]}>
+                  {new Date(cocriation.created_at).toLocaleDateString('pt-BR', {
+                    day: '2-digit',
+                    month: 'long',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
+                </Text>
+              </View>
             </View>
           )}
-
-          <View style={styles.dateSection}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>
-              Criada em
-            </Text>
-            <Text style={[styles.dateText, { color: colors.textSecondary }]}>
-              {new Date(cocriation.created_at).toLocaleDateString('pt-BR', {
-                day: '2-digit',
-                month: 'long',
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-              })}
-            </Text>
-          </View>
         </SacredCard>
 
         {/* Quick Actions */}
         <SacredCard style={styles.actionsCard}>
-          <Text style={[styles.actionsTitle, { color: colors.text }]}>
-            Ações Rápidas
-          </Text>
-          
           <View style={styles.actionsList}>
             {/* --- BOTÃO VISION BOARD ALTERADO --- */}
             <TouchableOpacity 
@@ -456,20 +477,27 @@ export default function CocriacaoDetailsScreen() {
           </View>
         </SacredCard>
 
-        {/* Danger Zone */}
-        <SacredCard style={styles.dangerCard}>
-          <Text style={[styles.dangerTitle, { color: colors.error }]}>
-            Zona de Perigo
-          </Text>
-          <Text style={[styles.dangerDescription, { color: colors.textSecondary }]}>
-            A exclusão desta cocriação é permanente e não pode ser desfeita.
+        {/* Celebration */}
+        <SacredCard glowing style={styles.celebrationCard}>
+          <View style={styles.celebrationHeader}>
+            <MaterialIcons name="celebration" size={48} color={colors.primary} />
+            <Text style={[styles.celebrationTitle, { color: colors.text }]}>
+              Celebração
+            </Text>
+          </View>
+          <Text style={[styles.celebrationDescription, { color: colors.textSecondary }]}>
+            Quando sentir que sua cocriação já é real e todos os seus objetivos foram alcançados, 
+            você pode concluir esta jornada e receber seu NFT simbólico de conquista.
           </Text>
           <SacredButton
-            title={isDeleting ? "Excluindo..." : "Excluir Cocriação"}
-            onPress={handleDelete}
-            loading={isDeleting}
-            variant="outline"
-            style={[styles.deleteButton, { borderColor: colors.error }]}
+            title="Concluir Cocriação"
+            onPress={() => showModal(
+              'Em Desenvolvimento',
+              'A funcionalidade de conclusão será implementada em breve.',
+              'info'
+            )}
+            style={styles.celebrationButton}
+            icon={<MaterialIcons name="check-circle" size={20} color="white" />}
           />
         </SacredCard>
 
@@ -551,8 +579,14 @@ const styles = StyleSheet.create({
   mainCard: {
     marginBottom: Spacing.lg,
   },
-  titleSection: {
-    marginBottom: Spacing.lg,
+  compactHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  compactTitleSection: {
+    flex: 1,
+    marginRight: Spacing.md,
   },
   title: {
     fontSize: 24,
@@ -573,10 +607,10 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   statusBadge: {
-    alignSelf: 'flex-start',
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.xs,
     borderRadius: 16,
+    height: 28,
   },
   statusText: {
     fontSize: 12,
@@ -613,10 +647,22 @@ const styles = StyleSheet.create({
   actionsCard: {
     marginBottom: Spacing.lg,
   },
-  actionsTitle: {
-    fontSize: 18,
+  expandButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.md,
+    marginTop: Spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(139, 92, 246, 0.1)',
+  },
+  expandButtonText: {
+    fontSize: 14,
     fontWeight: '600',
-    marginBottom: Spacing.lg,
+    marginRight: Spacing.xs,
+  },
+  expandedContent: {
+    marginTop: Spacing.lg,
   },
   actionsList: {
     gap: Spacing.sm,
@@ -664,20 +710,26 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginLeft: Spacing.md,
   },
-  dangerCard: {
+  celebrationCard: {
     marginBottom: Spacing.xl,
+    alignItems: 'center',
   },
-  dangerTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: Spacing.sm,
-  },
-  dangerDescription: {
-    fontSize: 14,
-    lineHeight: 20,
+  celebrationHeader: {
+    alignItems: 'center',
     marginBottom: Spacing.lg,
   },
-  deleteButton: {
-    alignSelf: 'flex-start',
+  celebrationTitle: {
+    fontSize: 24,
+    fontWeight: '600',
+    marginTop: Spacing.md,
+  },
+  celebrationDescription: {
+    fontSize: 14,
+    lineHeight: 22,
+    textAlign: 'center',
+    marginBottom: Spacing.xl,
+  },
+  celebrationButton: {
+    minWidth: 200,
   },
 });

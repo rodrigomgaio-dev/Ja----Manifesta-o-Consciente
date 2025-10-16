@@ -385,6 +385,11 @@ export default function PracticeScheduleScreen() {
                           borderColor: selectedDays.includes(day.value) 
                             ? colors.primary 
                             : colors.border,
+                          shadowColor: selectedDays.includes(day.value) ? colors.primary : 'transparent',
+                          shadowOffset: { width: 0, height: 4 },
+                          shadowOpacity: selectedDays.includes(day.value) ? 0.4 : 0,
+                          shadowRadius: 8,
+                          elevation: selectedDays.includes(day.value) ? 8 : 0,
                         },
                       ]}
                       onPress={() => toggleDay(day.value)}
@@ -414,8 +419,14 @@ export default function PracticeScheduleScreen() {
                     style={[
                       styles.timeTypeButton,
                       {
-                        backgroundColor: timeType === type.value ? colors.primary + '20' : colors.surface,
+                        backgroundColor: timeType === type.value ? colors.primary + '30' : colors.surface,
                         borderColor: timeType === type.value ? colors.primary : colors.border,
+                        borderWidth: timeType === type.value ? 2 : 1,
+                        shadowColor: timeType === type.value ? colors.primary : 'transparent',
+                        shadowOffset: { width: 0, height: 4 },
+                        shadowOpacity: timeType === type.value ? 0.3 : 0,
+                        shadowRadius: 8,
+                        elevation: timeType === type.value ? 8 : 0,
                       },
                     ]}
                     onPress={() => setTimeType(type.value as any)}
@@ -490,11 +501,17 @@ export default function PracticeScheduleScreen() {
                       styles.practiceButton,
                       {
                         backgroundColor: selectedPractices.includes(practice.value) 
-                          ? colors.primary + '20' 
+                          ? colors.primary + '30' 
                           : colors.surface,
                         borderColor: selectedPractices.includes(practice.value) 
                           ? colors.primary 
                           : colors.border,
+                        borderWidth: selectedPractices.includes(practice.value) ? 2 : 1,
+                        shadowColor: selectedPractices.includes(practice.value) ? colors.primary : 'transparent',
+                        shadowOffset: { width: 0, height: 4 },
+                        shadowOpacity: selectedPractices.includes(practice.value) ? 0.4 : 0,
+                        shadowRadius: 8,
+                        elevation: selectedPractices.includes(practice.value) ? 8 : 0,
                       },
                     ]}
                     onPress={() => togglePractice(practice.value)}
@@ -729,7 +746,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: Spacing.md,
     borderRadius: 12,
-    borderWidth: 2,
     position: 'relative',
   },
   timeTypeText: {
@@ -765,7 +781,6 @@ const styles = StyleSheet.create({
     width: '48%',
     padding: Spacing.md,
     borderRadius: 12,
-    borderWidth: 2,
     alignItems: 'center',
     position: 'relative',
     minHeight: 100,

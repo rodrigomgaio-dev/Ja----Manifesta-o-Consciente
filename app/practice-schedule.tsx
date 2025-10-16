@@ -6,7 +6,8 @@ import {
   StyleSheet,
   TouchableOpacity,
 } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
+import { useCallback } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import GradientBackground from '@/components/ui/GradientBackground';
@@ -39,7 +40,7 @@ export default function PracticeScheduleListScreen() {
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const { cocreationId } = useLocalSearchParams<{ cocreationId: string }>();
-  const { schedules, loading, deleteSchedule } = usePracticeSchedules(cocreationId || '');
+  const { schedules, loading, deleteSchedule, refresh } = usePracticeSchedules(cocreationId || '');
 
   const [modalVisible, setModalVisible] = useState(false);
   const [modalConfig, setModalConfig] = useState<{
@@ -48,6 +49,15 @@ export default function PracticeScheduleListScreen() {
     type: 'info' | 'success' | 'warning' | 'error';
     buttons?: any[];
   }>({ title: '', message: '', type: 'info' });
+
+  // Recarregar quando retorna ao foco
+  useFocusEffect(
+    useCallback(() => {
+      if (cocreationId) {
+        refresh();
+      }
+    }, [cocreationId, refresh])
+  );
 
   const showModal = (
     title: string,
