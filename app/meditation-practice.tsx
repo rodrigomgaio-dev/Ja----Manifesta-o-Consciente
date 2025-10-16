@@ -484,7 +484,7 @@ export default function MeditationPracticeScreen() {
         {/* Category Selection */}
         <SacredCard glowing style={styles.categoryCard}>
           <Text style={[styles.categoryTitle, { color: colors.text }]}>
-            Escolha uma categoria para ver exemplos
+            Escolha uma categoria para a sua meditação e veja exemplos
           </Text>
 
           <View style={styles.categoriesGrid}>
