@@ -18,6 +18,7 @@ import SacredModal from '@/components/ui/SacredModal';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useIndividualCocriations } from '@/hooks/useIndividualCocriations';
+import { useFutureLetter } from '@/hooks/useFutureLetter';
 import { Spacing } from '@/constants/Colors';
 
 export default function CocriacaoDetailsScreen() {
@@ -26,11 +27,13 @@ export default function CocriacaoDetailsScreen() {
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { cocriations, deleteCocriation, loadSingle } = useIndividualCocriations();
+  const { getFutureLetter } = useFutureLetter();
 
   const [cocriation, setCocriation] = useState<any>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [hasLetterSent, setHasLetterSent] = useState(false);
   const [modalConfig, setModalConfig] = useState<{
     title: string;
     message: string;
@@ -47,6 +50,12 @@ export default function CocriacaoDetailsScreen() {
     if (cached) {
       console.log('Cocriation found in cache:', cached);
       setCocriation(cached);
+      
+      // Verificar se existe carta enviada
+      if (cached.future_letter_completed) {
+        const letterResult = await getFutureLetter(id);
+        setHasLetterSent(!!letterResult.data);
+      }
       return;
     }
 
@@ -56,9 +65,15 @@ export default function CocriacaoDetailsScreen() {
     const result = await loadSingle(id);
     if (result.data) {
       setCocriation(result.data);
+      
+      // Verificar se existe carta enviada
+      if (result.data.future_letter_completed) {
+        const letterResult = await getFutureLetter(id);
+        setHasLetterSent(!!letterResult.data);
+      }
     }
     setIsLoading(false);
-  }, [id, cocriations, loadSingle]);
+  }, [id, cocriations, loadSingle, getFutureLetter]);
 
   // Carregar ao montar e quando cocriations muda
   useEffect(() => {
@@ -365,16 +380,40 @@ export default function CocriacaoDetailsScreen() {
             </TouchableOpacity>
             {/* --- FIM DO BOTÃO VISION BOARD --- */}
 
-            <TouchableOpacity 
-              style={styles.actionButton}
-              onPress={handleFutureLetter}
-            >
-              <MaterialIcons name="mail-outline" size={24} color={colors.secondary} />
-              <Text style={[styles.actionText, { color: colors.secondary }]}>
-                Carta ao Futuro
-              </Text>
-              <MaterialIcons name="chevron-right" size={20} color={colors.textMuted} />
-            </TouchableOpacity>
+            {/* Carta ao Futuro - só mostra se não estiver completa */}
+            {!cocriation.future_letter_completed && (
+              <TouchableOpacity 
+                style={styles.actionButton}
+                onPress={handleFutureLetter}
+              >
+                <MaterialIcons name="mail-outline" size={24} color={colors.secondary} />
+                <View style={styles.actionTextContainer}>
+                  <Text style={[styles.actionText, { color: colors.secondary }]}>
+                    Carta ao Futuro
+                  </Text>
+                  <Text style={[styles.actionSubtext, { color: colors.textMuted }]}>
+                    Escreva para seu futuro
+                  </Text>
+                </View>
+                <MaterialIcons name="chevron-right" size={20} color={colors.textMuted} />
+              </TouchableOpacity>
+            )}
+            
+            {/* Carta enviada - apenas informativo */}
+            {cocriation.future_letter_completed && hasLetterSent && (
+              <View style={[styles.actionButton, styles.actionButtonDisabled]}>
+                <MaterialIcons name="mail" size={24} color={colors.success} />
+                <View style={styles.actionTextContainer}>
+                  <Text style={[styles.actionText, { color: colors.success }]}>
+                    Carta ao Futuro Enviada
+                  </Text>
+                  <Text style={[styles.actionSubtext, { color: colors.textMuted }]}>
+                    Será revelada na conclusão
+                  </Text>
+                </View>
+                <MaterialIcons name="check-circle" size={20} color={colors.success} />
+              </View>
+            )}
 
             <TouchableOpacity 
               style={styles.actionButton}
@@ -589,6 +628,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.sm,
     borderRadius: 12,
     backgroundColor: 'rgba(139, 92, 246, 0.05)',
+  },
+  actionButtonDisabled: {
+    opacity: 0.7,
   },
   actionTextContainer: {
     flex: 1,

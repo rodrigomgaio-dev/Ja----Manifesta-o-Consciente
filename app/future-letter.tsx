@@ -75,7 +75,7 @@ Eu do presente`,
     setModalVisible(true);
   };
 
-  const handleSaveLetter = async () => {
+  const handleSendLetter = async () => {
     if (!user) {
       showModal('Erro de Autenticação', 'Você precisa estar logado.', 'error');
       return;
@@ -118,6 +118,18 @@ Eu do presente`,
     }
   };
 
+  const handleNoLetter = async () => {
+    if (!cocreationId) return;
+    
+    // Marcar carta como completa sem criar registro
+    await updateCocriation(cocreationId, { 
+      future_letter_completed: true 
+    });
+    
+    // Navegar para vision board
+    router.replace(`/vision-board?cocreationId=${cocreationId}`);
+  };
+
   const startLetterAnimation = () => {
     Animated.sequence([
       // Scale up slightly
@@ -158,15 +170,9 @@ Eu do presente`,
     });
   };
 
-  const handleSkip = async () => {
-    if (!cocreationId) return;
-    
-    // Marcar carta como completa ao pular
-    await updateCocriation(cocreationId, { 
-      future_letter_completed: true 
-    });
-    
-    router.replace(`/vision-board?cocreationId=${cocreationId}`);
+  const handlePostpone = () => {
+    // Apenas volta sem salvar nada
+    router.back();
   };
 
   if (!user) {
@@ -290,16 +296,22 @@ Eu do presente`,
           {!showAnimation && (
             <View style={styles.actions}>
               <SacredButton
-                title="Não enviar Carta"
-                onPress={handleSkip}
+                title="Adiar"
+                onPress={handlePostpone}
                 variant="outline"
-                style={styles.skipButton}
+                style={styles.actionButton}
               />
               <SacredButton
-                title="Enviar para o Futuro"
-                onPress={handleSaveLetter}
+                title="Não Enviar"
+                onPress={handleNoLetter}
+                variant="outline"
+                style={styles.actionButton}
+              />
+              <SacredButton
+                title="Enviar Agora"
+                onPress={handleSendLetter}
                 loading={loading}
-                style={styles.saveButton}
+                style={styles.actionButton}
               />
             </View>
           )}
@@ -415,13 +427,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: Spacing.lg,
-    gap: Spacing.md,
+    gap: Spacing.sm,
   },
-  skipButton: {
+  actionButton: {
     flex: 1,
-  },
-  saveButton: {
-    flex: 2,
   },
   infoCard: {
     alignItems: 'center',
