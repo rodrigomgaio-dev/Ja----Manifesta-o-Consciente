@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/services/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { useIndividualCocriations } from './useIndividualCocriations';
 
 export interface PracticeSchedule {
   id: string;
@@ -20,6 +21,7 @@ export interface PracticeSchedule {
 
 export function usePracticeSchedules(cocreationId: string) {
   const { user } = useAuth();
+  const { updateCocriation } = useIndividualCocriations();
   const [schedule, setSchedule] = useState<PracticeSchedule | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -103,6 +105,12 @@ export function usePracticeSchedules(cocreationId: string) {
 
       console.log('Schedule created successfully:', data);
       setSchedule(data);
+      
+      // Marcar como completo na cocriação
+      await updateCocriation(cocreationId, { 
+        practice_schedule_completed: true 
+      });
+      
       return { data, error: null };
     } catch (error) {
       console.error('Unexpected error creating schedule:', error);
@@ -137,6 +145,12 @@ export function usePracticeSchedules(cocreationId: string) {
 
       console.log('Schedule updated successfully:', data);
       setSchedule(data);
+      
+      // Marcar como completo na cocriação se ainda não estiver
+      await updateCocriation(cocreationId, { 
+        practice_schedule_completed: true 
+      });
+      
       return { data, error: null };
     } catch (error) {
       console.error('Unexpected error updating schedule:', error);

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -14,18 +14,42 @@ import { Spacing } from '@/constants/Colors';
 export default function IndividualScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
-  const { cocriations, loading, createCocriation } = useIndividualCocriations();
+  const { cocriations, loading, updateCocriation } = useIndividualCocriations();
 
-    const handleCreateNew = () => {
+  // Filtrar apenas cocriações não concluídas
+  const activeCocriations = cocriations.filter(c => c.status !== 'completed');
+
+  useEffect(() => {
+    // Verificar e atualizar status das cocriações
+    activeCocriations.forEach(async (cocriation) => {
+      if (cocriation.status === 'defining') {
+        // Verificar se todos os requisitos estão completos
+        if (
+          cocriation.vision_board_completed &&
+          cocriation.practice_schedule_completed &&
+          cocriation.future_letter_completed
+        ) {
+          // Atualizar status para active
+          await updateCocriation(cocriation.id, { status: 'active' });
+        }
+      }
+    });
+  }, [cocriations]);
+
+  const handleCreateNew = () => {
     router.push('/create-individual');
   };
-  const renderCocriation = (cocriation: any) => (
-    <SacredCard 
-      key={cocriation.id}
-      animated
-      onPress={() => router.push(`/cocriacao-details?id=${cocriation.id}`)}
-      style={styles.cocriationCard}
-    >
+
+  const renderCocriation = (cocriation: any) => {
+    const isDefining = cocriation.status === 'defining';
+    
+    return (
+      <SacredCard 
+        key={cocriation.id}
+        animated
+        onPress={() => router.push(`/cocriacao-details?id=${cocriation.id}`)}
+        style={styles.cocriationCard}
+      >
         {cocriation.cover_image_url && (
           <Image 
             source={{ uri: cocriation.cover_image_url }} 
@@ -33,62 +57,100 @@ export default function IndividualScreen() {
             contentFit="cover"
           />
         )}
-        <View style={styles.cocriationHeader}>
-          <View style={styles.cocriationInfo}>
-            <Text style={[styles.cocriationTitle, { color: colors.text }]}>
-              {cocriation.title}
-            </Text>
-            {cocriation.mental_code && (
-              <Text style={[styles.mentalCode, { color: colors.primary }]}>
-                {cocriation.mental_code}
-              </Text>
-            )}
-            {cocriation.description && (
-              <Text style={[styles.cocriationDescription, { color: colors.textSecondary }]}>
-                {cocriation.description.length > 100 
-                  ? cocriation.description.substring(0, 100) + '...' 
-                  : cocriation.description}
-              </Text>
-            )}
-          </View>
-          <View style={[styles.statusBadge, { 
-            backgroundColor: cocriation.status === 'active' ? colors.primary + '20' : 
-                           cocriation.status === 'defining' ? colors.secondary + '20' : colors.success + '20' 
-          }]}>
-            <Text style={[styles.statusText, { 
-              color: cocriation.status === 'active' ? colors.primary : 
-                    cocriation.status === 'paused' ? colors.secondary : colors.success 
-            }]}>
-              {cocriation.status === 'active' ? 'Ativa' : 
-               cocriation.status === 'paused' ? 'Pausada' : 'Concluída'}
-            </Text>
-          </View>
-        </View>
         
-        <View style={styles.cocriationActions}>
-          <TouchableOpacity style={styles.actionButton}>
-            <MaterialIcons name="dashboard" size={20} color={colors.primary} />
-            <Text style={[styles.actionText, { color: colors.primary }]}>
-              Vision Board
-            </Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.actionButton}>
-            <MaterialIcons name="self-improvement" size={20} color={colors.accent} />
-            <Text style={[styles.actionText, { color: colors.accent }]}>
-              Práticas
-            </Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.actionButton}>
-            <MaterialIcons name="mail-outline" size={20} color={colors.secondary} />
-            <Text style={[styles.actionText, { color: colors.secondary }]}>
-              Carta
-            </Text>
-          </TouchableOpacity>
+        <View style={styles.cocriationContent}>
+          <View style={styles.cocriationHeader}>
+            <View style={styles.cocriationInfo}>
+              <Text style={[styles.cocriationTitle, { color: colors.text }]}>
+                {cocriation.title}
+              </Text>
+              {cocriation.mental_code && (
+                <Text style={[styles.mentalCode, { color: colors.primary }]}>
+                  {cocriation.mental_code}
+                </Text>
+              )}
+            </View>
+            <View style={[styles.statusBadge, { 
+              backgroundColor: cocriation.status === 'active' ? colors.success + '20' : colors.warning + '20'
+            }]}>
+              <Text style={[styles.statusText, { 
+                color: cocriation.status === 'active' ? colors.success : colors.warning
+              }]}>
+                {cocriation.status === 'active' ? 'Ativa' : 'Definindo'}
+              </Text>
+            </View>
+          </View>
+
+          {/* Mostrar itens pendentes/completos apenas no status "defining" */}
+          {isDefining && (
+            <View style={styles.progressSection}>
+              <Text style={[styles.progressTitle, { color: colors.textSecondary }]}>
+                Itens para Completar:
+              </Text>
+              <View style={styles.progressItems}>
+                <View style={styles.progressItem}>
+                  <MaterialIcons 
+                    name={cocriation.vision_board_completed ? 'check-circle' : 'radio-button-unchecked'}
+                    size={20} 
+                    color={cocriation.vision_board_completed ? colors.success : colors.textMuted}
+                  />
+                  <Text style={[
+                    styles.progressText, 
+                    { color: cocriation.vision_board_completed ? colors.success : colors.textMuted }
+                  ]}>
+                    Vision Board
+                  </Text>
+                </View>
+                
+                <View style={styles.progressItem}>
+                  <MaterialIcons 
+                    name={cocriation.practice_schedule_completed ? 'check-circle' : 'radio-button-unchecked'}
+                    size={20} 
+                    color={cocriation.practice_schedule_completed ? colors.success : colors.textMuted}
+                  />
+                  <Text style={[
+                    styles.progressText, 
+                    { color: cocriation.practice_schedule_completed ? colors.success : colors.textMuted }
+                  ]}>
+                    Momentos de Cocriação
+                  </Text>
+                </View>
+                
+                <View style={styles.progressItem}>
+                  <MaterialIcons 
+                    name={cocriation.future_letter_completed ? 'check-circle' : 'radio-button-unchecked'}
+                    size={20} 
+                    color={cocriation.future_letter_completed ? colors.success : colors.textMuted}
+                  />
+                  <Text style={[
+                    styles.progressText, 
+                    { color: cocriation.future_letter_completed ? colors.success : colors.textMuted }
+                  ]}>
+                    Carta ao Futuro
+                  </Text>
+                </View>
+              </View>
+            </View>
+          )}
+
+          {/* Mostrar apenas Momentos de Cocriação quando ativa */}
+          {!isDefining && (
+            <View style={styles.activeActions}>
+              <TouchableOpacity 
+                style={styles.activeActionButton}
+                onPress={() => router.push(`/practice-schedule?cocreationId=${cocriation.id}`)}
+              >
+                <MaterialIcons name="self-improvement" size={20} color={colors.primary} />
+                <Text style={[styles.activeActionText, { color: colors.primary }]}>
+                  Momentos de Cocriação
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       </SacredCard>
-  );
+    );
+  };
 
   return (
     <GradientBackground>
@@ -106,42 +168,53 @@ export default function IndividualScreen() {
           </Text>
         </View>
 
-        {/* Create New */}
-        <SacredCard glowing style={styles.createCard}>
-          <View style={styles.createContent}>
-            <MaterialIcons 
-              name="add-circle-outline" 
-              size={48} 
-              color={colors.primary} 
-            />
-            <Text style={[styles.createTitle, { color: colors.text }]}>
-              Nova Cocriação
-            </Text>
-            <Text style={[styles.createDescription, { color: colors.textSecondary }]}>
-              Inicie uma nova jornada de manifestação com seu Vision Board personalizado
-            </Text>
-            <SacredButton
-              title="Começar Agora"
+        {/* Botão Criar Nova (apenas quando houver cocriações) */}
+        {!loading && activeCocriations.length > 0 && (
+          <View style={styles.createButtonContainer}>
+            <TouchableOpacity
+              style={[styles.createSmallButton, { backgroundColor: colors.primary }]}
               onPress={handleCreateNew}
-              style={styles.createButton}
-            />
+            >
+              <MaterialIcons name="add" size={20} color="white" />
+              <Text style={styles.createSmallButtonText}>Nova Cocriação</Text>
+            </TouchableOpacity>
           </View>
-        </SacredCard>
+        )}
+
+        {/* Create New Card (apenas quando NÃO houver cocriações) */}
+        {!loading && activeCocriations.length === 0 && (
+          <SacredCard glowing style={styles.createCard}>
+            <View style={styles.createContent}>
+              <MaterialIcons 
+                name="add-circle-outline" 
+                size={48} 
+                color={colors.primary} 
+              />
+              <Text style={[styles.createTitle, { color: colors.text }]}>
+                Nova Cocriação
+              </Text>
+              <Text style={[styles.createDescription, { color: colors.textSecondary }]}>
+                Inicie uma nova jornada de manifestação com seu Vision Board personalizado
+              </Text>
+              <SacredButton
+                title="Começar Agora"
+                onPress={handleCreateNew}
+                style={styles.createButton}
+              />
+            </View>
+          </SacredCard>
+        )}
 
         {/* My Cocriations */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>
-            Minhas Cocriações
-          </Text>
-          
-                  {loading ? (
+          {loading ? (
             <SacredCard style={styles.loadingCard}>
               <Text style={[styles.loadingText, { color: colors.textMuted }]}>
                 Carregando suas cocriações...
               </Text>
             </SacredCard>
-          ) : cocriations.length > 0 ? (
-            cocriations.map(renderCocriation)
+          ) : activeCocriations.length > 0 ? (
+            activeCocriations.map(renderCocriation)
           ) : (
             <View style={styles.emptyState}>
               <MaterialIcons 
@@ -160,30 +233,32 @@ export default function IndividualScreen() {
         </View>
 
         {/* Process Info */}
-        <SacredCard style={styles.infoCard}>
-          <Text style={[styles.infoTitle, { color: colors.text }]}>
-            Como Funciona
-          </Text>
-          <View style={styles.infoList}>
-            {[
-              'Defina seu título e descrição',
-              'Escolha um código mental (apelido)',
-              'Crie seu Vision Board interativo',
-              'Defina práticas diárias personalizadas',
-              'Escreva uma carta para o futuro',
-              'Acompanhe sua jornada com presença',
-            ].map((step, index) => (
-              <View key={index} style={styles.infoItem}>
-                <View style={[styles.stepNumber, { backgroundColor: colors.primary }]}>
-                  <Text style={styles.stepText}>{index + 1}</Text>
+        {activeCocriations.length === 0 && (
+          <SacredCard style={styles.infoCard}>
+            <Text style={[styles.infoTitle, { color: colors.text }]}>
+              Como Funciona
+            </Text>
+            <View style={styles.infoList}>
+              {[
+                'Defina seu título e descrição',
+                'Escolha um código mental (apelido)',
+                'Crie seu Vision Board interativo',
+                'Configure seus Momentos de Cocriação',
+                'Escreva uma carta para o futuro (ou não)',
+                'Acompanhe sua jornada com presença',
+              ].map((step, index) => (
+                <View key={index} style={styles.infoItem}>
+                  <View style={[styles.stepNumber, { backgroundColor: colors.primary }]}>
+                    <Text style={styles.stepText}>{index + 1}</Text>
+                  </View>
+                  <Text style={[styles.stepDescription, { color: colors.textSecondary }]}>
+                    {step}
+                  </Text>
                 </View>
-                <Text style={[styles.stepDescription, { color: colors.textSecondary }]}>
-                  {step}
-                </Text>
-              </View>
-            ))}
-          </View>
-        </SacredCard>
+              ))}
+            </View>
+          </SacredCard>
+        )}
       </ScrollView>
     </GradientBackground>
   );
@@ -207,6 +282,23 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 16,
     textAlign: 'center',
+  },
+  createButtonContainer: {
+    alignItems: 'center',
+    marginBottom: Spacing.lg,
+  },
+  createSmallButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+    borderRadius: 20,
+    gap: Spacing.xs,
+  },
+  createSmallButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
   },
   createCard: {
     marginBottom: Spacing.xl,
@@ -232,11 +324,6 @@ const styles = StyleSheet.create({
   section: {
     marginBottom: Spacing.xl,
   },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    marginBottom: Spacing.lg,
-  },
   loadingCard: {
     alignItems: 'center',
     paddingVertical: Spacing.xl,
@@ -246,6 +333,16 @@ const styles = StyleSheet.create({
   },
   cocriationCard: {
     marginBottom: Spacing.md,
+    padding: 0,
+  },
+  coverImage: {
+    width: '100%',
+    height: 120,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+  },
+  cocriationContent: {
+    padding: Spacing.lg,
   },
   cocriationHeader: {
     flexDirection: 'row',
@@ -266,11 +363,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 1,
-    marginBottom: Spacing.xs,
-  },
-  cocriationDescription: {
-    fontSize: 14,
-    lineHeight: 20,
   },
   statusBadge: {
     paddingHorizontal: Spacing.sm,
@@ -281,21 +373,43 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
-  cocriationActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
+  progressSection: {
     borderTopWidth: 1,
     borderTopColor: 'rgba(139, 92, 246, 0.1)',
     paddingTop: Spacing.md,
   },
-  actionButton: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  actionText: {
+  progressTitle: {
     fontSize: 12,
+    fontWeight: '600',
+    marginBottom: Spacing.sm,
+  },
+  progressItems: {
+    gap: Spacing.sm,
+  },
+  progressItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  progressText: {
+    fontSize: 14,
     fontWeight: '500',
-    marginTop: Spacing.xs,
+  },
+  activeActions: {
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(139, 92, 246, 0.1)',
+    paddingTop: Spacing.md,
+  },
+  activeActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.sm,
+    gap: Spacing.sm,
+  },
+  activeActionText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   emptyState: {
     alignItems: 'center',
@@ -344,12 +458,5 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     lineHeight: 20,
-  },
-  coverImage: {
-    width: '100%',
-    height: 120,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    marginBottom: Spacing.md,
   },
 });

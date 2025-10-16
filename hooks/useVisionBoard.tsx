@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/services/supabase';
 import { VisionBoardItem, IndividualCocriation } from '@/services/types';
+import { useIndividualCocriations } from './useIndividualCocriations';
 
 export function useVisionBoard(cocriationId: string) {
+  const { updateCocriation } = useIndividualCocriations();
   const [items, setItems] = useState<VisionBoardItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [cocriation, setCocriation] = useState<IndividualCocriation | null>(null);
@@ -81,7 +83,18 @@ export function useVisionBoard(cocriationId: string) {
         return { error };
       }
 
-      setItems(prev => [...prev, data]);
+      setItems(prev => {
+        const newItems = [...prev, data];
+        
+        // Marcar Vision Board como completo se tiver pelo menos 1 imagem
+        if (newItems.length === 1) {
+          updateCocriation(cocriationId, { 
+            vision_board_completed: true 
+          });
+        }
+        
+        return newItems;
+      });
       return { data, error: null };
     } catch (error) {
       return { error };

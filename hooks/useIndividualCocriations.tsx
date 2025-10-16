@@ -99,8 +99,11 @@ export function useIndividualCocriations() {
         mental_code: cocriation.mental_code?.trim() || null,
         why_reason: cocriation.why_reason?.trim() || null,
         cover_image_url: cocriation.cover_image_url || null,
-        status: 'active' as const,
+        status: 'defining' as const,
         nft_generated: false,
+        vision_board_completed: false,
+        practice_schedule_completed: false,
+        future_letter_completed: false,
       };
 
       console.log('Insert data prepared:', insertData);

@@ -19,6 +19,8 @@ import SacredButton from '@/components/ui/SacredButton';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFutureLetter } from '@/hooks/useFutureLetter';
+import { useIndividualCocriations } from '@/hooks/useIndividualCocriations';
+import SacredModal from '@/components/ui/SacredModal';
 import { Spacing } from '@/constants/Colors';
 
 const { width, height } = Dimensions.get('window');
@@ -29,6 +31,7 @@ export default function FutureLetterScreen() {
   const insets = useSafeAreaInsets();
   const { cocreationId } = useLocalSearchParams<{ cocreationId: string }>();
   const { createFutureLetter, loading } = useFutureLetter();
+  const { updateCocriation } = useIndividualCocriations();
 
   const [letterData, setLetterData] = useState({
     title: '',
@@ -48,6 +51,13 @@ Eu do presente`,
 
   const [showAnimation, setShowAnimation] = useState(false);
   const [animationComplete, setAnimationComplete] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalConfig, setModalConfig] = useState<{
+    title: string;
+    message: string;
+    type: 'info' | 'success' | 'warning' | 'error';
+    buttons?: any[];
+  }>({ title: '', message: '', type: 'info' });
 
   // Animation values
   const letterScale = useRef(new Animated.Value(1)).current;
@@ -55,28 +65,29 @@ Eu do presente`,
   const letterTranslateY = useRef(new Animated.Value(0)).current;
   const letterRotate = useRef(new Animated.Value(0)).current;
 
-  const showWebAlert = (title: string, message: string, onOk?: () => void) => {
-    if (Platform.OS === 'web') {
-      alert(`${title}: ${message}`);
-      onOk?.();
-    } else {
-      Alert.alert(title, message, onOk ? [{ text: 'OK', onPress: onOk }] : undefined);
-    }
+  const showModal = (
+    title: string,
+    message: string,
+    type: 'info' | 'success' | 'warning' | 'error' = 'info',
+    buttons?: any[]
+  ) => {
+    setModalConfig({ title, message, type, buttons });
+    setModalVisible(true);
   };
 
   const handleSaveLetter = async () => {
     if (!user) {
-      showWebAlert('Erro de Autenticação', 'Você precisa estar logado.');
+      showModal('Erro de Autenticação', 'Você precisa estar logado.', 'error');
       return;
     }
 
     if (!cocreationId) {
-      showWebAlert('Erro', 'ID da cocriação não encontrado.');
+      showModal('Erro', 'ID da cocriação não encontrado.', 'error');
       return;
     }
 
     if (!letterData.content.trim()) {
-      showWebAlert('Erro', 'Por favor, escreva sua carta para o futuro.');
+      showModal('Erro', 'Por favor, escreva sua carta para o futuro.', 'error');
       return;
     }
 
@@ -89,15 +100,21 @@ Eu do presente`,
 
       if (result.error) {
         console.error('Error creating future letter:', result.error);
-        showWebAlert('Erro', 'Não foi possível salvar sua carta. Tente novamente.');
+        showModal('Erro', 'Não foi possível salvar sua carta. Tente novamente.', 'error');
       } else {
         console.log('Future letter created successfully!');
+        
+        // Marcar carta como completa
+        await updateCocriation(cocreationId, { 
+          future_letter_completed: true 
+        });
+        
         setShowAnimation(true);
         startLetterAnimation();
       }
     } catch (error) {
       console.error('Unexpected error saving letter:', error);
-      showWebAlert('Erro Inesperado', 'Algo deu errado. Tente novamente.');
+      showModal('Erro Inesperado', 'Algo deu errado. Tente novamente.', 'error');
     }
   };
 
@@ -141,7 +158,14 @@ Eu do presente`,
     });
   };
 
-  const handleSkip = () => {
+  const handleSkip = async () => {
+    if (!cocreationId) return;
+    
+    // Marcar carta como completa ao pular
+    await updateCocriation(cocreationId, { 
+      future_letter_completed: true 
+    });
+    
     router.replace(`/vision-board?cocreationId=${cocreationId}`);
   };
 
@@ -266,10 +290,9 @@ Eu do presente`,
           {!showAnimation && (
             <View style={styles.actions}>
               <SacredButton
-                title="Pular Esta Etapa"
+                title="Não enviar Carta"
                 onPress={handleSkip}
                 variant="outline"
-                size="sm"
                 style={styles.skipButton}
               />
               <SacredButton
@@ -294,6 +317,16 @@ Eu do presente`,
           </SacredCard>
         </View>
       </KeyboardAvoidingView>
+      
+      {/* Modal */}
+      <SacredModal
+        visible={modalVisible}
+        title={modalConfig.title}
+        message={modalConfig.message}
+        type={modalConfig.type}
+        buttons={modalConfig.buttons}
+        onClose={() => setModalVisible(false)}
+      />
     </GradientBackground>
   );
 }
