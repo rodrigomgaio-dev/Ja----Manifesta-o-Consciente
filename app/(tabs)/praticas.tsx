@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, Dimensions } from 'react-native';
+import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import GradientBackground from '@/components/ui/GradientBackground';
 import SacredCard from '@/components/ui/SacredCard';
 import SacredButton from '@/components/ui/SacredButton';
+import SacredModal from '@/components/ui/SacredModal';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Spacing, BorderRadius } from '@/constants/Colors';
 
@@ -13,6 +15,34 @@ const { width } = Dimensions.get('window');
 export default function PraticasScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalConfig, setModalConfig] = useState<{
+    title: string;
+    message: string;
+    type: 'info' | 'success' | 'warning' | 'error';
+  }>({ title: '', message: '', type: 'info' });
+
+  const showModal = (
+    title: string,
+    message: string,
+    type: 'info' | 'success' | 'warning' | 'error' = 'info'
+  ) => {
+    setModalConfig({ title, message, type });
+    setModalVisible(true);
+  };
+
+  const handlePractice = (practiceType: string) => {
+    if (practiceType === 'Gratidão') {
+      router.push('/gratitude-practice');
+    } else {
+      showModal(
+        'Em Desenvolvimento',
+        `A prática de ${practiceType} será implementada em breve.`,
+        'info'
+      );
+    }
+  };
 
   const practices = [
     {
@@ -105,7 +135,7 @@ export default function PraticasScreen() {
                 </Text>
                 <SacredButton
                   title="Praticar"
-                  onPress={() => {}}
+                  onPress={() => handlePractice(practice.title)}
                   size="sm"
                   style={styles.practiceButton}
                 />
@@ -166,6 +196,15 @@ export default function PraticasScreen() {
           />
         </SacredCard>
       </ScrollView>
+
+      {/* Modal */}
+      <SacredModal
+        visible={modalVisible}
+        title={modalConfig.title}
+        message={modalConfig.message}
+        type={modalConfig.type}
+        onClose={() => setModalVisible(false)}
+      />
     </GradientBackground>
   );
 }
