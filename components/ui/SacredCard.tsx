@@ -112,7 +112,7 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: BorderRadius.lg,
     padding: Spacing.lg,
-    borderWidth: 1,
+    borderWidth: 0.5,
     shadowColor: '#8B5CF6',
     shadowOffset: {
       width: 0,
