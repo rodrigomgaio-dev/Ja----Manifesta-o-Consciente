@@ -129,7 +129,7 @@ export default function PracticeScheduleListScreen() {
 
           <View style={styles.scheduleHeader}>
             <View style={styles.scheduleIconContainer}>
-              <MaterialIcons name="water-drop" size={32} color={colors.primary} />
+              <MaterialIcons name="water-drop" size={28} color={colors.primary} />
             </View>
             <View style={styles.scheduleInfo}>
               <Text style={[styles.scheduleTitle, { color: colors.text }]}>
@@ -189,7 +189,7 @@ export default function PracticeScheduleListScreen() {
 
         <View style={styles.scheduleHeader}>
           <View style={styles.scheduleIconContainer}>
-            <MaterialIcons name="event-repeat" size={32} color={colors.accent} />
+            <MaterialIcons name="event-repeat" size={28} color={colors.accent} />
           </View>
           <View style={styles.scheduleInfo}>
             <Text style={[styles.scheduleTitle, { color: colors.text }]}>
@@ -431,7 +431,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
   },
   scheduleCard: {
-    padding: Spacing.lg,
+    padding: Spacing.md,
     position: 'relative',
   },
   cardHeaderActions: {
@@ -455,25 +455,25 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
   },
   scheduleIconContainer: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: 'rgba(139, 92, 246, 0.1)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: Spacing.md,
+    marginRight: Spacing.sm,
   },
   scheduleInfo: {
     flex: 1,
   },
   scheduleTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
     marginBottom: Spacing.xs,
   },
   scheduleDescription: {
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 13,
+    lineHeight: 18,
   },
   scheduleDetails: {
     gap: Spacing.sm,
@@ -485,7 +485,7 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   detailText: {
-    fontSize: 14,
+    fontSize: 13,
     flex: 1,
   },
 

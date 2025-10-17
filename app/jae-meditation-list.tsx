@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,13 +6,14 @@ import {
   StyleSheet,
   TouchableOpacity,
 } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
 import GradientBackground from '@/components/ui/GradientBackground';
 import SacredCard from '@/components/ui/SacredCard';
 import SacredButton from '@/components/ui/SacredButton';
+import SacredModal from '@/components/ui/SacredModal';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Spacing } from '@/constants/Colors';
@@ -43,9 +44,16 @@ export default function JaeMeditationListScreen() {
   const { cocreationId } = useLocalSearchParams<{ cocreationId: string }>();
 
   const [meditations, setMeditations] = useState<Meditation[]>([]);
+  const [selectedMeditationIds, setSelectedMeditationIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [sound, setSound] = useState<Audio.Sound | null>(null);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalConfig, setModalConfig] = useState<{
+    title: string;
+    message: string;
+    type: 'info' | 'success' | 'warning' | 'error';
+  }>({ title: '', message: '', type: 'info' });
 
   useEffect(() => {
     loadMeditations();
@@ -56,24 +64,87 @@ export default function JaeMeditationListScreen() {
     };
   }, []);
 
+  useFocusEffect(
+    useCallback(() => {
+      loadMeditations();
+    }, [cocreationId])
+  );
+
+  const showModal = (
+    title: string,
+    message: string,
+    type: 'info' | 'success' | 'warning' | 'error' = 'info'
+  ) => {
+    setModalConfig({ title, message, type });
+    setModalVisible(true);
+  };
+
   const loadMeditations = async () => {
     try {
-      const { data, error } = await supabase
+      // Load ALL user meditations
+      const { data: allMeditations, error: meditationsError } = await supabase
         .from('meditations')
         .select('*')
         .eq('user_id', user?.id)
-        .eq('cocreation_id', cocreationId)
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error loading meditations:', error);
-      } else {
-        setMeditations(data || []);
+      if (meditationsError) {
+        console.error('Error loading meditations:', meditationsError);
+        return;
       }
+
+      // Load selected meditations for this cocreation
+      const { data: selectedLinks, error: linksError } = await supabase
+        .from('cocreation_meditations')
+        .select('meditation_id')
+        .eq('cocreation_id', cocreationId);
+
+      if (linksError) {
+        console.error('Error loading meditation links:', linksError);
+      }
+
+      setMeditations(allMeditations || []);
+      setSelectedMeditationIds((selectedLinks || []).map(link => link.meditation_id));
     } catch (error) {
       console.error('Error loading meditations:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const toggleMeditationSelection = async (meditationId: string) => {
+    const isSelected = selectedMeditationIds.includes(meditationId);
+
+    try {
+      if (isSelected) {
+        // Remove from selection
+        const { error } = await supabase
+          .from('cocreation_meditations')
+          .delete()
+          .eq('cocreation_id', cocreationId)
+          .eq('meditation_id', meditationId);
+
+        if (error) throw error;
+
+        setSelectedMeditationIds(prev => prev.filter(id => id !== meditationId));
+        showModal('Removida', 'Meditação removida desta cocriação.', 'success');
+      } else {
+        // Add to selection
+        const { error } = await supabase
+          .from('cocreation_meditations')
+          .insert({
+            cocreation_id: cocreationId,
+            meditation_id: meditationId,
+          });
+
+        if (error) throw error;
+
+        setSelectedMeditationIds(prev => [...prev, meditationId]);
+        showModal('Adicionada', 'Meditação adicionada a esta cocriação!', 'success');
+      }
+    } catch (error) {
+      console.error('Error toggling meditation selection:', error);
+      showModal('Erro', 'Não foi possível atualizar a seleção.', 'error');
     }
   };
 
@@ -144,6 +215,14 @@ export default function JaeMeditationListScreen() {
           </Text>
         </View>
 
+        {/* Info Card */}
+        <SacredCard style={styles.infoCard}>
+          <MaterialIcons name="info" size={24} color={colors.primary} />
+          <Text style={[styles.infoText, { color: colors.textSecondary }]}>
+            Toque na estrela para adicionar ou remover meditações desta cocriação
+          </Text>
+        </SacredCard>
+
         {/* Create New Button */}
         <View style={styles.createButtonContainer}>
           <SacredButton
@@ -174,12 +253,25 @@ export default function JaeMeditationListScreen() {
           <View style={styles.meditationsList}>
             {meditations.map((meditation) => {
               const isPlaying = playingId === meditation.id;
+              const isSelected = selectedMeditationIds.includes(meditation.id);
               const category = CATEGORIES[meditation.category];
               const displayColor = category?.color || SILVER_COLOR;
 
               return (
                 <SacredCard key={meditation.id} style={styles.meditationCard}>
                   <View style={[styles.meditationHeader, { borderLeftColor: displayColor }]}>
+                    {/* Star Selection */}
+                    <TouchableOpacity
+                      style={styles.starButton}
+                      onPress={() => toggleMeditationSelection(meditation.id)}
+                    >
+                      <MaterialIcons 
+                        name={isSelected ? 'star' : 'star-outline'} 
+                        size={32} 
+                        color={isSelected ? '#F59E0B' : colors.textMuted} 
+                      />
+                    </TouchableOpacity>
+
                     <View style={styles.meditationInfo}>
                       <Text style={styles.meditationCategoryIcon}>{category?.icon}</Text>
                       <View style={styles.meditationTextInfo}>
@@ -198,7 +290,7 @@ export default function JaeMeditationListScreen() {
                     >
                       <MaterialIcons 
                         name={isPlaying ? 'pause' : 'play-arrow'} 
-                        size={32} 
+                        size={28} 
                         color={displayColor} 
                       />
                     </TouchableOpacity>
@@ -209,6 +301,15 @@ export default function JaeMeditationListScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* Modal */}
+      <SacredModal
+        visible={modalVisible}
+        title={modalConfig.title}
+        message={modalConfig.message}
+        type={modalConfig.type}
+        onClose={() => setModalVisible(false)}
+      />
     </GradientBackground>
   );
 }
@@ -245,6 +346,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontStyle: 'italic',
   },
+  infoCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+    gap: Spacing.sm,
+  },
+  infoText: {
+    flex: 1,
+    fontSize: 14,
+    lineHeight: 20,
+  },
   createButtonContainer: {
     marginBottom: Spacing.xl,
   },
@@ -280,9 +393,12 @@ const styles = StyleSheet.create({
   meditationHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     padding: Spacing.md,
     borderLeftWidth: 4,
+  },
+  starButton: {
+    padding: Spacing.xs,
+    marginRight: Spacing.sm,
   },
   meditationInfo: {
     flex: 1,
@@ -290,14 +406,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   meditationCategoryIcon: {
-    fontSize: 32,
-    marginRight: Spacing.md,
+    fontSize: 28,
+    marginRight: Spacing.sm,
   },
   meditationTextInfo: {
     flex: 1,
   },
   meditationName: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
     marginBottom: Spacing.xs,
   },
@@ -305,10 +421,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   playButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
+    marginLeft: Spacing.sm,
   },
 });

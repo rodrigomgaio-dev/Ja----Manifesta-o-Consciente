@@ -123,24 +123,24 @@ export default function JaePracticeScreen() {
           {availablePractices.map((practice) => (
             <TouchableOpacity
               key={practice.value}
-              style={styles.practiceCard}
+              style={[styles.practiceCard, { backgroundColor: colors.surface + '80', borderColor: practice.color + '30' }]}
               onPress={() => handlePracticeSelect(practice)}
               activeOpacity={0.8}
             >
-              <SacredCard glowing style={[styles.practiceCardInner, { borderColor: practice.color + '40' }]}>
-                <View style={[styles.practiceIcon, { backgroundColor: practice.color + '20' }]}>
-                  <MaterialIcons name={practice.icon as any} size={40} color={practice.color} />
-                </View>
+              <View style={[styles.practiceIcon, { backgroundColor: practice.color + '20' }]}>
+                <MaterialIcons name={practice.icon as any} size={32} color={practice.color} />
+              </View>
+              <View style={styles.practiceTextContainer}>
                 <Text style={[styles.practiceLabel, { color: colors.text }]}>
                   {practice.label}
                 </Text>
                 <Text style={[styles.practiceDescription, { color: colors.textSecondary }]}>
                   {practice.description}
                 </Text>
-                <View style={[styles.practiceArrow, { backgroundColor: practice.color }]}>
-                  <MaterialIcons name="arrow-forward" size={20} color="white" />
-                </View>
-              </SacredCard>
+              </View>
+              <View style={[styles.practiceArrow, { backgroundColor: practice.color }]}>
+                <MaterialIcons name="chevron-right" size={24} color="white" />
+              </View>
             </TouchableOpacity>
           ))}
         </View>
@@ -213,41 +213,40 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
   },
   practiceCard: {
-    marginBottom: Spacing.lg,
-  },
-  practiceCardInner: {
+    flexDirection: 'row',
     alignItems: 'center',
-    padding: Spacing.xl,
-    position: 'relative',
-    borderWidth: 2,
-  },
-  practiceIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
+    padding: Spacing.md,
+    borderRadius: 12,
+    borderWidth: 1,
     marginBottom: Spacing.md,
   },
+  practiceIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.md,
+  },
+  practiceTextContainer: {
+    flex: 1,
+  },
   practiceLabel: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: '600',
     marginBottom: Spacing.xs,
   },
   practiceDescription: {
-    fontSize: 14,
-    textAlign: 'center',
-    marginBottom: Spacing.md,
+    fontSize: 13,
+    lineHeight: 18,
   },
   practiceArrow: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    position: 'absolute',
-    bottom: Spacing.lg,
-    right: Spacing.lg,
+    marginLeft: Spacing.sm,
   },
   quoteCard: {
     alignItems: 'center',
