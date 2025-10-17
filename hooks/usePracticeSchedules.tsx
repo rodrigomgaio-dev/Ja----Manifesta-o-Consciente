@@ -115,6 +115,7 @@ export function usePracticeSchedules(cocreationId: string) {
 
       console.log('Insert data prepared:', insertData);
 
+      // Agora podemos inserir múltiplas rotinas sem restrição UNIQUE
       const { data, error } = await supabase
         .from('practice_schedules')
         .insert(insertData)
