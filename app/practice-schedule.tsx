@@ -252,7 +252,13 @@ export default function PracticeScheduleListScreen() {
         <View style={styles.header}>
           <TouchableOpacity 
             style={styles.backButton}
-            onPress={() => router.back()}
+            onPress={() => {
+              if (cocreationId) {
+                router.push(`/cocriacao-details?id=${cocreationId}`);
+              } else {
+                router.push('/(tabs)/praticas');
+              }
+            }}
           >
             <MaterialIcons name="arrow-back" size={24} color={colors.primary} />
             <Text style={[styles.backText, { color: colors.primary }]}>
