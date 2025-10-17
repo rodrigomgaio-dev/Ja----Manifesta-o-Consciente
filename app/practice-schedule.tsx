@@ -140,6 +140,14 @@ export default function PracticeScheduleListScreen() {
               </Text>
             </View>
           </View>
+
+          {/* Jaé Button */}
+          <TouchableOpacity
+            style={[styles.jaeButton, { backgroundColor: colors.primary }]}
+            onPress={() => router.push(`/jae-practice?cocreationId=${cocreationId}&scheduleId=${schedule.id}&mode=flow`)}
+          >
+            <Text style={styles.jaeButtonText}>Jaé</Text>
+          </TouchableOpacity>
         </SacredCard>
       );
     }
@@ -221,6 +229,14 @@ export default function PracticeScheduleListScreen() {
             </View>
           )}
         </View>
+
+        {/* Jaé Button */}
+        <TouchableOpacity
+          style={[styles.jaeButton, { backgroundColor: colors.primary }]}
+          onPress={() => router.push(`/jae-practice?cocreationId=${cocreationId}&scheduleId=${schedule.id}&mode=routine&practices=${schedule.practices.join(',')}`)}
+        >
+          <Text style={styles.jaeButtonText}>Jaé</Text>
+        </TouchableOpacity>
       </SacredCard>
     );
   };
@@ -252,13 +268,7 @@ export default function PracticeScheduleListScreen() {
         <View style={styles.header}>
           <TouchableOpacity 
             style={styles.backButton}
-            onPress={() => {
-              if (cocreationId) {
-                router.push(`/cocriacao-details?id=${cocreationId}`);
-              } else {
-                router.push('/(tabs)/praticas');
-              }
-            }}
+            onPress={() => router.push('/(tabs)/individual')}
           >
             <MaterialIcons name="arrow-back" size={24} color={colors.primary} />
             <Text style={[styles.backText, { color: colors.primary }]}>
@@ -505,5 +515,25 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     textAlign: 'center',
     lineHeight: 22,
+  },
+  jaeButton: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: Spacing.md,
+    alignSelf: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  jaeButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
 });
