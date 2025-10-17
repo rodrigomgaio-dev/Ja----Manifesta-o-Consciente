@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -171,6 +172,18 @@ export default function MantramPracticeScreen() {
     onConfirm: () => void;
   }>({ title: '', message: '', onConfirm: () => {} });
   const [copyTextBuffer, setCopyTextBuffer] = useState('');
+  const [expandedSections, setExpandedSections] = useState<{
+    whatIs: boolean;
+    howToCreate: boolean;
+    howToUse: boolean;
+  }>({ whatIs: false, howToCreate: false, howToUse: false });
+
+  const toggleSection = (section: 'whatIs' | 'howToCreate' | 'howToUse') => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
+  };
 
   const currentCategory = CATEGORIES.find(c => c.value === selectedCategory);
   const currentExamples = selectedCategory ? (MANTRAM_EXAMPLES[selectedCategory] || []) : [];
@@ -576,7 +589,7 @@ export default function MantramPracticeScreen() {
               </View>
             </View>
           </View>
-        </SacredCard>
+        </SacredCard> {/* Closing tag added here */}
 
         {/* Category Selection */}
         <SacredCard glowing style={styles.categoryCard}>
@@ -846,13 +859,27 @@ export default function MantramPracticeScreen() {
           </View>
 
           {/* What is a Mantram */}
-          <View style={[styles.tipsSection, { backgroundColor: colors.primary + '08' }]}>
-            <View style={styles.tipsSectionHeader}>
-              <MaterialIcons name="info" size={24} color={colors.primary} />
-              <Text style={[styles.tipsSectionTitle, { color: colors.text }]}>
-                O que é um Mantram?
-              </Text>
+          <TouchableOpacity
+            style={[styles.expandableSection, { backgroundColor: colors.primary + '08' }]}
+            onPress={() => toggleSection('whatIs')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.expandableHeader}>
+              <View style={styles.expandableTitleRow}>
+                <MaterialIcons name="info" size={24} color={colors.primary} />
+                <Text style={[styles.expandableSectionTitle, { color: colors.text }]}>
+                  O que é um Mantram?
+                </Text>
+              </View>
+              <MaterialIcons 
+                name={expandedSections.whatIs ? "expand-less" : "expand-more"} 
+                size={28} 
+                color={colors.text} 
+              />
             </View>
+          </TouchableOpacity>
+          {expandedSections.whatIs && (
+          <View style={[styles.expandableContent, { backgroundColor: colors.primary + '08' }]}>
             <Text style={[styles.tipsSectionText, { color: colors.textSecondary }]}>
               Um mantram é uma <Text style={{ fontWeight: '600', color: colors.text }}>palavra, som ou frase sagrada</Text> que, quando repetida com intenção, cria uma <Text style={{ fontWeight: '600', color: colors.text }}>vibração específica</Text> capaz de transformar sua realidade.
             </Text>
@@ -886,15 +913,30 @@ export default function MantramPracticeScreen() {
               </Text>
             </View>
           </View>
+          )}
 
           {/* How to Create for Cocreation */}
-          <View style={[styles.tipsSection, { backgroundColor: colors.accent + '08' }]}>
-            <View style={styles.tipsSectionHeader}>
-              <MaterialIcons name="create" size={24} color={colors.accent} />
-              <Text style={[styles.tipsSectionTitle, { color: colors.text }]}>
-                Como Criar um Mantram para sua Cocriação
-              </Text>
+          <TouchableOpacity
+            style={[styles.expandableSection, { backgroundColor: colors.accent + '08' }]}
+            onPress={() => toggleSection('howToCreate')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.expandableHeader}>
+              <View style={styles.expandableTitleRow}>
+                <MaterialIcons name="create" size={24} color={colors.accent} />
+                <Text style={[styles.expandableSectionTitle, { color: colors.text }]}>
+                  Como Criar um Mantram para sua Cocriação
+                </Text>
+              </View>
+              <MaterialIcons 
+                name={expandedSections.howToCreate ? "expand-less" : "expand-more"} 
+                size={28} 
+                color={colors.text} 
+              />
             </View>
+          </TouchableOpacity>
+          {expandedSections.howToCreate && (
+          <View style={[styles.expandableContent, { backgroundColor: colors.accent + '08' }]}>
             <Text style={[styles.tipsSectionText, { color: colors.textSecondary }]}>
               Quando você cria um mantram específico para uma cocriação, você está <Text style={{ fontWeight: '600', color: colors.text }}>codificando sua intenção</Text> em palavras que carregam a essência vibracional do que deseja manifestar.
             </Text>
@@ -980,15 +1022,30 @@ export default function MantramPracticeScreen() {
               </View>
             </View>
           </View>
+          )}
 
           {/* How to Use Effectively */}
-          <View style={[styles.tipsSection, { backgroundColor: colors.primary + '08' }]}>
-            <View style={styles.tipsSectionHeader}>
-              <MaterialIcons name="play-circle" size={24} color={colors.primary} />
-              <Text style={[styles.tipsSectionTitle, { color: colors.text }]}>
-                Como Usar seus Mantrams
-              </Text>
+          <TouchableOpacity
+            style={[styles.expandableSection, { backgroundColor: colors.primary + '08' }]}
+            onPress={() => toggleSection('howToUse')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.expandableHeader}>
+              <View style={styles.expandableTitleRow}>
+                <MaterialIcons name="play-circle" size={24} color={colors.primary} />
+                <Text style={[styles.expandableSectionTitle, { color: colors.text }]}>
+                  Como Usar seus Mantrams
+                </Text>
+              </View>
+              <MaterialIcons 
+                name={expandedSections.howToUse ? "expand-less" : "expand-more"} 
+                size={28} 
+                color={colors.text} 
+              />
             </View>
+          </TouchableOpacity>
+          {expandedSections.howToUse && (
+          <View style={[styles.expandableContent, { backgroundColor: colors.primary + '08' }]}>
             <View style={styles.tipsList}>
               <View style={styles.tipItem}>
                 <MaterialIcons name="schedule" size={20} color={colors.accent} style={{ marginRight: Spacing.sm }} />
@@ -1022,6 +1079,7 @@ export default function MantramPracticeScreen() {
               </View>
             </View>
           </View>
+          )}
 
           {/* Sacred Footer */}
           <View style={[styles.tipsFooter, { backgroundColor: colors.primary + '10', borderColor: colors.primary + '30' }]}>
@@ -1257,6 +1315,34 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginLeft: Spacing.md,
     flex: 1,
+  },
+  expandableSection: {
+    borderRadius: 16,
+    marginBottom: Spacing.md,
+    overflow: 'hidden',
+  },
+  expandableHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: Spacing.lg,
+  },
+  expandableTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  expandableSectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginLeft: Spacing.sm,
+    flex: 1,
+  },
+  expandableContent: {
+    padding: Spacing.lg,
+    paddingTop: 0,
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
   },
   tipsSection: {
     padding: Spacing.lg,
