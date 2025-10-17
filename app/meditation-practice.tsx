@@ -31,6 +31,8 @@ interface Meditation {
   created_at: string;
 }
 
+const SILVER_GRADIENT = ['#94A3B8', '#CBD5E1', '#E2E8F0'];
+
 const CATEGORIES = [
   { 
     label: 'Abundância', 
@@ -566,7 +568,7 @@ export default function MeditationPracticeScreen() {
         )}
 
         {/* Recording Controls */}
-        <SacredCard glowing style={styles.recordCard}>
+        <SacredCard style={styles.recordCard}>
           <Text style={[styles.recordTitle, { color: colors.text }]}>
             Grave Sua Meditação Guiada
           </Text>
@@ -602,7 +604,7 @@ export default function MeditationPracticeScreen() {
             disabled={!meditationName.trim() && !isRecording}
           >
             <LinearGradient
-              colors={isRecording ? ['#EF4444', '#DC2626'] : currentCategory?.gradient || ['#8B5CF6', '#EC4899']}
+              colors={isRecording ? ['#EF4444', '#DC2626'] : currentCategory?.gradient || SILVER_GRADIENT}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={[
@@ -694,6 +696,95 @@ export default function MeditationPracticeScreen() {
             })}
           </SacredCard>
         )}
+
+        {/* Tips Card */}
+        <SacredCard style={styles.tipsCard}>
+          <View style={styles.tipsHeader}>
+            <MaterialIcons name="tips-and-updates" size={32} color={colors.primary} />
+            <Text style={[styles.tipsTitle, { color: colors.text }]}>
+              Dicas Para Suas Meditações
+            </Text>
+          </View>
+
+          {/* Gravação Section */}
+          <View style={styles.tipsSection}>
+            <Text style={[styles.tipsSectionTitle, { color: colors.text }]}>
+              📹 Como Gravar
+            </Text>
+
+            <View style={styles.tipItem}>
+              <Text style={[styles.tipTitle, { color: colors.text }]}>Prepare-se em silêncio</Text>
+              <Text style={[styles.tipText, { color: colors.textSecondary }]}>
+                Antes de gravar, sente-se por alguns minutos em quietude. Respire com calma e conecte-se com a intenção clara da sua manifestação (ex: paz interior, coragem, abundância consciente).
+              </Text>
+            </View>
+
+            <View style={styles.tipItem}>
+              <Text style={[styles.tipTitle, { color: colors.text }]}>Escolha o que incluir no áudio</Text>
+              <Text style={[styles.tipText, { color: colors.textSecondary }]}>
+                Você pode começar com uma breve preparação ("Sente-se confortavelmente… relaxe todos os músculos…") ou deixar isso para antes de apertar play — o que sentir mais alinhado à sua prática.{"\n\n"}
+                Use palavras simples, suaves e afirmativas, sempre voltadas à presença e à confiança no que deseja, como se já fosse seu.{"\n\n"}
+                Inclua silêncios: deixe trechos de 1 a 5 minutos sem fala, para que você possa mergulhar na experiência, sentir a intenção e permitir que a manifestação se alinhe em silêncio.
+              </Text>
+            </View>
+
+            <View style={styles.tipItem}>
+              <Text style={[styles.tipTitle, { color: colors.text }]}>Finalize com cuidado</Text>
+              <Text style={[styles.tipText, { color: colors.textSecondary }]}>
+                Termine com frases que convidem ao retorno suave:{"\n"}
+                "Aos poucos, traga sua atenção de volta ao corpo… lentamente, movimente suas mãos... seus pés... perceba como se sente… sinta sendo seu. Já é!"
+              </Text>
+            </View>
+
+            <View style={styles.tipItem}>
+              <Text style={[styles.tipTitle, { color: colors.text }]}>Grave com naturalidade</Text>
+              <Text style={[styles.tipText, { color: colors.textSecondary }]}>
+                Use o gravador do seu celular, em um ambiente tranquilo. Fale devagar, como se sussurrasse para si mesmo(a). Não precisa ser perfeito — o que importa é a verdade da sua intenção.
+              </Text>
+            </View>
+          </View>
+
+          {/* Meditação Section */}
+          <View style={styles.tipsSection}>
+            <Text style={[styles.tipsSectionTitle, { color: colors.text }]}>
+              🧘 Como Usar as Gravações
+            </Text>
+
+            <View style={styles.tipItem}>
+              <Text style={[styles.tipTitle, { color: colors.text }]}>Escolha um momento sagrado</Text>
+              <Text style={[styles.tipText, { color: colors.textSecondary }]}>
+                Reserve um tempo diário — mesmo que breve — em que você possa estar totalmente presente, sem interrupções.
+              </Text>
+            </View>
+
+            <View style={styles.tipItem}>
+              <Text style={[styles.tipTitle, { color: colors.text }]}>Ouça com atenção plena</Text>
+              <Text style={[styles.tipText, { color: colors.textSecondary }]}>
+                Use fones de ouvido, sente-se ou deite-se com conforto, e deixe sua voz guiá-lo(a). Durante os silêncios, apenas esteja e sinta-se vivendo sua nova realidade. É nesse momento que a sua intenção se alinha com a sua vibração e te leva cada vez mais perto do que já deveria ser.
+              </Text>
+            </View>
+
+            <View style={styles.tipItem}>
+              <Text style={[styles.tipTitle, { color: colors.text }]}>Repita com consistência</Text>
+              <Text style={[styles.tipText, { color: colors.textSecondary }]}>
+                Use a mesma gravação por alguns dias ou semanas. A repetição suave fortalece o alinhamento entre sua mente, coração e o que deseja para a sua vida.
+              </Text>
+            </View>
+
+            <View style={styles.tipItem}>
+              <Text style={[styles.tipTitle, { color: colors.text }]}>Confie no silêncio</Text>
+              <Text style={[styles.tipText, { color: colors.textSecondary }]}>
+                Lembre-se: a manifestação não acontece só nas palavras, mas no espaço entre elas. Sua presença é o solo onde tudo floresce.
+              </Text>
+            </View>
+          </View>
+
+          <View style={[styles.tipsFooter, { backgroundColor: colors.primary + '10', borderColor: colors.primary + '30' }]}>
+            <Text style={[styles.tipsFooterText, { color: colors.text }]}>
+              ✨ A sua voz é o caminho mais íntimo de retornar a si mesmo(a).
+            </Text>
+          </View>
+        </SacredCard>
 
         {/* Sacred Quote */}
         <SacredCard style={styles.quoteCard}>
@@ -901,18 +992,17 @@ const styles = StyleSheet.create({
   },
   recordCard: {
     marginBottom: Spacing.lg,
-    alignItems: 'center',
   },
   recordTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '600',
-    marginBottom: Spacing.lg,
-    textAlign: 'center',
+    marginBottom: Spacing.md,
   },
   recordingIndicator: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: Spacing.lg,
+    justifyContent: 'center',
+    marginBottom: Spacing.md,
   },
   recordingDot: {
     width: 12,
@@ -931,7 +1021,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     fontSize: 16,
     borderWidth: 1,
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.md,
   },
   recordButton: {
     width: '100%',
@@ -1028,6 +1118,52 @@ const styles = StyleSheet.create({
   quote: {
     fontSize: 14,
     fontStyle: 'italic',
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  tipsCard: {
+    marginBottom: Spacing.lg,
+  },
+  tipsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.lg,
+  },
+  tipsTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    marginLeft: Spacing.md,
+    flex: 1,
+  },
+  tipsSection: {
+    marginBottom: Spacing.xl,
+  },
+  tipsSectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: Spacing.lg,
+  },
+  tipItem: {
+    marginBottom: Spacing.lg,
+  },
+  tipTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: Spacing.xs,
+  },
+  tipText: {
+    fontSize: 14,
+    lineHeight: 22,
+  },
+  tipsFooter: {
+    padding: Spacing.md,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginTop: Spacing.md,
+  },
+  tipsFooterText: {
+    fontSize: 15,
+    fontWeight: '500',
     textAlign: 'center',
     lineHeight: 22,
   },
