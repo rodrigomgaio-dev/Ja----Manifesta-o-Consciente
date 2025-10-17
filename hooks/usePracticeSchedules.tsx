@@ -100,6 +100,20 @@ export function usePracticeSchedules(cocreationId: string) {
     console.log('Creating practice schedule:', scheduleData);
 
     try {
+      // Verificar se já existe uma rotina para esta cocriação
+      const { data: existing } = await supabase
+        .from('practice_schedules')
+        .select('id')
+        .eq('cocreation_id', cocreationId)
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (existing) {
+        console.log('Schedule already exists, updating instead:', existing.id);
+        // Se já existe, atualiza ao invés de criar
+        return await updateSchedule(existing.id, scheduleData);
+      }
+
       const insertData = {
         user_id: user.id,
         cocreation_id: cocreationId,

@@ -111,6 +111,22 @@ export default function PracticeScheduleListScreen() {
     if (schedule.mode === 'flow') {
       return (
         <SacredCard key={schedule.id} glowing style={styles.scheduleCard}>
+          <View style={styles.cardHeaderActions}>
+            <TouchableOpacity 
+              style={[styles.headerActionIcon, { backgroundColor: colors.primary + '20' }]}
+              onPress={() => handleEdit(schedule.id)}
+            >
+              <MaterialIcons name="edit" size={20} color={colors.primary} />
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.headerActionIcon, { backgroundColor: colors.error + '20' }]}
+              onPress={() => handleDelete(schedule.id, 'flow')}
+            >
+              <MaterialIcons name="delete" size={20} color={colors.error} />
+            </TouchableOpacity>
+          </View>
+
           <View style={styles.scheduleHeader}>
             <View style={styles.scheduleIconContainer}>
               <MaterialIcons name="water-drop" size={32} color={colors.primary} />
@@ -123,28 +139,6 @@ export default function PracticeScheduleListScreen() {
                 Pratique quando sentir a energia te chamar
               </Text>
             </View>
-          </View>
-
-          <View style={styles.scheduleActions}>
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: colors.primary + '20' }]}
-              onPress={() => handleEdit(schedule.id)}
-            >
-              <MaterialIcons name="edit" size={18} color={colors.primary} />
-              <Text style={[styles.actionButtonText, { color: colors.primary }]}>
-                Alterar
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: colors.error + '20' }]}
-              onPress={() => handleDelete(schedule.id, 'flow')}
-            >
-              <MaterialIcons name="delete" size={18} color={colors.error} />
-              <Text style={[styles.actionButtonText, { color: colors.error }]}>
-                Remover
-              </Text>
-            </TouchableOpacity>
           </View>
         </SacredCard>
       );
@@ -169,6 +163,22 @@ export default function PracticeScheduleListScreen() {
 
     return (
       <SacredCard key={schedule.id} style={styles.scheduleCard}>
+        <View style={styles.cardHeaderActions}>
+          <TouchableOpacity 
+            style={[styles.headerActionIcon, { backgroundColor: colors.primary + '20' }]}
+            onPress={() => handleEdit(schedule.id)}
+          >
+            <MaterialIcons name="edit" size={20} color={colors.primary} />
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[styles.headerActionIcon, { backgroundColor: colors.error + '20' }]}
+            onPress={() => handleDelete(schedule.id, 'routine')}
+          >
+            <MaterialIcons name="delete" size={20} color={colors.error} />
+          </TouchableOpacity>
+        </View>
+
         <View style={styles.scheduleHeader}>
           <View style={styles.scheduleIconContainer}>
             <MaterialIcons name="event-repeat" size={32} color={colors.accent} />
@@ -210,28 +220,6 @@ export default function PracticeScheduleListScreen() {
               </Text>
             </View>
           )}
-        </View>
-
-        <View style={styles.scheduleActions}>
-          <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: colors.primary + '20' }]}
-            onPress={() => handleEdit(schedule.id)}
-          >
-            <MaterialIcons name="edit" size={18} color={colors.primary} />
-            <Text style={[styles.actionButtonText, { color: colors.primary }]}>
-              Editar
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: colors.error + '20' }]}
-            onPress={() => handleDelete(schedule.id, 'routine')}
-          >
-            <MaterialIcons name="delete" size={18} color={colors.error} />
-            <Text style={[styles.actionButtonText, { color: colors.error }]}>
-              Excluir
-            </Text>
-          </TouchableOpacity>
         </View>
       </SacredCard>
     );
@@ -428,6 +416,22 @@ const styles = StyleSheet.create({
   },
   scheduleCard: {
     padding: Spacing.lg,
+    position: 'relative',
+  },
+  cardHeaderActions: {
+    position: 'absolute',
+    top: Spacing.md,
+    right: Spacing.md,
+    flexDirection: 'row',
+    gap: Spacing.xs,
+    zIndex: 1,
+  },
+  headerActionIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   scheduleHeader: {
     flexDirection: 'row',
@@ -457,7 +461,6 @@ const styles = StyleSheet.create({
   },
   scheduleDetails: {
     gap: Spacing.sm,
-    marginBottom: Spacing.lg,
     paddingLeft: Spacing.xs,
   },
   detailRow: {
@@ -469,27 +472,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     flex: 1,
   },
-  scheduleActions: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-    paddingTop: Spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(139, 92, 246, 0.1)',
-  },
-  actionButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    borderRadius: 12,
-    gap: Spacing.xs,
-  },
-  actionButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
+
   addButtonContainer: {
     marginBottom: Spacing.lg,
   },
