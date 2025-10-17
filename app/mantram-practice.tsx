@@ -836,36 +836,199 @@ export default function MantramPracticeScreen() {
           </SacredCard>
         ) : null}
 
-        {/* Tips */}
+        {/* Enhanced Tips Card */}
         <SacredCard style={styles.tipsCard}>
-          <Text style={[styles.tipsTitle, { color: colors.text }]}>
-            📝 Como usar os mantrams de forma eficaz:
-          </Text>
-          <View style={styles.tipsList}>
-            <View style={styles.tipItem}>
-              <MaterialIcons name="schedule" size={20} color={colors.accent} style={{ marginRight: Spacing.sm }} />
-              <Text style={[styles.tipText, { color: colors.textSecondary }]}>
-                Pratique diariamente, preferencialmente pela manhã ou antes de dormir
+          <View style={styles.tipsHeader}>
+            <MaterialIcons name="lightbulb" size={32} color={colors.primary} />
+            <Text style={[styles.tipsMainTitle, { color: colors.text }]}>
+              Guia Completo de Mantrams
+            </Text>
+          </View>
+
+          {/* What is a Mantram */}
+          <View style={[styles.tipsSection, { backgroundColor: colors.primary + '08' }]}>
+            <View style={styles.tipsSectionHeader}>
+              <MaterialIcons name="info" size={24} color={colors.primary} />
+              <Text style={[styles.tipsSectionTitle, { color: colors.text }]}>
+                O que é um Mantram?
               </Text>
             </View>
-            <View style={styles.tipItem}>
-              <MaterialIcons name="favorite" size={20} color={colors.accent} style={{ marginRight: Spacing.sm }} />
-              <Text style={[styles.tipText, { color: colors.textSecondary }]}>
-                Sinta as palavras profundamente — conecte-se com a emoção e intenção
+            <Text style={[styles.tipsSectionText, { color: colors.textSecondary }]}>
+              Um mantram é uma <Text style={{ fontWeight: '600', color: colors.text }}>palavra, som ou frase sagrada</Text> que, quando repetida com intenção, cria uma <Text style={{ fontWeight: '600', color: colors.text }}>vibração específica</Text> capaz de transformar sua realidade.
+            </Text>
+            <Text style={[styles.tipsSectionText, { color: colors.textSecondary }]}>
+              É uma <Text style={{ fontWeight: '600', color: colors.text }}>ferramenta vibracional</Text> milenar utilizada para:
+            </Text>
+            <View style={styles.bulletList}>
+              <View style={styles.bulletItem}>
+                <Text style={[styles.bullet, { color: colors.accent }]}>•</Text>
+                <Text style={[styles.bulletText, { color: colors.textSecondary }]}>
+                  <Text style={{ fontWeight: '600', color: colors.text }}>Reprogramar</Text> padrões mentais limitantes
+                </Text>
+              </View>
+              <View style={styles.bulletItem}>
+                <Text style={[styles.bullet, { color: colors.accent }]}>•</Text>
+                <Text style={[styles.bulletText, { color: colors.textSecondary }]}>
+                  <Text style={{ fontWeight: '600', color: colors.text }}>Alinhar</Text> sua frequência com seus desejos
+                </Text>
+              </View>
+              <View style={styles.bulletItem}>
+                <Text style={[styles.bullet, { color: colors.accent }]}>•</Text>
+                <Text style={[styles.bulletText, { color: colors.textSecondary }]}>
+                  <Text style={{ fontWeight: '600', color: colors.text }}>Acelerar</Text> o processo de manifestação
+                </Text>
+              </View>
+            </View>
+            <View style={[styles.highlightBox, { backgroundColor: colors.accent + '15', borderColor: colors.accent + '40' }]}>
+              <MaterialIcons name="auto-awesome" size={20} color={colors.accent} />
+              <Text style={[styles.highlightText, { color: colors.text }]}>
+                A repetição constante cria uma <Text style={{ fontWeight: '600' }}>ressonância energética</Text> que atrai a realidade alinhada com a vibração do mantram.
               </Text>
             </View>
-            <View style={styles.tipItem}>
-              <MaterialIcons name="repeat" size={20} color={colors.accent} style={{ marginRight: Spacing.sm }} />
-              <Text style={[styles.tipText, { color: colors.textSecondary }]}>
-                Mantenha o mesmo mantram por alguns dias ou semanas para fortalecer sua energia
+          </View>
+
+          {/* How to Create for Cocreation */}
+          <View style={[styles.tipsSection, { backgroundColor: colors.accent + '08' }]}>
+            <View style={styles.tipsSectionHeader}>
+              <MaterialIcons name="create" size={24} color={colors.accent} />
+              <Text style={[styles.tipsSectionTitle, { color: colors.text }]}>
+                Como Criar um Mantram para sua Cocriação
               </Text>
             </View>
-            <View style={styles.tipItem}>
-              <MaterialIcons name="spa" size={20} color={colors.accent} style={{ marginRight: Spacing.sm }} />
-              <Text style={[styles.tipText, { color: colors.textSecondary }]}>
-                Combine com respiração consciente ou meditação para amplificar o efeito
+            <Text style={[styles.tipsSectionText, { color: colors.textSecondary }]}>
+              Quando você cria um mantram específico para uma cocriação, você está <Text style={{ fontWeight: '600', color: colors.text }}>codificando sua intenção</Text> em palavras que carregam a essência vibracional do que deseja manifestar.
+            </Text>
+
+            <View style={styles.stepsList}>
+              <View style={styles.stepItem}>
+                <View style={[styles.stepNumber, { backgroundColor: colors.accent + '20' }]}>
+                  <Text style={[styles.stepNumberText, { color: colors.accent }]}>1</Text>
+                </View>
+                <View style={styles.stepContent}>
+                  <Text style={[styles.stepTitle, { color: colors.text }]}>Conecte-se com o Sentimento</Text>
+                  <Text style={[styles.stepText, { color: colors.textSecondary }]}>
+                    Feche os olhos e <Text style={{ fontWeight: '600' }}>sinta</Text> como você se sentirá quando sua cocriação for real. Não pense — <Text style={{ fontWeight: '600' }}>sinta</Text>. Essa emoção é a chave.
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.stepItem}>
+                <View style={[styles.stepNumber, { backgroundColor: colors.accent + '20' }]}>
+                  <Text style={[styles.stepNumberText, { color: colors.accent }]}>2</Text>
+                </View>
+                <View style={styles.stepContent}>
+                  <Text style={[styles.stepTitle, { color: colors.text }]}>Use Palavras no Presente</Text>
+                  <Text style={[styles.stepText, { color: colors.textSecondary }]}>
+                    Seu mantram deve expressar a realização como se <Text style={{ fontWeight: '600' }}>já fosse real</Text>. Use "Eu sou", "Eu tenho", "Eu vivo" — nunca "Eu quero" ou "Eu vou".
+                  </Text>
+                  <View style={[styles.exampleBox, { backgroundColor: colors.surface + '80', borderColor: colors.border }]}>
+                    <Text style={[styles.exampleLabel, { color: colors.accent }]}>✓ Exemplo correto:</Text>
+                    <Text style={[styles.exampleText, { color: colors.text }]}>
+                      "Eu sou abundância em movimento. Minha vida transborda prosperidade."
+                    </Text>
+                    <Text style={[styles.exampleLabel, { color: colors.error }]}>✗ Evite:</Text>
+                    <Text style={[styles.exampleText, { color: colors.text }]}>
+                      "Eu quero ter mais dinheiro no futuro."
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              <View style={styles.stepItem}>
+                <View style={[styles.stepNumber, { backgroundColor: colors.accent + '20' }]}>
+                  <Text style={[styles.stepNumberText, { color: colors.accent }]}>3</Text>
+                </View>
+                <View style={styles.stepContent}>
+                  <Text style={[styles.stepTitle, { color: colors.text }]}>Seja Específico e Emocional</Text>
+                  <Text style={[styles.stepText, { color: colors.textSecondary }]}>
+                    Incorpore os <Text style={{ fontWeight: '600' }}>elementos específicos</Text> da sua cocriação e as <Text style={{ fontWeight: '600' }}>emoções</Text> que ela traz.
+                  </Text>
+                  <View style={[styles.exampleBox, { backgroundColor: colors.surface + '80', borderColor: colors.border }]}>
+                    <Text style={[styles.exampleLabel, { color: colors.accent }]}>Exemplo:</Text>
+                    <Text style={[styles.exampleText, { color: colors.text }]}>
+                      Se sua cocriação é "Ter minha própria casa na praia", seu mantram poderia ser:{"\n\n"}
+                      <Text style={{ fontStyle: 'italic', color: colors.accent }}>
+                        "Eu vivo em minha casa dos sonhos à beira-mar. Acordo todos os dias com o som das ondas e sinto-me em paz completa. Meu lar é um santuário de amor e abundância."
+                      </Text>
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              <View style={styles.stepItem}>
+                <View style={[styles.stepNumber, { backgroundColor: colors.accent + '20' }]}>
+                  <Text style={[styles.stepNumberText, { color: colors.accent }]}>4</Text>
+                </View>
+                <View style={styles.stepContent}>
+                  <Text style={[styles.stepTitle, { color: colors.text }]}>Mantenha-o Conciso e Memorável</Text>
+                  <Text style={[styles.stepText, { color: colors.textSecondary }]}>
+                    Seu mantram deve ser <Text style={{ fontWeight: '600' }}>fácil de repetir</Text> e memorizar. De 1 a 4 frases curtas é o ideal.
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.stepItem}>
+                <View style={[styles.stepNumber, { backgroundColor: colors.accent + '20' }]}>
+                  <Text style={[styles.stepNumberText, { color: colors.accent }]}>5</Text>
+                </View>
+                <View style={styles.stepContent}>
+                  <Text style={[styles.stepTitle, { color: colors.text }]}>Grave com Sua Própria Voz</Text>
+                  <Text style={[styles.stepText, { color: colors.textSecondary }]}>
+                    Quando você <Text style={{ fontWeight: '600' }}>ouve sua própria voz</Text> declarando sua realidade, seu subconsciente aceita com mais facilidade. É um <Text style={{ fontWeight: '600' }}>portal direto</Text> entre intenção e manifestação.
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </View>
+
+          {/* How to Use Effectively */}
+          <View style={[styles.tipsSection, { backgroundColor: colors.primary + '08' }]}>
+            <View style={styles.tipsSectionHeader}>
+              <MaterialIcons name="play-circle" size={24} color={colors.primary} />
+              <Text style={[styles.tipsSectionTitle, { color: colors.text }]}>
+                Como Usar seus Mantrams
               </Text>
             </View>
+            <View style={styles.tipsList}>
+              <View style={styles.tipItem}>
+                <MaterialIcons name="schedule" size={20} color={colors.accent} style={{ marginRight: Spacing.sm }} />
+                <Text style={[styles.tipText, { color: colors.textSecondary }]}>
+                  <Text style={{ fontWeight: '600', color: colors.text }}>Pratique diariamente</Text>, preferencialmente pela manhã (para programar o dia) ou antes de dormir (para programar o subconsciente)
+                </Text>
+              </View>
+              <View style={styles.tipItem}>
+                <MaterialIcons name="favorite" size={20} color={colors.accent} style={{ marginRight: Spacing.sm }} />
+                <Text style={[styles.tipText, { color: colors.textSecondary }]}>
+                  <Text style={{ fontWeight: '600', color: colors.text }}>Sinta profundamente</Text> cada palavra — não apenas repita mecanicamente. A emoção é o combustível da manifestação
+                </Text>
+              </View>
+              <View style={styles.tipItem}>
+                <MaterialIcons name="repeat" size={20} color={colors.accent} style={{ marginRight: Spacing.sm }} />
+                <Text style={[styles.tipText, { color: colors.textSecondary }]}>
+                  <Text style={{ fontWeight: '600', color: colors.text }}>Repita múltiplas vezes</Text> — use as opções 3x, 7x ou ∞ para criar uma repetição rítmica que penetra profundamente em sua consciência
+                </Text>
+              </View>
+              <View style={styles.tipItem}>
+                <MaterialIcons name="spa" size={20} color={colors.accent} style={{ marginRight: Spacing.sm }} />
+                <Text style={[styles.tipText, { color: colors.textSecondary }]}>
+                  <Text style={{ fontWeight: '600', color: colors.text }}>Combine com respiração</Text> consciente ou meditação — inspire enquanto ouve, expire enquanto absorve a energia
+                </Text>
+              </View>
+              <View style={styles.tipItem}>
+                <MaterialIcons name="lock" size={20} color={colors.accent} style={{ marginRight: Spacing.sm }} />
+                <Text style={[styles.tipText, { color: colors.textSecondary }]}>
+                  <Text style={{ fontWeight: '600', color: colors.text }}>Mantenha o foco</Text> em um mantram por alguns dias ou semanas antes de mudar — a repetição consistente amplifica seu poder
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Sacred Footer */}
+          <View style={[styles.tipsFooter, { backgroundColor: colors.primary + '10', borderColor: colors.primary + '30' }]}>
+            <MaterialIcons name="auto-awesome" size={24} color={colors.primary} style={{ marginBottom: Spacing.sm }} />
+            <Text style={[styles.tipsFooterText, { color: colors.text }]}>
+              "A palavra cria. Sua voz manifesta. A repetição multiplica. O mantram transforma."
+            </Text>
           </View>
         </SacredCard>
 
@@ -1084,12 +1247,120 @@ const styles = StyleSheet.create({
   tipsCard: {
     marginBottom: Spacing.lg,
   },
-  tipsTitle: {
-    fontSize: 18,
+  tipsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.xl,
+  },
+  tipsMainTitle: {
+    fontSize: 22,
     fontWeight: '600',
+    marginLeft: Spacing.md,
+    flex: 1,
+  },
+  tipsSection: {
+    padding: Spacing.lg,
+    borderRadius: 16,
     marginBottom: Spacing.lg,
   },
+  tipsSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+  },
+  tipsSectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginLeft: Spacing.sm,
+    flex: 1,
+  },
+  tipsSectionText: {
+    fontSize: 15,
+    lineHeight: 24,
+    marginBottom: Spacing.md,
+  },
+  bulletList: {
+    marginLeft: Spacing.md,
+    marginBottom: Spacing.md,
+  },
+  bulletItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: Spacing.sm,
+  },
+  bullet: {
+    fontSize: 20,
+    marginRight: Spacing.sm,
+    lineHeight: 20,
+  },
+  bulletText: {
+    flex: 1,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  highlightBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Spacing.md,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginTop: Spacing.md,
+  },
+  highlightText: {
+    flex: 1,
+    fontSize: 14,
+    lineHeight: 20,
+    marginLeft: Spacing.sm,
+  },
+  stepsList: {
+    marginTop: Spacing.md,
+  },
+  stepItem: {
+    flexDirection: 'row',
+    marginBottom: Spacing.xl,
+  },
+  stepNumber: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.md,
+  },
+  stepNumberText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  stepContent: {
+    flex: 1,
+  },
+  stepTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: Spacing.xs,
+  },
+  stepText: {
+    fontSize: 14,
+    lineHeight: 22,
+  },
+  exampleBox: {
+    padding: Spacing.md,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginTop: Spacing.md,
+  },
+  exampleLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: Spacing.xs,
+  },
+  exampleText: {
+    fontSize: 14,
+    lineHeight: 22,
+    marginBottom: Spacing.md,
+  },
   tipsList: {
+    marginTop: Spacing.md,
   },
   tipItem: {
     flexDirection: 'row',
@@ -1099,7 +1370,21 @@ const styles = StyleSheet.create({
   tipText: {
     flex: 1,
     fontSize: 14,
-    lineHeight: 20,
+    lineHeight: 22,
+  },
+  tipsFooter: {
+    padding: Spacing.lg,
+    borderRadius: 16,
+    borderWidth: 1,
+    alignItems: 'center',
+    marginTop: Spacing.md,
+  },
+  tipsFooterText: {
+    fontSize: 15,
+    fontWeight: '500',
+    textAlign: 'center',
+    lineHeight: 22,
+    fontStyle: 'italic',
   },
   recordCard: {
     marginBottom: Spacing.lg,
