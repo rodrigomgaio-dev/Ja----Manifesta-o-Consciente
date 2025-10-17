@@ -102,6 +102,7 @@ export default function MeditationPracticeScreen() {
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [expandedScript, setExpandedScript] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
+  const [expandedTipSection, setExpandedTipSection] = useState<'recording' | 'using' | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [modalConfig, setModalConfig] = useState<{
     title: string;
@@ -615,9 +616,9 @@ export default function MeditationPracticeScreen() {
               <MaterialIcons 
                 name={isRecording ? 'stop' : 'mic'} 
                 size={32} 
-                color="white" 
+                color={selectedCategory ? 'white' : '#7C3AED'} 
               />
-              <Text style={styles.recordButtonText}>
+              <Text style={[styles.recordButtonText, !selectedCategory && { color: '#7C3AED' }]}>
                 {loading ? 'Salvando...' : isRecording ? 'Parar e Salvar' : 'Iniciar Gravação'}
               </Text>
             </LinearGradient>
@@ -638,6 +639,7 @@ export default function MeditationPracticeScreen() {
             {meditations.map((meditation) => {
               const category = CATEGORIES.find(c => c.value === meditation.category);
               const isPlaying = playingId === meditation.id;
+              const displayColor = category?.color || SILVER_GRADIENT[1];
 
               return (
                 <View 
@@ -646,7 +648,7 @@ export default function MeditationPracticeScreen() {
                     styles.recordingItem,
                     { 
                       backgroundColor: colors.surface + '60',
-                      borderLeftColor: category?.color,
+                      borderLeftColor: displayColor,
                     }
                   ]}
                 >
@@ -670,13 +672,13 @@ export default function MeditationPracticeScreen() {
 
                   <View style={styles.recordingActions}>
                     <TouchableOpacity
-                      style={[styles.playButton, { backgroundColor: category?.color + '20' }]}
+                      style={[styles.playButton, { backgroundColor: displayColor + '20' }]}
                       onPress={() => playMeditation(meditation)}
                     >
                       <MaterialIcons 
                         name={isPlaying ? 'pause' : 'play-arrow'} 
                         size={28} 
-                        color={category?.color} 
+                        color={displayColor} 
                       />
                     </TouchableOpacity>
 
@@ -707,10 +709,22 @@ export default function MeditationPracticeScreen() {
           </View>
 
           {/* Gravação Section */}
-          <View style={styles.tipsSection}>
+          <TouchableOpacity 
+            style={styles.tipsSectionHeader}
+            onPress={() => setExpandedTipSection(expandedTipSection === 'recording' ? null : 'recording')}
+          >
             <Text style={[styles.tipsSectionTitle, { color: colors.text }]}>
               📹 Como Gravar
             </Text>
+            <MaterialIcons 
+              name={expandedTipSection === 'recording' ? 'expand-less' : 'expand-more'} 
+              size={24} 
+              color={colors.textMuted} 
+            />
+          </TouchableOpacity>
+
+          {expandedTipSection === 'recording' && (
+          <View style={styles.tipsSection}>
 
             <View style={styles.tipItem}>
               <Text style={[styles.tipTitle, { color: colors.text }]}>Prepare-se em silêncio</Text>
@@ -743,12 +757,25 @@ export default function MeditationPracticeScreen() {
               </Text>
             </View>
           </View>
+          )}
 
           {/* Meditação Section */}
-          <View style={styles.tipsSection}>
+          <TouchableOpacity 
+            style={styles.tipsSectionHeader}
+            onPress={() => setExpandedTipSection(expandedTipSection === 'using' ? null : 'using')}
+          >
             <Text style={[styles.tipsSectionTitle, { color: colors.text }]}>
               🧘 Como Usar as Gravações
             </Text>
+            <MaterialIcons 
+              name={expandedTipSection === 'using' ? 'expand-less' : 'expand-more'} 
+              size={24} 
+              color={colors.textMuted} 
+            />
+          </TouchableOpacity>
+
+          {expandedTipSection === 'using' && (
+          <View style={styles.tipsSection}>
 
             <View style={styles.tipItem}>
               <Text style={[styles.tipTitle, { color: colors.text }]}>Escolha um momento sagrado</Text>
@@ -778,6 +805,7 @@ export default function MeditationPracticeScreen() {
               </Text>
             </View>
           </View>
+          )}
 
           <View style={[styles.tipsFooter, { backgroundColor: colors.primary + '10', borderColor: colors.primary + '30' }]}>
             <Text style={[styles.tipsFooterText, { color: colors.text }]}>
@@ -1135,13 +1163,20 @@ const styles = StyleSheet.create({
     marginLeft: Spacing.md,
     flex: 1,
   },
+  tipsSectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+    paddingVertical: Spacing.sm,
+  },
   tipsSection: {
     marginBottom: Spacing.xl,
   },
   tipsSectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    marginBottom: Spacing.lg,
+    flex: 1,
   },
   tipItem: {
     marginBottom: Spacing.lg,
