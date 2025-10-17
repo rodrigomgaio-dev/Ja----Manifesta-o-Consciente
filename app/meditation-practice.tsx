@@ -737,8 +737,8 @@ export default function MeditationPracticeScreen() {
               <Text style={[styles.tipTitle, { color: colors.text }]}>Escolha o que incluir no áudio</Text>
               <Text style={[styles.tipText, { color: colors.textSecondary }]}>
                 Você pode começar com uma breve preparação ("Sente-se confortavelmente… relaxe todos os músculos…") ou deixar isso para antes de apertar play — o que sentir mais alinhado à sua prática.{"\n\n"}
-                Use palavras simples, suaves e afirmativas, sempre voltadas à presença e à confiança no que deseja, como se já fosse seu.{"\n\n"}
-                Inclua silêncios: deixe trechos de 1 a 5 minutos sem fala, para que você possa mergulhar na experiência, sentir a intenção e permitir que a manifestação se alinhe em silêncio.
+                Use palavras simples, suaves e afirmativas, sempre voltadas à presença e à confiança no que deseja, como se já fosse.{"\n\n"}
+                Inclua silêncios: deixe trechos de 1 a 5 minutos sem fala, para que você possa mergulhar na experiência, sentir a intenção e permitir que tudo se alinhe no silêncio... e sem expectativas.
               </Text>
             </View>
 
@@ -746,7 +746,7 @@ export default function MeditationPracticeScreen() {
               <Text style={[styles.tipTitle, { color: colors.text }]}>Finalize com cuidado</Text>
               <Text style={[styles.tipText, { color: colors.textSecondary }]}>
                 Termine com frases que convidem ao retorno suave:{"\n"}
-                "Aos poucos, traga sua atenção de volta ao corpo… lentamente, movimente suas mãos... seus pés... perceba como se sente… sinta sendo seu. Já é!"
+                "Aos poucos, traga sua atenção de volta ao corpo… lentamente, movimente suas mãos... seus pés... perceba como se sente… sinta sua nova realidade. Já é!"
               </Text>
             </View>
 
@@ -787,7 +787,7 @@ export default function MeditationPracticeScreen() {
             <View style={styles.tipItem}>
               <Text style={[styles.tipTitle, { color: colors.text }]}>Ouça com atenção plena</Text>
               <Text style={[styles.tipText, { color: colors.textSecondary }]}>
-                Use fones de ouvido, sente-se ou deite-se com conforto, e deixe sua voz guiá-lo(a). Durante os silêncios, apenas esteja e sinta-se vivendo sua nova realidade. É nesse momento que a sua intenção se alinha com a sua vibração e te leva cada vez mais perto do que já deveria ser.
+                Use fones de ouvido, sente-se ou deite-se com conforto, e deixe sua voz guiá-lo(a). Durante os silêncios, apenas esteja e sinta-se vivendo sua nova realidade. É nesse momento que a sua intenção se alinha com a sua vibração e te leva cada vez mais perto do que já poderia ser.
               </Text>
             </View>
 
