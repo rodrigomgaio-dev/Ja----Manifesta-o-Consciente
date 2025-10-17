@@ -45,6 +45,7 @@ export default function JaeMeditationListScreen() {
 
   const [meditations, setMeditations] = useState<Meditation[]>([]);
   const [selectedMeditationIds, setSelectedMeditationIds] = useState<string[]>([]);
+  const [cocreationTitle, setCocreationTitle] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [sound, setSound] = useState<Audio.Sound | null>(null);
@@ -81,6 +82,19 @@ export default function JaeMeditationListScreen() {
 
   const loadMeditations = async () => {
     try {
+      // Load cocreation title
+      const { data: cocreation, error: cocreationError } = await supabase
+        .from('individual_cocriations')
+        .select('title')
+        .eq('id', cocreationId)
+        .single();
+
+      if (cocreationError) {
+        console.error('Error loading cocreation:', cocreationError);
+      } else {
+        setCocreationTitle(cocreation?.title || '');
+      }
+
       // Load ALL user meditations
       const { data: allMeditations, error: meditationsError } = await supabase
         .from('meditations')
@@ -204,11 +218,20 @@ export default function JaeMeditationListScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Cocreation Title */}
+        {cocreationTitle && (
+          <View style={styles.cocreationTitleContainer}>
+            <Text style={[styles.cocreationTitle, { color: colors.primary }]}>
+              {cocreationTitle}
+            </Text>
+          </View>
+        )}
+
         {/* Title */}
         <View style={styles.titleSection}>
-          <MaterialIcons name="self-improvement" size={48} color={colors.primary} />
+          <MaterialIcons name="self-improvement" size={40} color={colors.primary} />
           <Text style={[styles.title, { color: colors.text }]}>
-            Meditações
+            Momento de Cocriação: Meditação
           </Text>
           <Text style={[styles.subtitle, { color: colors.textMuted }]}>
             Escolha uma meditação para praticar
@@ -217,7 +240,7 @@ export default function JaeMeditationListScreen() {
 
         {/* Info Card */}
         <SacredCard style={styles.infoCard}>
-          <MaterialIcons name="info" size={24} color={colors.primary} />
+          <MaterialIcons name="info" size={24} color={colors.primary} style={styles.infoIcon} />
           <Text style={[styles.infoText, { color: colors.textSecondary }]}>
             Toque na estrela para adicionar ou remover meditações desta cocriação
           </Text>
@@ -251,53 +274,119 @@ export default function JaeMeditationListScreen() {
           </SacredCard>
         ) : (
           <View style={styles.meditationsList}>
-            {meditations.map((meditation) => {
-              const isPlaying = playingId === meditation.id;
-              const isSelected = selectedMeditationIds.includes(meditation.id);
-              const category = CATEGORIES[meditation.category];
-              const displayColor = category?.color || SILVER_COLOR;
+            {/* Selected Meditations Section */}
+            {selectedMeditationIds.length > 0 && (
+              <View style={styles.selectedSection}>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                  ⭐ Meditações desta Cocriação
+                </Text>
+                {meditations
+                  .filter(m => selectedMeditationIds.includes(m.id))
+                  .map((meditation) => {
+                    const isPlaying = playingId === meditation.id;
+                    const category = CATEGORIES[meditation.category];
+                    const displayColor = category?.color || SILVER_COLOR;
 
-              return (
-                <SacredCard key={meditation.id} style={styles.meditationCard}>
-                  <View style={[styles.meditationHeader, { borderLeftColor: displayColor }]}>
-                    {/* Star Selection */}
-                    <TouchableOpacity
-                      style={styles.starButton}
-                      onPress={() => toggleMeditationSelection(meditation.id)}
-                    >
-                      <MaterialIcons 
-                        name={isSelected ? 'star' : 'star-outline'} 
-                        size={32} 
-                        color={isSelected ? '#F59E0B' : colors.textMuted} 
-                      />
-                    </TouchableOpacity>
+                    return (
+                      <SacredCard key={meditation.id} style={styles.meditationCard}>
+                        <View style={[styles.meditationHeader, { borderLeftColor: displayColor }]}>
+                          {/* Star Selection */}
+                          <TouchableOpacity
+                            style={styles.starButton}
+                            onPress={() => toggleMeditationSelection(meditation.id)}
+                          >
+                            <MaterialIcons 
+                              name="star" 
+                              size={28} 
+                              color="#F59E0B" 
+                            />
+                          </TouchableOpacity>
 
-                    <View style={styles.meditationInfo}>
-                      <Text style={styles.meditationCategoryIcon}>{category?.icon}</Text>
-                      <View style={styles.meditationTextInfo}>
-                        <Text style={[styles.meditationName, { color: colors.text }]}>
-                          {meditation.name}
-                        </Text>
-                        <Text style={[styles.meditationDuration, { color: colors.textSecondary }]}>
-                          {formatDuration(meditation.duration)}
-                        </Text>
-                      </View>
-                    </View>
+                          <View style={styles.meditationInfo}>
+                            <Text style={styles.meditationCategoryIcon}>{category?.icon}</Text>
+                            <View style={styles.meditationTextInfo}>
+                              <Text style={[styles.meditationName, { color: colors.text }]} numberOfLines={1}>
+                                {meditation.name}
+                              </Text>
+                              <Text style={[styles.meditationDuration, { color: colors.textSecondary }]}>
+                                {formatDuration(meditation.duration)}
+                              </Text>
+                            </View>
+                          </View>
 
-                    <TouchableOpacity
-                      style={[styles.playButton, { backgroundColor: displayColor + '20' }]}
-                      onPress={() => playMeditation(meditation)}
-                    >
-                      <MaterialIcons 
-                        name={isPlaying ? 'pause' : 'play-arrow'} 
-                        size={28} 
-                        color={displayColor} 
-                      />
-                    </TouchableOpacity>
-                  </View>
-                </SacredCard>
-              );
-            })}
+                          <TouchableOpacity
+                            style={[styles.playButton, { backgroundColor: displayColor + '20' }]}
+                            onPress={() => playMeditation(meditation)}
+                          >
+                            <MaterialIcons 
+                              name={isPlaying ? 'pause' : 'play-arrow'} 
+                              size={24} 
+                              color={displayColor} 
+                            />
+                          </TouchableOpacity>
+                        </View>
+                      </SacredCard>
+                    );
+                  })}
+              </View>
+            )}
+
+            {/* All Meditations Section */}
+            {meditations.filter(m => !selectedMeditationIds.includes(m.id)).length > 0 && (
+              <View style={styles.allMeditationsSection}>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                  Todas as Meditações
+                </Text>
+                {meditations
+                  .filter(m => !selectedMeditationIds.includes(m.id))
+                  .map((meditation) => {
+                    const isPlaying = playingId === meditation.id;
+                    const category = CATEGORIES[meditation.category];
+                    const displayColor = category?.color || SILVER_COLOR;
+
+                    return (
+                      <SacredCard key={meditation.id} style={styles.meditationCard}>
+                        <View style={[styles.meditationHeader, { borderLeftColor: displayColor }]}>
+                          {/* Star Selection */}
+                          <TouchableOpacity
+                            style={styles.starButton}
+                            onPress={() => toggleMeditationSelection(meditation.id)}
+                          >
+                            <MaterialIcons 
+                              name="star-outline" 
+                              size={28} 
+                              color={colors.textMuted} 
+                            />
+                          </TouchableOpacity>
+
+                          <View style={styles.meditationInfo}>
+                            <Text style={styles.meditationCategoryIcon}>{category?.icon}</Text>
+                            <View style={styles.meditationTextInfo}>
+                              <Text style={[styles.meditationName, { color: colors.text }]} numberOfLines={1}>
+                                {meditation.name}
+                              </Text>
+                              <Text style={[styles.meditationDuration, { color: colors.textSecondary }]}>
+                                {formatDuration(meditation.duration)}
+                              </Text>
+                            </View>
+                          </View>
+
+                          <TouchableOpacity
+                            style={[styles.playButton, { backgroundColor: displayColor + '20' }]}
+                            onPress={() => playMeditation(meditation)}
+                          >
+                            <MaterialIcons 
+                              name={isPlaying ? 'pause' : 'play-arrow'} 
+                              size={24} 
+                              color={displayColor} 
+                            />
+                          </TouchableOpacity>
+                        </View>
+                      </SacredCard>
+                    );
+                  })}
+              </View>
+            )}
           </View>
         )}
       </ScrollView>
@@ -332,15 +421,27 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginLeft: Spacing.xs,
   },
+  cocreationTitleContainer: {
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+    paddingHorizontal: Spacing.md,
+  },
+  cocreationTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    textAlign: 'center',
+    letterSpacing: 0.5,
+  },
   titleSection: {
     alignItems: 'center',
-    marginBottom: Spacing.xl,
+    marginBottom: Spacing.lg,
   },
   title: {
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: '600',
     marginTop: Spacing.sm,
     marginBottom: Spacing.xs,
+    textAlign: 'center',
   },
   subtitle: {
     fontSize: 16,
@@ -348,10 +449,13 @@ const styles = StyleSheet.create({
   },
   infoCard: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     padding: Spacing.md,
     marginBottom: Spacing.md,
-    gap: Spacing.sm,
+  },
+  infoIcon: {
+    marginRight: Spacing.sm,
+    marginTop: 2,
   },
   infoText: {
     flex: 1,
@@ -386,19 +490,32 @@ const styles = StyleSheet.create({
   meditationsList: {
     marginBottom: Spacing.xl,
   },
+  selectedSection: {
+    marginBottom: Spacing.xl,
+  },
+  allMeditationsSection: {
+    marginBottom: Spacing.xl,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: Spacing.md,
+    paddingHorizontal: Spacing.xs,
+  },
   meditationCard: {
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.md,
     padding: 0,
   },
   meditationHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: Spacing.md,
+    padding: Spacing.sm,
+    paddingVertical: Spacing.md,
     borderLeftWidth: 4,
   },
   starButton: {
     padding: Spacing.xs,
-    marginRight: Spacing.sm,
+    marginRight: Spacing.xs,
   },
   meditationInfo: {
     flex: 1,
@@ -406,26 +523,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   meditationCategoryIcon: {
-    fontSize: 28,
+    fontSize: 24,
     marginRight: Spacing.sm,
   },
   meditationTextInfo: {
     flex: 1,
   },
   meditationName: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    marginBottom: Spacing.xs,
+    marginBottom: 4,
   },
   meditationDuration: {
-    fontSize: 14,
+    fontSize: 13,
   },
   playButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: Spacing.sm,
+    marginLeft: Spacing.xs,
   },
 });
