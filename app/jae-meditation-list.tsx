@@ -474,13 +474,13 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   infoText: {
-  fontSize: 14,
-  lineHeight: 20,
-  flexShrink: 1,
-  flexWrap: 'wrap',
-  textAlign: 'justify', // Opcional: alinhamento justificado
-  includeFontPadding: false, // Evita padding extra no texto
-  }
+    fontSize: 14,
+    lineHeight: 20,
+    flexShrink: 1,
+    flexWrap: 'wrap',
+    textAlign: 'justify',
+    includeFontPadding: false,
+  },
   createButtonContainer: {
     marginBottom: Spacing.xl,
   },
