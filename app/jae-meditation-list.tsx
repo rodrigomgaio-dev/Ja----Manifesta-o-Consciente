@@ -452,15 +452,18 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     padding: Spacing.md,
     marginBottom: Spacing.md,
+    maxWidth: '100%',
   },
   infoIcon: {
     marginRight: Spacing.sm,
     marginTop: 2,
+    flexShrink: 0,
   },
   infoText: {
     flex: 1,
     fontSize: 14,
     lineHeight: 20,
+    flexShrink: 1,
   },
   createButtonContainer: {
     marginBottom: Spacing.xl,

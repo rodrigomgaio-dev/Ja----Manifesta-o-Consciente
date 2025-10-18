@@ -94,6 +94,8 @@ export default function MeditationPracticeScreen() {
 
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [meditationName, setMeditationName] = useState('');
+  const [externalAudioUrl, setExternalAudioUrl] = useState('');
+  const [isValidatingUrl, setIsValidatingUrl] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [meditations, setMeditations] = useState<Meditation[]>([]);
@@ -173,6 +175,110 @@ export default function MeditationPracticeScreen() {
     } catch (error) {
       console.error('Error requesting permissions:', error);
       return false;
+    }
+  };
+
+  const validateAudioUrl = async (url: string): Promise<boolean> => {
+    if (!url) return false;
+
+    // Check if URL has valid audio extension
+    const validExtensions = ['.mp3', '.wav', '.m4a', '.aac', '.ogg'];
+    const hasValidExtension = validExtensions.some(ext => 
+      url.toLowerCase().endsWith(ext)
+    );
+
+    if (!hasValidExtension) {
+      return false;
+    }
+
+    try {
+      // Validate URL format
+      const urlObj = new URL(url);
+      
+      // Do a safe HEAD request to check content type (no user data sent)
+      const response = await fetch(url, {
+        method: 'HEAD',
+        cache: 'no-cache',
+        // No authorization headers or user data
+      });
+
+      if (!response.ok) {
+        return false;
+      }
+
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.startsWith('audio/')) {
+        return true;
+      }
+
+      // If no content-type header but has valid extension, accept it
+      return hasValidExtension;
+    } catch (error) {
+      console.error('URL validation error:', error);
+      // If validation fails but has valid extension, accept it
+      return hasValidExtension;
+    }
+  };
+
+  const handleSaveExternalAudio = async () => {
+    try {
+      if (!meditationName.trim()) {
+        showModal('Nome Obrigatório', 'Por favor, dê um nome para sua meditação.', 'warning');
+        return;
+      }
+
+      if (!externalAudioUrl.trim()) {
+        showModal('Link Obrigatório', 'Por favor, cole o link do áudio.', 'warning');
+        return;
+      }
+
+      setIsValidatingUrl(true);
+      const isValid = await validateAudioUrl(externalAudioUrl);
+      setIsValidatingUrl(false);
+
+      if (!isValid) {
+        showModal(
+          'Link Inválido',
+          'O link informado não parece ser um arquivo de áudio. Por favor, verifique e tente novamente.',
+          'error'
+        );
+        return;
+      }
+
+      setLoading(true);
+
+      // Save to database with external URL
+      const meditationData: any = {
+        user_id: user?.id,
+        name: meditationName,
+        category: selectedCategory || 'general',
+        audio_url: externalAudioUrl,
+        duration: 0, // Duration unknown for external links
+      };
+
+      if (cocreationId) {
+        meditationData.cocreation_id = cocreationId;
+      } else if (circleId) {
+        meditationData.circle_id = circleId;
+      }
+
+      const { error: dbError } = await supabase
+        .from('meditations')
+        .insert(meditationData);
+
+      if (dbError) {
+        throw dbError;
+      }
+
+      showModal('Sucesso', 'Meditação salva com sucesso!', 'success');
+      setMeditationName('');
+      setExternalAudioUrl('');
+      await loadMeditations();
+    } catch (error) {
+      console.error('Error saving external meditation:', error);
+      showModal('Erro', 'Não foi possível salvar a meditação.', 'error');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -347,7 +453,20 @@ export default function MeditationPracticeScreen() {
       });
     } catch (error) {
       console.error('Failed to play meditation:', error);
-      showModal('Erro', 'Não foi possível reproduzir a meditação.', 'error');
+      
+      // Check if it's an external link that's not available
+      const isExternalLink = meditation.audio_url.startsWith('http') && 
+                            !meditation.audio_url.includes('supabase');
+      
+      if (isExternalLink) {
+        showModal(
+          'Link Indisponível',
+          'Não foi possível acessar o áudio no link fornecido. O link pode estar incorreto ou o arquivo não está mais disponível.',
+          'error'
+        );
+      } else {
+        showModal('Erro', 'Não foi possível reproduzir a meditação.', 'error');
+      }
     }
   };
 
@@ -590,6 +709,56 @@ export default function MeditationPracticeScreen() {
             maxLength={100}
           />
 
+          {/* External Audio URL Option */}
+          <View style={styles.externalAudioSection}>
+            <Text style={[styles.externalAudioTitle, { color: colors.text }]}>
+              Ou cole o link de um áudio:
+            </Text>
+            <TextInput
+              style={[
+                styles.nameInput,
+                { 
+                  backgroundColor: colors.surface + '60',
+                  color: colors.text,
+                  borderColor: colors.border,
+                }
+              ]}
+              value={externalAudioUrl}
+              onChangeText={setExternalAudioUrl}
+              placeholder="https://exemplo.com/audio.mp3"
+              placeholderTextColor={colors.textMuted + '80'}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            <TouchableOpacity
+              style={styles.saveExternalButton}
+              onPress={handleSaveExternalAudio}
+              disabled={!meditationName.trim() || !externalAudioUrl.trim() || isValidatingUrl || loading}
+            >
+              <LinearGradient
+                colors={currentCategory?.gradient || SILVER_GRADIENT}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={[
+                  styles.gradientButton,
+                  (!meditationName.trim() || !externalAudioUrl.trim() || isValidatingUrl || loading) && styles.disabledButton
+                ]}
+              >
+                <MaterialIcons 
+                  name="link" 
+                  size={24} 
+                  color={selectedCategory ? 'white' : '#7C3AED'} 
+                />
+                <Text style={[styles.recordButtonText, !selectedCategory && { color: '#7C3AED' }]}>
+                  {isValidatingUrl ? 'Validando...' : loading ? 'Salvando...' : 'Salvar Link'}
+                </Text>
+              </LinearGradient>
+            </TouchableOpacity>
+            <Text style={[styles.externalAudioHint, { color: colors.textMuted }]}>
+              Formatos aceitos: .mp3, .wav, .m4a, .aac, .ogg
+            </Text>
+          </View>
+
           {isRecording && (
             <View style={styles.recordingIndicator}>
               <View style={[styles.recordingDot, { backgroundColor: colors.error }]} />
@@ -641,6 +810,9 @@ export default function MeditationPracticeScreen() {
               const isPlaying = playingId === meditation.id;
               const displayColor = category?.color || SILVER_GRADIENT[1];
 
+              const isExternalLink = meditation.audio_url.startsWith('http') && 
+                                     !meditation.audio_url.includes('supabase');
+
               return (
                 <View 
                   key={meditation.id}
@@ -658,16 +830,33 @@ export default function MeditationPracticeScreen() {
                       <Text style={[styles.recordingCategory, { color: colors.text }]}>
                         {meditation.name}
                       </Text>
+                      {isExternalLink && (
+                        <MaterialIcons 
+                          name="link" 
+                          size={16} 
+                          color={colors.primary} 
+                          style={{ marginLeft: Spacing.xs }}
+                        />
+                      )}
                     </View>
                     <Text style={[styles.recordingSubtitle, { color: colors.textSecondary }]}>
                       {category?.label}
                     </Text>
-                    <Text style={[styles.recordingDuration, { color: colors.textSecondary }]}>
-                      Duração: {formatDuration(meditation.duration)}
-                    </Text>
-                    <Text style={[styles.recordingTimestamp, { color: colors.textMuted }]}>
-                      Gravada {formatTimestamp(meditation.created_at)}
-                    </Text>
+                    {meditation.duration > 0 && (
+                      <Text style={[styles.recordingDuration, { color: colors.textSecondary }]}>
+                        Duração: {formatDuration(meditation.duration)}
+                      </Text>
+                    )}
+                    {isExternalLink && (
+                      <Text style={[styles.recordingTimestamp, { color: colors.textMuted }]} numberOfLines={1}>
+                        Link externo
+                      </Text>
+                    )}
+                    {!isExternalLink && (
+                      <Text style={[styles.recordingTimestamp, { color: colors.textMuted }]}>
+                        Gravada {formatTimestamp(meditation.created_at)}
+                      </Text>
+                    )}
                   </View>
 
                   <View style={styles.recordingActions}>
@@ -1074,6 +1263,26 @@ const styles = StyleSheet.create({
   },
   recordHint: {
     fontSize: 13,
+    fontStyle: 'italic',
+    textAlign: 'center',
+  },
+  externalAudioSection: {
+    marginTop: Spacing.xl,
+    paddingTop: Spacing.xl,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(139, 92, 246, 0.2)',
+  },
+  externalAudioTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: Spacing.md,
+  },
+  saveExternalButton: {
+    width: '100%',
+    marginBottom: Spacing.sm,
+  },
+  externalAudioHint: {
+    fontSize: 12,
     fontStyle: 'italic',
     textAlign: 'center',
   },
