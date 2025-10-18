@@ -654,14 +654,18 @@ export default function MeditationPracticeScreen() {
                 >
                   <View style={styles.recordingInfo}>
                     <View style={styles.recordingHeader}>
-                      <Text style={styles.recordingCategoryIcon}>{category?.icon}</Text>
+                      {category?.icon && (
+                        <Text style={styles.recordingCategoryIcon}>{category.icon}</Text>
+                      )}
                       <Text style={[styles.recordingCategory, { color: colors.text }]}>
                         {meditation.name}
                       </Text>
                     </View>
-                    <Text style={[styles.recordingSubtitle, { color: colors.textSecondary }]}>
-                      {category?.label}
-                    </Text>
+                    {category?.label && (
+                      <Text style={[styles.recordingSubtitle, { color: colors.textSecondary }]}>
+                        {category.label}
+                      </Text>
+                    )}
                     {meditation.duration > 0 && (
                       <Text style={[styles.recordingDuration, { color: colors.textSecondary }]}>
                         Duração: {formatDuration(meditation.duration)}

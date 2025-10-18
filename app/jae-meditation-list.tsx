@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -305,7 +306,9 @@ export default function JaeMeditationListScreen() {
                           </TouchableOpacity>
 
                           <View style={styles.meditationInfo}>
-                            <Text style={styles.meditationCategoryIcon}>{category?.icon}</Text>
+                            {category?.icon && (
+                              <Text style={styles.meditationCategoryIcon}>{category.icon}</Text>
+                            )}
                             <View style={styles.meditationTextInfo}>
                               <Text style={[styles.meditationName, { color: colors.text }]} numberOfLines={1}>
                                 {meditation.name}
@@ -362,7 +365,9 @@ export default function JaeMeditationListScreen() {
                           </TouchableOpacity>
 
                           <View style={styles.meditationInfo}>
-                            <Text style={styles.meditationCategoryIcon}>{category?.icon}</Text>
+                            {category?.icon && (
+                              <Text style={styles.meditationCategoryIcon}>{category.icon}</Text>
+                            )}
                             <View style={styles.meditationTextInfo}>
                               <Text style={[styles.meditationName, { color: colors.text }]} numberOfLines={1}>
                                 {meditation.name}
@@ -373,6 +378,7 @@ export default function JaeMeditationListScreen() {
                             </View>
                           </View>
 
+                          {/* Fix: Move 'onPress' prop inside TouchableOpacity JSX element */}
                           <TouchableOpacity
                             style={[styles.playButton, { backgroundColor: displayColor + '20' }]}
                             onPress={() => playMeditation(meditation)}
