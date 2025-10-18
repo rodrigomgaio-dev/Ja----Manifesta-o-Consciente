@@ -239,15 +239,6 @@ export default function JaeMeditationListScreen() {
           </Text>
         </View>
              
-        {/* Create New Button */}
-        <View style={styles.createButtonContainer}>
-          <SacredButton
-            title="Gravar Nova Meditação"
-            onPress={() => router.push(`/meditation-practice?cocreationId=${cocreationId}&returnTo=jae`)}
-            icon={<MaterialIcons name="add" size={20} color="white" />}
-          />
-        </View>
-
         {/* Meditations List */}
         {loading ? (
           <View style={styles.loadingContainer}>
@@ -268,7 +259,7 @@ export default function JaeMeditationListScreen() {
         ) : (
           <View style={styles.meditationsList}>
             {/* Selected Meditations Section */}
-            {selectedMeditationIds.length > 0 && (
+            {selectedMeditationIds.length > 0 ? (
               <View style={styles.selectedSection}>
                 <Text style={[styles.sectionTitle, { color: colors.text }]}>
                   ⭐ Meditações desta Cocriação
@@ -290,7 +281,7 @@ export default function JaeMeditationListScreen() {
                           >
                             <MaterialIcons 
                               name="star" 
-                              size={28} 
+                              size={24} 
                               color="#F59E0B" 
                             />
                           </TouchableOpacity>
@@ -315,7 +306,7 @@ export default function JaeMeditationListScreen() {
                           >
                             <MaterialIcons 
                               name={isPlaying ? 'pause' : 'play-arrow'} 
-                              size={24} 
+                              size={20} 
                               color={displayColor} 
                             />
                           </TouchableOpacity>
@@ -324,7 +315,26 @@ export default function JaeMeditationListScreen() {
                     );
                   })}
               </View>
+            ) : (
+              <SacredCard glowing style={styles.emptySelectionCard}>
+                <MaterialIcons name="info-outline" size={48} color={colors.primary} />
+                <Text style={[styles.emptySelectionTitle, { color: colors.text }]}>
+                  Nenhuma meditação selecionada
+                </Text>
+                <Text style={[styles.emptySelectionDescription, { color: colors.textSecondary }]}>
+                  Toque na estrela ao lado da meditação para adicioná-la a esta cocriação
+                </Text>
+              </SacredCard>
             )}
+
+            {/* Create New Button */}
+            <View style={styles.createButtonContainer}>
+              <SacredButton
+                title="Gravar Nova Meditação"
+                onPress={() => router.push(`/meditation-practice?cocreationId=${cocreationId}&returnTo=jae`)}
+                icon={<MaterialIcons name="add" size={20} color="white" />}
+              />
+            </View>
 
             {/* All Meditations Section */}
             {meditations.filter(m => !selectedMeditationIds.includes(m.id)).length > 0 && (
@@ -349,7 +359,7 @@ export default function JaeMeditationListScreen() {
                           >
                             <MaterialIcons 
                               name="star-outline" 
-                              size={28} 
+                              size={24} 
                               color={colors.textMuted} 
                             />
                           </TouchableOpacity>
@@ -368,14 +378,13 @@ export default function JaeMeditationListScreen() {
                             </View>
                           </View>
 
-                          {/* Fix: Move 'onPress' prop inside TouchableOpacity JSX element */}
                           <TouchableOpacity
                             style={[styles.playButton, { backgroundColor: displayColor + '20' }]}
                             onPress={() => playMeditation(meditation)}
                           >
                             <MaterialIcons 
                               name={isPlaying ? 'pause' : 'play-arrow'} 
-                              size={24} 
+                              size={20} 
                               color={displayColor} 
                             />
                           </TouchableOpacity>
@@ -445,34 +454,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontStyle: 'italic',
   },
-  infoCard: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    padding: Spacing.md,
-    marginBottom: Spacing.md,
-    maxWidth: '100%',
-    flexWrap: 'wrap',
-  },
-  infoIcon: {
-    marginRight: Spacing.sm,
-    marginTop: 2,
-    flexShrink: 0,
-  },
-  infoTextContainer: {
-    flex: 1,
-    flexShrink: 1,
-    flexWrap: 'wrap',
-  },
-  infoText: {
-    fontSize: 14,
-    lineHeight: 20,
-    flexShrink: 1,
-    flexWrap: 'wrap',
-    textAlign: 'justify',
-    includeFontPadding: false,
-  },
   createButtonContainer: {
-    marginBottom: Spacing.xl,
+    marginBottom: Spacing.lg,
+    marginTop: Spacing.md,
   },
   loadingContainer: {
     padding: Spacing.xl,
@@ -496,6 +480,24 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: 'center',
   },
+  emptySelectionCard: {
+    alignItems: 'center',
+    paddingVertical: Spacing.xl,
+    marginBottom: Spacing.md,
+  },
+  emptySelectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginTop: Spacing.md,
+    marginBottom: Spacing.xs,
+    textAlign: 'center',
+  },
+  emptySelectionDescription: {
+    fontSize: 14,
+    textAlign: 'center',
+    paddingHorizontal: Spacing.md,
+    lineHeight: 20,
+  },
   meditationsList: {
     marginBottom: Spacing.xl,
   },
@@ -512,14 +514,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xs,
   },
   meditationCard: {
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.sm,
     padding: 0,
   },
   meditationHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: Spacing.sm,
-    paddingVertical: Spacing.md,
+    paddingVertical: Spacing.sm,
     borderLeftWidth: 4,
   },
   starButton: {
@@ -539,17 +541,17 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   meditationName: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   meditationDuration: {
-    fontSize: 13,
+    fontSize: 12,
   },
   playButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: Spacing.xs,
