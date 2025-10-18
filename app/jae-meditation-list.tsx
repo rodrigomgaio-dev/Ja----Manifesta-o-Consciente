@@ -239,23 +239,23 @@ export default function JaeMeditationListScreen() {
           </Text>
         </View>
 
-        {/* Info Card 
-        <SacredCard style={styles.infoCard}>
-          <MaterialIcons name="info" size={24} color={colors.primary} style={styles.infoIcon} />
+        {/* Info Card */}
+        <SacredCard style={styles.quoteCard}>
+          <MaterialIcons name="info" size={32} color={colors.primary} style={styles.infoIcon} />
           <View style={styles.infoTextContainer}>
             <Text style={[styles.infoText, { color: colors.textSecondary }]}>
               Toque na estrela para adicionar ou remover meditações desta cocriação
             </Text>
           </View>
-        </SacredCard>*/}
+        </SacredCard>
 
-         {/* Sacred Quote */}
+         {/* Sacred Quote
         <SacredCard style={styles.quoteCard}>
           <MaterialIcons name="auto-awesome" size={32} color={colors.primary} />
           <Text style={[styles.quote, { color: colors.textSecondary }]}>
             "Toque na estrela para adicionar ou remover meditações desta cocriação."
           </Text>
-        </SacredCard>
+        </SacredCard> */}
 
         
         {/* Create New Button */}
