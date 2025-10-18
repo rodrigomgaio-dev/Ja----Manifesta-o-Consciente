@@ -461,6 +461,7 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     marginBottom: Spacing.md,
     maxWidth: '100%',
+    flexWrap: 'wrap',
   },
   infoIcon: {
     marginRight: Spacing.sm,
@@ -470,12 +471,16 @@ const styles = StyleSheet.create({
   infoTextContainer: {
     flex: 1,
     flexShrink: 1,
+    flexWrap: 'wrap',
   },
   infoText: {
-    fontSize: 14,
-    lineHeight: 20,
-    flexShrink: 1,
-  },
+  fontSize: 14,
+  lineHeight: 20,
+  flexShrink: 1,
+  flexWrap: 'wrap',
+  textAlign: 'justify', // Opcional: alinhamento justificado
+  includeFontPadding: false, // Evita padding extra no texto
+  }
   createButtonContainer: {
     marginBottom: Spacing.xl,
   },
