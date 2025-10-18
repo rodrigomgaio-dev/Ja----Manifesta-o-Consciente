@@ -316,7 +316,7 @@ export default function JaeMeditationListScreen() {
                   })}
               </View>
             ) : (
-              <SacredCard glowing style={styles.emptySelectionCard}>
+              <SacredCard style={styles.emptySelectionCard}>
                 <MaterialIcons name="info-outline" size={48} color={colors.primary} />
                 <Text style={[styles.emptySelectionTitle, { color: colors.text }]}>
                   Nenhuma meditação selecionada
