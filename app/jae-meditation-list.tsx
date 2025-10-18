@@ -474,6 +474,7 @@ const styles = StyleSheet.create({
   infoText: {
     fontSize: 14,
     lineHeight: 20,
+    flexShrink: 1,
   },
   createButtonContainer: {
     marginBottom: Spacing.xl,
