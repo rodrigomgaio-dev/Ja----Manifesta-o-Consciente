@@ -241,9 +241,11 @@ export default function JaeMeditationListScreen() {
         {/* Info Card */}
         <SacredCard style={styles.infoCard}>
           <MaterialIcons name="info" size={24} color={colors.primary} style={styles.infoIcon} />
-          <Text style={[styles.infoText, { color: colors.textSecondary }]}>
-            Toque na estrela para adicionar ou remover meditações desta cocriação
-          </Text>
+          <View style={styles.infoTextContainer}>
+            <Text style={[styles.infoText, { color: colors.textSecondary }]}>
+              Toque na estrela para adicionar ou remover meditações desta cocriação
+            </Text>
+          </View>
         </SacredCard>
 
         {/* Create New Button */}
@@ -459,11 +461,13 @@ const styles = StyleSheet.create({
     marginTop: 2,
     flexShrink: 0,
   },
-  infoText: {
+  infoTextContainer: {
     flex: 1,
+    flexShrink: 1,
+  },
+  infoText: {
     fontSize: 14,
     lineHeight: 20,
-    flexShrink: 1,
   },
   createButtonContainer: {
     marginBottom: Spacing.xl,
