@@ -9,23 +9,28 @@ import SacredCard from '@/components/ui/SacredCard';
 import SacredButton from '@/components/ui/SacredButton';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useCollectiveCircles } from '@/hooks/useCollectiveCircles';
+import { useAuth } from '@/contexts/AuthContext';
 import { Spacing } from '@/constants/Colors';
 export default function CirculosScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
   const { circles, loading } = useCollectiveCircles();
 
   const handleCreateNew = () => {
     router.push('/create-circle');
   };
 
-  const renderCircle = (circle: any) => (
-    <SacredCard
-      key={circle.id}
-      animated
-      onPress={() => router.push(`/circle-details?id=${circle.id}`)}
-      style={styles.circleCard}
-    >
+  const renderCircle = (circle: any) => {
+    const isCreator = user?.id === circle.creator_id;
+    
+    return (
+      <SacredCard
+        key={circle.id}
+        animated
+        onPress={() => router.push(`/circle-details?id=${circle.id}`)}
+        style={styles.circleCard}
+      >
         {circle.cover_image_url && (
           <Image 
             source={{ uri: circle.cover_image_url }} 
@@ -35,9 +40,19 @@ export default function CirculosScreen() {
         )}
         <View style={styles.circleHeader}>
           <View style={styles.circleInfo}>
-            <Text style={[styles.circleTitle, { color: colors.text }]}>
-              {circle.title}
-            </Text>
+            <View style={styles.titleRow}>
+              <Text style={[styles.circleTitle, { color: colors.text }]}>
+                {circle.title}
+              </Text>
+              {isCreator && (
+                <View style={[styles.creatorBadge, { backgroundColor: colors.accent + '20' }]}>
+                  <MaterialIcons name="stars" size={16} color={colors.accent} />
+                  <Text style={[styles.creatorBadgeText, { color: colors.accent }]}>
+                    Criador
+                  </Text>
+                </View>
+              )}
+            </View>
             {circle.description && (
               <Text style={[styles.circleDescription, { color: colors.textSecondary }]}>
                 {circle.description.length > 100 
@@ -76,7 +91,8 @@ export default function CirculosScreen() {
           </View>
         </View>
       </SacredCard>
-  );
+    );
+  };
 
   return (
     <GradientBackground>
@@ -311,10 +327,28 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: Spacing.md,
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.xs,
+    flexWrap: 'wrap',
+    gap: Spacing.xs,
+  },
   circleTitle: {
     fontSize: 18,
     fontWeight: '600',
-    marginBottom: Spacing.xs,
+  },
+  creatorBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: 8,
+    gap: 4,
+  },
+  creatorBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
   },
   circleDescription: {
     fontSize: 14,

@@ -18,16 +18,27 @@ import SacredCard from '@/components/ui/SacredCard';
 import SacredButton from '@/components/ui/SacredButton';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useCollectiveCircles } from '@/hooks/useCollectiveCircles';
+import { useAuth } from '@/contexts/AuthContext';
+import SacredModal from '@/components/ui/SacredModal';
 import { Spacing } from '@/constants/Colors';
 
 export default function CircleDetailsScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
   const { id, token } = useLocalSearchParams<{ id: string; token?: string }>();
-  const { circles, loading } = useCollectiveCircles();
+  const { circles, loading, deleteCircle } = useCollectiveCircles();
 
   const [circle, setCircle] = useState<any>(null);
   const [inviteUrl, setInviteUrl] = useState<string>('');
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalConfig, setModalConfig] = useState<{
+    title: string;
+    message: string;
+    type: 'info' | 'success' | 'warning' | 'error';
+  }>({ title: '', message: '', type: 'info' });
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (id && circles.length > 0) {
@@ -84,6 +95,39 @@ export default function CircleDetailsScreen() {
       } catch (error) {
         console.error('Error sharing:', error);
       }
+    }
+  };
+
+  const showModal = (
+    title: string,
+    message: string,
+    type: 'info' | 'success' | 'warning' | 'error' = 'info'
+  ) => {
+    setModalConfig({ title, message, type });
+    setModalVisible(true);
+  };
+
+  const handleDeleteCircle = async () => {
+    if (!circle || deleting) return;
+
+    setDeleting(true);
+    try {
+      const { error } = await deleteCircle(circle.id);
+      
+      if (error) {
+        showModal('Erro', 'Não foi possível excluir o círculo. Tente novamente.', 'error');
+      } else {
+        showModal('Círculo Excluído', 'O círculo foi excluído com sucesso.', 'success');
+        setTimeout(() => {
+          router.replace('/(tabs)/circulos');
+        }, 1500);
+      }
+    } catch (error) {
+      console.error('Error deleting circle:', error);
+      showModal('Erro', 'Ocorreu um erro inesperado ao excluir o círculo.', 'error');
+    } finally {
+      setDeleting(false);
+      setShowDeleteConfirm(false);
     }
   };
 
@@ -283,6 +327,26 @@ export default function CircleDetailsScreen() {
           </View>
         </SacredCard>
 
+        {/* Delete Circle (Only for Creator) */}
+        {circle && user?.id === circle.creator_id && (
+          <SacredCard style={styles.deleteCard}>
+            <Text style={[styles.deleteTitle, { color: colors.text }]}>
+              Zona de Perigo
+            </Text>
+            <Text style={[styles.deleteDescription, { color: colors.textSecondary }]}>
+              Esta ação é irreversível. Ao excluir o círculo, todos os dados serão permanentemente removidos.
+            </Text>
+            <SacredButton
+              title={deleting ? "Excluindo..." : "Excluir Círculo"}
+              onPress={() => setShowDeleteConfirm(true)}
+              variant="outline"
+              style={[styles.deleteButton, { borderColor: colors.error }]}
+              disabled={deleting}
+              icon={<MaterialIcons name="delete-forever" size={20} color={colors.error} />}
+            />
+          </SacredCard>
+        )}
+
         {/* Sacred Principles Reminder */}
         <SacredCard style={styles.principlesCard}>
           <Text style={[styles.principlesTitle, { color: colors.text }]}>
@@ -309,6 +373,37 @@ export default function CircleDetailsScreen() {
           </View>
         </SacredCard>
       </ScrollView>
+
+      {/* Modals */}
+      <SacredModal
+        visible={modalVisible}
+        title={modalConfig.title}
+        message={modalConfig.message}
+        type={modalConfig.type}
+        onClose={() => setModalVisible(false)}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <SacredModal
+        visible={showDeleteConfirm}
+        title="Confirmar Exclusão"
+        message={`Tem certeza que deseja excluir o círculo "${circle?.title}"? Esta ação não pode ser desfeita e todos os dados serão perdidos.`}
+        type="warning"
+        onClose={() => setShowDeleteConfirm(false)}
+        actions={[
+          {
+            label: 'Cancelar',
+            onPress: () => setShowDeleteConfirm(false),
+            variant: 'outline',
+          },
+          {
+            label: deleting ? 'Excluindo...' : 'Excluir',
+            onPress: handleDeleteCircle,
+            variant: 'primary',
+            disabled: deleting,
+          },
+        ]}
+      />
     </GradientBackground>
   );
 }
@@ -500,5 +595,23 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     marginLeft: Spacing.md,
+  },
+  deleteCard: {
+    marginBottom: Spacing.xl,
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+  },
+  deleteTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: Spacing.sm,
+  },
+  deleteDescription: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: Spacing.lg,
+  },
+  deleteButton: {
+    alignSelf: 'stretch',
   },
 });
