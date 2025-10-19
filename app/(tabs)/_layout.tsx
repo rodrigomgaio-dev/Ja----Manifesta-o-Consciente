@@ -52,14 +52,12 @@ export default function TabsLayout() {
             <MaterialIcons name="home" size={size} color={color} />
           ),
         }}
-      />
-      <Tabs.Screen
+      /><Tabs.Screen
         name="painel"
         options={{
           href: null,
         }}
-      />
-      <Tabs.Screen
+      /><Tabs.Screen
         name="individual"
         options={{
           title: 'Minhas',
@@ -67,8 +65,7 @@ export default function TabsLayout() {
             <MaterialIcons name="person" size={size} color={color} />
           ),
         }}
-      />
-      <Tabs.Screen
+      /><Tabs.Screen
         name="circulos"
         options={{
           title: 'Círculos',
@@ -76,8 +73,7 @@ export default function TabsLayout() {
             <MaterialIcons name="group" size={size} color={color} />
           ),
         }}
-      />
-      <Tabs.Screen
+      /><Tabs.Screen
         name="praticas"
         options={{
           title: 'Práticas',
@@ -85,8 +81,7 @@ export default function TabsLayout() {
             <MaterialIcons name="spa" size={size} color={color} />
           ),
         }}
-      />
-      <Tabs.Screen
+      /><Tabs.Screen
         name="perfil"
         options={{
           title: 'Perfil',
