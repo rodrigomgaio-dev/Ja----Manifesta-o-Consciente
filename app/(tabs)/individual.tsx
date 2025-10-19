@@ -240,12 +240,12 @@ export default function IndividualScreen() {
             </Text>
             <View style={styles.infoList}>
               {[
-                'Defina seu título e descrição',
-                'Escolha um código mental (apelido)',
+                'Defina o que deseja cocriar',
                 'Crie seu Vision Board interativo',
-                'Configure seus Momentos de Cocriação',
-                'Escreva uma carta para o futuro (ou não)',
-                'Acompanhe sua jornada com presença',
+                'Planeje seus Momentos de Cocriação',
+                'Envia uma carta para o seu EU do futuro (ou não)',
+                'Mantenha-se presente e firme na sua cocriação',
+                'Celebre sua cocriação de fora inesqecível',
               ].map((step, index) => (
                 <View key={index} style={styles.infoItem}>
                   <View style={[styles.stepNumber, { backgroundColor: colors.primary }]}>
