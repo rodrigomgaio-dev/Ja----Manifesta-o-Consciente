@@ -532,43 +532,21 @@ export default function VisionBoardEditorScreen() {
       return;
     }
 
-    showModal(
-      'Concluir Vision Board?',
-      'Ao concluir, você não poderá mais editar os elementos. Tem certeza?',
-      'warning',
-      [
-        {
-          text: 'Adiar',
-          variant: 'outline',
-          onPress: () => {
-            setModalVisible(false);
-          },
-        },
-        {
-          text: 'Concluir',
-          variant: 'primary',
-          onPress: async () => {
-            setModalVisible(false);
-            // Marcar como salvo e navegar
-            setVisionBoardSaved(true);
-            // Pequeno delay para garantir que o modal fecha antes de mostrar o próximo
-            setTimeout(() => {
-              showModal(
-                'Cocriação Criada',
-                'Sua manifestação consciente está ativa. Visualize seus sonhos diariamente.',
-                'success',
-                undefined
-              );
-              // Navegar após fechar o modal de sucesso
-              setTimeout(() => {
-                router.push('/(tabs)/individual');
-              }, 1500);
-            }, 300);
-          },
-        },
-      ]
-    );
-  }, [items, showModal]);
+    setModalVisible(false);
+    setVisionBoardSaved(true);
+    
+    setTimeout(() => {
+      showModal(
+        'Vision Board Finalizado!',
+        'Utilize-o para visualizar durante suas práticas e sentir que JÁ É.',
+        'success'
+      );
+      
+      setTimeout(() => {
+        router.push(`/cocriacao-details?id=${cocreationId}`);
+      }, 1500);
+    }, 300);
+  }, [items, showModal, cocreationId]);
 
   if (!user) {
     return (
@@ -589,10 +567,13 @@ export default function VisionBoardEditorScreen() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <GradientBackground>
         <View style={[styles.container, { paddingTop: insets.top }]}>
-          {/* Header */}
           <View style={styles.header}>
-            {/* Espaço vazio para manter o título centralizado */}
-            <View style={{ width: 48 }} />
+            <TouchableOpacity
+              style={[styles.headerActionButton, { backgroundColor: colors.surface }]}
+              onPress={() => router.push(`/cocriacao-details?id=${cocreationId}`)}
+            >
+              <MaterialIcons name="close" size={24} color={colors.text} />
+            </TouchableOpacity>
             
             <View style={styles.headerCenter}>
               <Text style={[styles.headerTitle, { color: colors.text }]}>Vision Board</Text>
@@ -601,8 +582,12 @@ export default function VisionBoardEditorScreen() {
               </Text>
             </View>
             
-            {/* Espaço vazio para manter o título centralizado */}
-            <View style={{ width: 48 }} />
+            <TouchableOpacity
+              style={[styles.headerActionButton, { backgroundColor: colors.primary }]}
+              onPress={handleComplete}
+            >
+              <MaterialIcons name="check" size={24} color="white" />
+            </TouchableOpacity>
           </View>
 
           {/* Canvas Container */}
@@ -701,14 +686,7 @@ export default function VisionBoardEditorScreen() {
               <MaterialIcons name="emoji-emotions" size={24} color="white" />
             </TouchableOpacity>
 
-            {/* Floating Finish Button */}
-            <TouchableOpacity
-              style={[styles.finishFloatingButton, { backgroundColor: colors.primary }]}
-              onPress={handleComplete}
-            >
-              <MaterialIcons name="check" size={28} color="white" />
-              <Text style={styles.finishFloatingButtonText}>Concluir</Text>
-            </TouchableOpacity>
+
           </View>
 
           {/* Add Element Modal */}
@@ -909,6 +887,18 @@ const styles = StyleSheet.create({
     padding: Spacing.sm,
     borderRadius: 8,
   },
+  headerActionButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
   headerCenter: {
     flex: 1,
     alignItems: 'center',
@@ -1061,25 +1051,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
   },
-  finishFloatingButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    borderRadius: 28,
-    elevation: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 10,
-    marginTop: Spacing.sm,
-  },
-  finishFloatingButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '700',
-    marginLeft: Spacing.xs,
-  },
+
   
   // Modals - Geral
   modalOverlay: {
