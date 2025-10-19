@@ -202,28 +202,28 @@ export default function GratitudePracticeScreen() {
 
         {/* Hero Section */}
         <View style={styles.heroSection}>
-          <MaterialIcons name="favorite" size={48} color={colors.primary} />
+          <MaterialIcons name="favorite" size={48} color="#EC4899" />
           
           <Text style={[styles.mainTitle, { color: colors.text }]}>
             Momento de Gratidão
           </Text>
-          
+        </View>
+
+        {/* Cocreation Title */}
+        {(cocreationId || circleId) && title && (
+          <View style={styles.cocreationTitleContainer}>
+            <Text style={[styles.cocreationTitle, { color: '#EC4899' }]}>
+              Cocriando {title}
+            </Text>
+          </View>
+        )}
+
+        {/* Subtitle */}
+        <View style={styles.subtitleContainer}>
           <Text style={[styles.mainSubtitle, { color: colors.textMuted }]}>
             Celebre as bênçãos da sua vida
           </Text>
         </View>
-
-        {/* Context Header */}
-        {(cocreationId || circleId) && (
-          <View style={styles.contextHeader}>
-            <Text style={[styles.contextTitle, { color: colors.text }]}>
-              {getHeaderText()}
-            </Text>
-            <Text style={[styles.contextSubtitle, { color: colors.textSecondary }]}>
-              {getSubheaderText()}
-            </Text>
-          </View>
-        )}
 
         {/* Gratitude Input Card */}
         <SacredCard glowing style={styles.inputCard}>
@@ -381,34 +381,33 @@ const styles = StyleSheet.create({
   },
   heroSection: {
     alignItems: 'center',
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.md,
   },
   mainTitle: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '600',
     marginTop: Spacing.sm,
     textAlign: 'center',
   },
-  mainSubtitle: {
-    fontSize: 14,
-    marginTop: Spacing.xs,
-    textAlign: 'center',
-  },
-  contextHeader: {
-    marginBottom: Spacing.xl,
+  cocreationTitleContainer: {
+    alignItems: 'center',
+    marginBottom: Spacing.md,
     paddingHorizontal: Spacing.md,
   },
-  contextTitle: {
-    fontSize: 22,
-    fontWeight: '600',
-    marginBottom: Spacing.sm,
+  cocreationTitle: {
+    fontSize: 20,
+    fontWeight: '700',
     textAlign: 'center',
+    letterSpacing: 0.5,
   },
-  contextSubtitle: {
+  subtitleContainer: {
+    alignItems: 'center',
+    marginBottom: Spacing.lg,
+  },
+  mainSubtitle: {
     fontSize: 16,
-    lineHeight: 24,
-    textAlign: 'center',
     fontStyle: 'italic',
+    textAlign: 'center',
   },
   inputCard: {
     marginBottom: Spacing.lg,

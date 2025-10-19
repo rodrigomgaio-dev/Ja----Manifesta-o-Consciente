@@ -219,23 +219,27 @@ export default function JaeMeditationListScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Title */}
+        <View style={styles.titleSection}>
+          <MaterialIcons name="self-improvement" size={48} color="#8B5CF6" />
+          <Text style={[styles.title, { color: colors.text }]}>
+            Momento de Meditação
+          </Text>
+        </View>
+
         {/* Cocreation Title */}
         {cocreationTitle && (
           <View style={styles.cocreationTitleContainer}>
-            <Text style={[styles.cocreationTitle, { color: colors.primary }]}>
-              {cocreationTitle}
+            <Text style={[styles.cocreationTitle, { color: '#8B5CF6' }]}>
+              Cocriando {cocreationTitle}
             </Text>
           </View>
         )}
 
-        {/* Title */}
-        <View style={styles.titleSection}>
-          <MaterialIcons name="self-improvement" size={40} color={colors.primary} />
-          <Text style={[styles.title, { color: colors.text }]}>
-            Momento de Cocriação: Meditação
-          </Text>
+        {/* Subtitle */}
+        <View style={styles.subtitleContainer}>
           <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-            Escolha uma meditação para praticar
+            Encontre paz no silêncio interior
           </Text>
         </View>
              
@@ -428,6 +432,16 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginLeft: Spacing.xs,
   },
+  titleSection: {
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: '600',
+    marginTop: Spacing.sm,
+    textAlign: 'center',
+  },
   cocreationTitleContainer: {
     alignItems: 'center',
     marginBottom: Spacing.md,
@@ -439,20 +453,14 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     letterSpacing: 0.5,
   },
-  titleSection: {
+  subtitleContainer: {
     alignItems: 'center',
     marginBottom: Spacing.lg,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: '600',
-    marginTop: Spacing.sm,
-    marginBottom: Spacing.xs,
-    textAlign: 'center',
   },
   subtitle: {
     fontSize: 16,
     fontStyle: 'italic',
+    textAlign: 'center',
   },
   createButtonContainer: {
     marginBottom: Spacing.lg,

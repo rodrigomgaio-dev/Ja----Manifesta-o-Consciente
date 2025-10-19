@@ -38,6 +38,7 @@ export default function JaeAffirmationListScreen() {
   const { cocreationId } = useLocalSearchParams<{ cocreationId: string }>();
 
   const [affirmations, setAffirmations] = useState<Affirmation[]>([]);
+  const [cocreationTitle, setCocreationTitle] = useState<string>('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -46,6 +47,19 @@ export default function JaeAffirmationListScreen() {
 
   const loadAffirmations = async () => {
     try {
+      // Load cocreation title
+      const { data: cocreation, error: cocreationError } = await supabase
+        .from('individual_cocriations')
+        .select('title')
+        .eq('id', cocreationId)
+        .single();
+
+      if (cocreationError) {
+        console.error('Error loading cocreation:', cocreationError);
+      } else {
+        setCocreationTitle(cocreation?.title || '');
+      }
+
       const { data, error } = await supabase
         .from('affirmations')
         .select('*')
@@ -100,12 +114,25 @@ export default function JaeAffirmationListScreen() {
 
         {/* Title */}
         <View style={styles.titleSection}>
-          <MaterialIcons name="psychology" size={48} color={colors.primary} />
+          <MaterialIcons name="psychology" size={48} color="#10B981" />
           <Text style={[styles.title, { color: colors.text }]}>
-            Afirmações
+            Momento de Afirmação
           </Text>
+        </View>
+
+        {/* Cocreation Title */}
+        {cocreationTitle && (
+          <View style={styles.cocreationTitleContainer}>
+            <Text style={[styles.cocreationTitle, { color: '#10B981' }]}>
+              Cocriando {cocreationTitle}
+            </Text>
+          </View>
+        )}
+
+        {/* Subtitle */}
+        <View style={styles.subtitleContainer}>
           <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-            Suas afirmações poderosas
+            Reprograme sua mente consciente
           </Text>
         </View>
 
@@ -184,17 +211,33 @@ const styles = StyleSheet.create({
   },
   titleSection: {
     alignItems: 'center',
-    marginBottom: Spacing.xl,
+    marginBottom: Spacing.md,
   },
   title: {
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: '600',
     marginTop: Spacing.sm,
-    marginBottom: Spacing.xs,
+    textAlign: 'center',
+  },
+  cocreationTitleContainer: {
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+    paddingHorizontal: Spacing.md,
+  },
+  cocreationTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    textAlign: 'center',
+    letterSpacing: 0.5,
+  },
+  subtitleContainer: {
+    alignItems: 'center',
+    marginBottom: Spacing.lg,
   },
   subtitle: {
     fontSize: 16,
     fontStyle: 'italic',
+    textAlign: 'center',
   },
   createButtonContainer: {
     marginBottom: Spacing.xl,
