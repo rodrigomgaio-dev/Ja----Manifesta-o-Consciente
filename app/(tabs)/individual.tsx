@@ -118,15 +118,15 @@ export default function IndividualScreen() {
                 
                 <View style={styles.progressItem}>
                   <MaterialIcons 
-                    name={cocriation.future_letter_completed ? 'check-circle' : 'radio-button-unchecked'}
+                    name={cocriation.future_letter_completed === true ? 'check-circle' : cocriation.future_letter_completed === false ? 'cancel' : 'radio-button-unchecked'}
                     size={20} 
-                    color={cocriation.future_letter_completed ? colors.success : colors.textMuted}
+                    color={cocriation.future_letter_completed === true ? colors.success : cocriation.future_letter_completed === false ? colors.error : colors.textMuted}
                   />
                   <Text style={[
                     styles.progressText, 
-                    { color: cocriation.future_letter_completed ? colors.success : colors.textMuted }
+                    { color: cocriation.future_letter_completed === true ? colors.success : cocriation.future_letter_completed === false ? colors.error : colors.textMuted }
                   ]}>
-                    Carta ao Futuro
+                    Carta ao Futuro{cocriation.future_letter_completed === false ? ' (não enviada)' : ''}
                   </Text>
                 </View>
               </View>

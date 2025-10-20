@@ -186,7 +186,8 @@ export default function CocriacaoDetailsScreen() {
   // --- FIM DA FUNÇÃO CRÍTICA ---
 
   const handleFutureLetter = () => {
-    router.push(`/future-letter?cocreationId=${cocriation.id}`);
+    // Passar from=details para indicar que vem dos detalhes
+    router.push(`/future-letter?cocreationId=${cocriation.id}&from=details`);
   };
 
   // Mostrar loading apenas enquanto carrega

@@ -10,7 +10,7 @@ import {
   Animated,
   Dimensions,
 } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import GradientBackground from '@/components/ui/GradientBackground';
@@ -29,9 +29,13 @@ export default function FutureLetterScreen() {
   const { colors } = useTheme();
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
-  const { cocreationId } = useLocalSearchParams<{ cocreationId: string }>();
+  const navigation = useNavigation();
+  const { cocreationId, from } = useLocalSearchParams<{ cocreationId: string; from?: string }>();
   const { createFutureLetter, loading } = useFutureLetter();
   const { updateCocriation } = useIndividualCocriations();
+  
+  // Determinar se vem da criação ou dos detalhes
+  const isFromCreation = from === 'creation';
 
   const [letterData, setLetterData] = useState({
     title: '',
@@ -121,13 +125,24 @@ Eu do presente`,
   const handleNoLetter = async () => {
     if (!cocreationId) return;
     
-    // Marcar carta como completa sem criar registro
+    // Marcar carta como NÃO enviada (false indica que o usuário optou por não enviar)
     await updateCocriation(cocreationId, { 
-      future_letter_completed: true 
+      future_letter_completed: false 
     });
     
-    // Navegar para vision board
-    router.replace(`/vision-board?cocreationId=${cocreationId}`);
+    // Criar registro indicando que a carta não foi enviada
+    await createFutureLetter({
+      individual_cocreation_id: cocreationId,
+      content: '[Carta não enviada]',
+      title: 'Não enviada',
+    });
+    
+    // Navegar baseado em de onde veio
+    if (isFromCreation) {
+      router.replace(`/vision-board?cocreationId=${cocreationId}`);
+    } else {
+      router.replace(`/cocriacao-details?id=${cocreationId}`);
+    }
   };
 
   const startLetterAnimation = () => {
@@ -171,8 +186,14 @@ Eu do presente`,
   };
 
   const handlePostpone = () => {
-    // Apenas volta sem salvar nada
-    router.back();
+    // Navegar baseado em de onde veio
+    if (isFromCreation) {
+      // Se vem da criação, vai para o Vision Board sem marcar como completa
+      router.replace(`/vision-board?cocreationId=${cocreationId}`);
+    } else {
+      // Se vem dos detalhes, volta para os detalhes
+      router.replace(`/cocriacao-details?id=${cocreationId}`);
+    }
   };
 
   if (!user) {

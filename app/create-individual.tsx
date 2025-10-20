@@ -109,8 +109,8 @@ export default function CreateIndividualScreen() {
         showWebAlert('Erro ao Criar Cocriação', errorMessage);
       } else {
         console.log('Cocriation created successfully!');
-        // Navigate to future letter creation
-        router.push(`/future-letter?cocreationId=${result.data.id}`);
+        // Navigate to future letter creation with from parameter
+        router.push(`/future-letter?cocreationId=${result.data.id}&from=creation`);
       }
     } catch (error) {
       console.error('Unexpected error in handleSubmit:', error);
