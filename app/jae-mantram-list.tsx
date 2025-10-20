@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,13 +6,14 @@ import {
   StyleSheet,
   TouchableOpacity,
 } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
 import GradientBackground from '@/components/ui/GradientBackground';
 import SacredCard from '@/components/ui/SacredCard';
 import SacredButton from '@/components/ui/SacredButton';
+import SacredModal from '@/components/ui/SacredModal';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Spacing } from '@/constants/Colors';
@@ -48,12 +49,19 @@ export default function JaeMantramListScreen() {
   const { cocreationId } = useLocalSearchParams<{ cocreationId: string }>();
 
   const [mantrams, setMantrams] = useState<Mantram[]>([]);
+  const [selectedMantramIds, setSelectedMantramIds] = useState<string[]>([]);
   const [cocreationTitle, setCocreationTitle] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [playRepetitions, setPlayRepetitions] = useState<number>(1);
   const [currentRepetition, setCurrentRepetition] = useState<number>(0);
   const [sound, setSound] = useState<Audio.Sound | null>(null);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalConfig, setModalConfig] = useState<{
+    title: string;
+    message: string;
+    type: 'info' | 'success' | 'warning' | 'error';
+  }>({ title: '', message: '', type: 'info' });
 
   useEffect(() => {
     loadMantrams();
@@ -63,6 +71,21 @@ export default function JaeMantramListScreen() {
       }
     };
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadMantrams();
+    }, [cocreationId])
+  );
+
+  const showModal = (
+    title: string,
+    message: string,
+    type: 'info' | 'success' | 'warning' | 'error' = 'info'
+  ) => {
+    setModalConfig({ title, message, type });
+    setModalVisible(true);
+  };
 
   const loadMantrams = async () => {
     try {
@@ -79,22 +102,70 @@ export default function JaeMantramListScreen() {
         setCocreationTitle(cocreation?.title || '');
       }
 
-      const { data, error } = await supabase
+      // Load ALL user mantrams
+      const { data: allMantrams, error: mantramsError } = await supabase
         .from('mantrams')
         .select('*')
         .eq('user_id', user?.id)
-        .eq('cocreation_id', cocreationId)
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error loading mantrams:', error);
-      } else {
-        setMantrams(data || []);
+      if (mantramsError) {
+        console.error('Error loading mantrams:', mantramsError);
+        return;
       }
+
+      // Load selected mantrams for this cocreation
+      const { data: selectedLinks, error: linksError } = await supabase
+        .from('cocreation_mantrams')
+        .select('mantram_id')
+        .eq('cocreation_id', cocreationId);
+
+      if (linksError) {
+        console.error('Error loading mantram links:', linksError);
+      }
+
+      setMantrams(allMantrams || []);
+      setSelectedMantramIds((selectedLinks || []).map(link => link.mantram_id));
     } catch (error) {
       console.error('Error loading mantrams:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const toggleMantramSelection = async (mantramId: string) => {
+    const isSelected = selectedMantramIds.includes(mantramId);
+
+    try {
+      if (isSelected) {
+        // Remove from selection
+        const { error } = await supabase
+          .from('cocreation_mantrams')
+          .delete()
+          .eq('cocreation_id', cocreationId)
+          .eq('mantram_id', mantramId);
+
+        if (error) throw error;
+
+        setSelectedMantramIds(prev => prev.filter(id => id !== mantramId));
+        showModal('Removido', 'Mantram removido desta cocriação.', 'success');
+      } else {
+        // Add to selection
+        const { error } = await supabase
+          .from('cocreation_mantrams')
+          .insert({
+            cocreation_id: cocreationId,
+            mantram_id: mantramId,
+          });
+
+        if (error) throw error;
+
+        setSelectedMantramIds(prev => [...prev, mantramId]);
+        showModal('Adicionado', 'Mantram adicionado a esta cocriação!', 'success');
+      }
+    } catch (error) {
+      console.error('Error toggling mantram selection:', error);
+      showModal('Erro', 'Não foi possível atualizar a seleção.', 'error');
     }
   };
 
@@ -201,15 +272,6 @@ export default function JaeMantramListScreen() {
           </Text>
         </View>
 
-        {/* Create New Button */}
-        <View style={styles.createButtonContainer}>
-          <SacredButton
-            title="Gravar Novo Mantram"
-            onPress={() => router.push(`/mantram-practice?cocreationId=${cocreationId}&returnTo=jae`)}
-            icon={<MaterialIcons name="add" size={20} color="white" />}
-          />
-        </View>
-
         {/* Mantrams List */}
         {loading ? (
           <View style={styles.loadingContainer}>
@@ -229,65 +291,204 @@ export default function JaeMantramListScreen() {
           </SacredCard>
         ) : (
           <View style={styles.mantramsList}>
-            {mantrams.map((mantram) => {
-              const isPlaying = playingId === mantram.id;
-              const category = CATEGORIES[mantram.category];
-              const displayColor = category?.color || colors.accent;
+            {/* Selected Mantrams Section */}
+            {selectedMantramIds.length > 0 ? (
+              <View style={styles.selectedSection}>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                  ⭐ Mantrams desta Cocriação
+                </Text>
+                {mantrams
+                  .filter(m => selectedMantramIds.includes(m.id))
+                  .map((mantram) => {
+                    const isPlaying = playingId === mantram.id;
+                    const category = CATEGORIES[mantram.category];
+                    const displayColor = category?.color || colors.accent;
 
-              return (
-                <SacredCard key={mantram.id} style={styles.mantramCard}>
-                  <View style={[styles.mantramHeader, { borderLeftColor: displayColor }]}>
-                    <View style={styles.mantramInfo}>
-                      <Text style={styles.mantramCategoryIcon}>{category?.icon}</Text>
-                      <View style={styles.mantramTextInfo}>
-                        <Text style={[styles.mantramName, { color: colors.text }]}>
-                          {mantram.name}
-                        </Text>
-                        <Text style={[styles.mantramDuration, { color: colors.textSecondary }]}>
-                          {formatDuration(mantram.duration)}
-                        </Text>
-                      </View>
-                    </View>
-
-                    {isPlaying ? (
-                      <View style={styles.playingControls}>
-                        <Text style={[styles.repetitionInfo, { color: colors.text }]}>
-                          {playRepetitions === -1 ? '∞ Loop' : `${currentRepetition}/${playRepetitions}`}
-                        </Text>
-                        <TouchableOpacity
-                          style={[styles.stopButton, { backgroundColor: colors.error + '20' }]}
-                          onPress={stopPlayback}
-                        >
-                          <MaterialIcons name="stop" size={28} color={colors.error} />
-                        </TouchableOpacity>
-                      </View>
-                    ) : (
-                      <View style={styles.repetitionButtons}>
-                        {REPETITION_OPTIONS.map((option) => (
+                    return (
+                      <SacredCard key={mantram.id} style={styles.mantramCard}>
+                        <View style={[styles.mantramHeader, { borderLeftColor: displayColor }]}>
+                          {/* Star Selection */}
                           <TouchableOpacity
-                            key={option.value}
-                            style={[
-                              styles.repetitionButton,
-                              { backgroundColor: displayColor + '20' }
-                            ]}
-                            onPress={() => playMantram(mantram, option.value)}
+                            style={styles.starButton}
+                            onPress={() => toggleMantramSelection(mantram.id)}
                           >
                             <MaterialIcons 
-                              name={option.icon as any} 
-                              size={18} 
-                              color={displayColor}
+                              name="star" 
+                              size={24} 
+                              color="#F59E0B" 
                             />
                           </TouchableOpacity>
-                        ))}
-                      </View>
-                    )}
-                  </View>
-                </SacredCard>
-              );
-            })}
+
+                          <View style={styles.mantramContent}>
+                            <View style={styles.mantramInfo}>
+                              {category?.icon && (
+                                <Text style={styles.mantramCategoryIcon}>{category.icon}</Text>
+                              )}
+                              <View style={styles.mantramTextInfo}>
+                                <Text style={[styles.mantramName, { color: colors.text }]} numberOfLines={1}>
+                                  {mantram.name}
+                                </Text>
+                                <Text style={[styles.mantramDuration, { color: colors.textSecondary }]}>
+                                  {formatDuration(mantram.duration)}
+                                </Text>
+                              </View>
+                            </View>
+
+                            {/* Playback Controls */}
+                            {isPlaying ? (
+                              <View style={styles.playingControls}>
+                                <Text style={[styles.repetitionInfo, { color: colors.text }]}>
+                                  {playRepetitions === -1 ? '∞ Loop' : `${currentRepetition}/${playRepetitions}`}
+                                </Text>
+                                <TouchableOpacity
+                                  style={[styles.stopButton, { backgroundColor: colors.error + '20' }]}
+                                  onPress={stopPlayback}
+                                >
+                                  <MaterialIcons name="stop" size={20} color={colors.error} />
+                                </TouchableOpacity>
+                              </View>
+                            ) : (
+                              <View style={styles.repetitionButtons}>
+                                {REPETITION_OPTIONS.map((option) => (
+                                  <TouchableOpacity
+                                    key={option.value}
+                                    style={[
+                                      styles.repetitionButton,
+                                      { backgroundColor: displayColor + '20' }
+                                    ]}
+                                    onPress={() => playMantram(mantram, option.value)}
+                                  >
+                                    <MaterialIcons 
+                                      name={option.icon as any} 
+                                      size={16} 
+                                      color={displayColor}
+                                    />
+                                  </TouchableOpacity>
+                                ))}
+                              </View>
+                            )}
+                          </View>
+                        </View>
+                      </SacredCard>
+                    );
+                  })}
+              </View>
+            ) : (
+              <SacredCard style={styles.emptySelectionCard}>
+                <MaterialIcons name="info-outline" size={48} color={colors.primary} />
+                <Text style={[styles.emptySelectionTitle, { color: colors.text }]}>
+                  Nenhum mantram selecionado
+                </Text>
+                <Text style={[styles.emptySelectionDescription, { color: colors.textSecondary }]}>
+                  Toque na estrela ao lado do mantram para adicioná-lo a esta cocriação
+                </Text>
+              </SacredCard>
+            )}
+
+            {/* Create New Button */}
+            <View style={styles.createButtonContainer}>
+              <SacredButton
+                title="Gravar Novo Mantram"
+                onPress={() => router.push(`/mantram-practice?cocreationId=${cocreationId}&returnTo=jae`)}
+                icon={<MaterialIcons name="add" size={20} color="white" />}
+              />
+            </View>
+
+            {/* All Mantrams Section */}
+            {mantrams.filter(m => !selectedMantramIds.includes(m.id)).length > 0 && (
+              <View style={styles.allMantramsSection}>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                  Todos os Mantrams
+                </Text>
+                {mantrams
+                  .filter(m => !selectedMantramIds.includes(m.id))
+                  .map((mantram) => {
+                    const isPlaying = playingId === mantram.id;
+                    const category = CATEGORIES[mantram.category];
+                    const displayColor = category?.color || colors.accent;
+
+                    return (
+                      <SacredCard key={mantram.id} style={styles.mantramCard}>
+                        <View style={[styles.mantramHeader, { borderLeftColor: displayColor }]}>
+                          {/* Star Selection */}
+                          <TouchableOpacity
+                            style={styles.starButton}
+                            onPress={() => toggleMantramSelection(mantram.id)}
+                          >
+                            <MaterialIcons 
+                              name="star-outline" 
+                              size={24} 
+                              color={colors.textMuted} 
+                            />
+                          </TouchableOpacity>
+
+                          <View style={styles.mantramContent}>
+                            <View style={styles.mantramInfo}>
+                              {category?.icon && (
+                                <Text style={styles.mantramCategoryIcon}>{category.icon}</Text>
+                              )}
+                              <View style={styles.mantramTextInfo}>
+                                <Text style={[styles.mantramName, { color: colors.text }]} numberOfLines={1}>
+                                  {mantram.name}
+                                </Text>
+                                <Text style={[styles.mantramDuration, { color: colors.textSecondary }]}>
+                                  {formatDuration(mantram.duration)}
+                                </Text>
+                              </View>
+                            </View>
+
+                            {/* Playback Controls */}
+                            {isPlaying ? (
+                              <View style={styles.playingControls}>
+                                <Text style={[styles.repetitionInfo, { color: colors.text }]}>
+                                  {playRepetitions === -1 ? '∞ Loop' : `${currentRepetition}/${playRepetitions}`}
+                                </Text>
+                                <TouchableOpacity
+                                  style={[styles.stopButton, { backgroundColor: colors.error + '20' }]}
+                                  onPress={stopPlayback}
+                                >
+                                  <MaterialIcons name="stop" size={20} color={colors.error} />
+                                </TouchableOpacity>
+                              </View>
+                            ) : (
+                              <View style={styles.repetitionButtons}>
+                                {REPETITION_OPTIONS.map((option) => (
+                                  <TouchableOpacity
+                                    key={option.value}
+                                    style={[
+                                      styles.repetitionButton,
+                                      { backgroundColor: displayColor + '20' }
+                                    ]}
+                                    onPress={() => playMantram(mantram, option.value)}
+                                  >
+                                    <MaterialIcons 
+                                      name={option.icon as any} 
+                                      size={16} 
+                                      color={displayColor}
+                                    />
+                                  </TouchableOpacity>
+                                ))}
+                              </View>
+                            )}
+                          </View>
+                        </View>
+                      </SacredCard>
+                    );
+                  })}
+              </View>
+            )}
           </View>
         )}
       </ScrollView>
+
+      {/* Modal */}
+      <SacredModal
+        visible={modalVisible}
+        title={modalConfig.title}
+        message={modalConfig.message}
+        type={modalConfig.type}
+        onClose={() => setModalVisible(false)}
+      />
     </GradientBackground>
   );
 }
@@ -341,7 +542,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   createButtonContainer: {
-    marginBottom: Spacing.xl,
+    marginBottom: Spacing.lg,
+    marginTop: Spacing.md,
   },
   loadingContainer: {
     padding: Spacing.xl,
@@ -365,36 +567,75 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: 'center',
   },
+  emptySelectionCard: {
+    alignItems: 'center',
+    paddingVertical: Spacing.xl,
+    marginBottom: Spacing.md,
+  },
+  emptySelectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginTop: Spacing.md,
+    marginBottom: Spacing.xs,
+    textAlign: 'center',
+  },
+  emptySelectionDescription: {
+    fontSize: 14,
+    textAlign: 'center',
+    paddingHorizontal: Spacing.md,
+    lineHeight: 20,
+  },
   mantramsList: {
     marginBottom: Spacing.xl,
   },
+  selectedSection: {
+    marginBottom: Spacing.xl,
+  },
+  allMantramsSection: {
+    marginBottom: Spacing.xl,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: Spacing.md,
+    paddingHorizontal: Spacing.xs,
+  },
   mantramCard: {
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.sm,
     padding: 0,
   },
   mantramHeader: {
-    padding: Spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Spacing.sm,
     borderLeftWidth: 4,
+  },
+  starButton: {
+    padding: Spacing.xs,
+    marginRight: Spacing.xs,
+  },
+  mantramContent: {
+    flex: 1,
   },
   mantramInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.sm,
   },
   mantramCategoryIcon: {
-    fontSize: 32,
-    marginRight: Spacing.md,
+    fontSize: 24,
+    marginRight: Spacing.sm,
   },
   mantramTextInfo: {
     flex: 1,
   },
   mantramName: {
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: '600',
-    marginBottom: Spacing.xs,
+    marginBottom: 2,
   },
   mantramDuration: {
-    fontSize: 14,
+    fontSize: 12,
   },
   playingControls: {
     flexDirection: 'row',
@@ -406,20 +647,20 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   stopButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },
   repetitionButtons: {
     flexDirection: 'row',
-    gap: Spacing.sm,
+    gap: Spacing.xs,
   },
   repetitionButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },
