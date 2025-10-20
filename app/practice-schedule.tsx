@@ -110,13 +110,13 @@ export default function PracticeScheduleListScreen() {
   const renderScheduleCard = (schedule: any) => {
     if (schedule.mode === 'flow') {
       return (
-        <SacredCard key={schedule.id} glowing style={styles.scheduleCard}>
+        <SacredCard key={schedule.id} style={styles.scheduleCard}>
           <View style={styles.cardHeaderActions}>
             <TouchableOpacity 
-              style={[styles.headerActionIcon, { backgroundColor: colors.primary + '20' }]}
+              style={[styles.headerActionIcon, { backgroundColor: '#10B981' + '20' }]}
               onPress={() => handleEdit(schedule.id)}
             >
-              <MaterialIcons name="edit" size={20} color={colors.primary} />
+              <MaterialIcons name="edit" size={20} color="#10B981" />
             </TouchableOpacity>
             
             <TouchableOpacity 
@@ -128,8 +128,8 @@ export default function PracticeScheduleListScreen() {
           </View>
 
           <View style={styles.scheduleHeader}>
-            <View style={styles.scheduleIconContainer}>
-              <MaterialIcons name="water-drop" size={28} color={colors.primary} />
+            <View style={[styles.scheduleIconContainer, { backgroundColor: '#10B981' + '10' }]}>
+              <MaterialIcons name="waves" size={28} color="#10B981" />
             </View>
             <View style={styles.scheduleInfo}>
               <Text style={[styles.scheduleTitle, { color: colors.text }]}>
@@ -143,7 +143,7 @@ export default function PracticeScheduleListScreen() {
 
           {/* Jaé Button */}
           <TouchableOpacity
-            style={[styles.jaeButton, { backgroundColor: colors.primary }]}
+            style={[styles.jaeButton, { backgroundColor: '#10B981' }]}
             onPress={() => router.push(`/jae-practice?cocreationId=${cocreationId}&scheduleId=${schedule.id}&mode=flow`)}
           >
             <Text style={styles.jaeButtonText}>Jaé</Text>
@@ -256,7 +256,14 @@ export default function PracticeScheduleListScreen() {
   }
 
   const hasFlowMode = schedules.some(s => s.mode === 'flow');
+  const flowSchedule = schedules.find(s => s.mode === 'flow');
   const routineSchedules = schedules.filter(s => s.mode === 'routine');
+  
+  // Sort schedules: flow first, then routines
+  const sortedSchedules = [
+    ...(flowSchedule ? [flowSchedule] : []),
+    ...routineSchedules
+  ];
 
   return (
     <GradientBackground>
@@ -290,7 +297,7 @@ export default function PracticeScheduleListScreen() {
 
         {/* Empty State */}
         {schedules.length === 0 && (
-          <SacredCard glowing style={styles.emptyCard}>
+          <SacredCard style={styles.emptyCard}>
             <MaterialIcons name="spa" size={64} color={colors.primary} />
             <Text style={[styles.emptyTitle, { color: colors.text }]}>
               Configure seus Momentos
@@ -310,37 +317,17 @@ export default function PracticeScheduleListScreen() {
         {schedules.length > 0 && (
           <>
             <View style={styles.schedulesContainer}>
-              {schedules.map(schedule => renderScheduleCard(schedule))}
+              {sortedSchedules.map(schedule => renderScheduleCard(schedule))}
             </View>
 
-            {/* Add New Button */}
-            {!hasFlowMode && (
-              <View style={styles.addButtonContainer}>
-                <SacredButton
-                  title="Adicionar Nova Rotina"
-                  onPress={handleCreateNew}
-                  icon={<MaterialIcons name="add" size={20} color="white" />}
-                />
-              </View>
-            )}
-
-            {/* Info if Flow Mode */}
-            {hasFlowMode && (
-              <SacredCard style={styles.infoCard}>
-                <MaterialIcons name="info-outline" size={24} color={colors.primary} />
-                <Text style={[styles.infoText, { color: colors.textSecondary }]}>
-                  No modo "Deixar Fluir", você pode adicionar rotinas específicas quando quiser criar uma estrutura mais definida.
-                </Text>
-                {routineSchedules.length === 0 && (
-                  <SacredButton
-                    title="Criar Rotina"
-                    onPress={handleCreateNew}
-                    variant="outline"
-                    style={styles.infoButton}
-                  />
-                )}
-              </SacredCard>
-            )}
+            {/* Add New Button - Always show */}
+            <View style={styles.addButtonContainer}>
+              <SacredButton
+                title="Adicionar Nova Rotina"
+                onPress={handleCreateNew}
+                icon={<MaterialIcons name="add" size={20} color="white" />}
+              />
+            </View>
           </>
         )}
 

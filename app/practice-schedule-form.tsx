@@ -265,20 +265,20 @@ export default function PracticeScheduleScreen() {
               style={[
                 styles.modeOption,
                 {
-                  backgroundColor: mode === 'flow' ? colors.primary + '20' : colors.surface,
-                  borderColor: mode === 'flow' ? colors.primary : colors.border,
+                  backgroundColor: mode === 'flow' ? '#10B981' + '20' : colors.surface,
+                  borderColor: mode === 'flow' ? '#10B981' : colors.border,
                 },
               ]}
               onPress={() => setMode('flow')}
             >
               <MaterialIcons 
-                name="water-drop" 
+                name="waves" 
                 size={32} 
-                color={mode === 'flow' ? colors.primary : colors.textMuted} 
+                color={mode === 'flow' ? '#10B981' : colors.textMuted} 
               />
               <Text style={[
                 styles.modeTitle, 
-                { color: mode === 'flow' ? colors.primary : colors.text }
+                { color: mode === 'flow' ? '#10B981' : colors.text }
               ]}>
                 Deixar Fluir
               </Text>
@@ -289,7 +289,7 @@ export default function PracticeScheduleScreen() {
                 <MaterialIcons 
                   name="check-circle" 
                   size={24} 
-                  color={colors.primary} 
+                  color="#10B981" 
                   style={styles.checkIcon}
                 />
               )}
@@ -456,14 +456,18 @@ export default function PracticeScheduleScreen() {
 
               {timeType === 'specific' && (
                 <View style={styles.timePickerContainer}>
+                  <Text style={[styles.timePickerLabel, { color: colors.text }]}>
+                    Selecione o horário:
+                  </Text>
                   <TouchableOpacity
-                    style={[styles.timePickerButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                    style={[styles.timePickerButton, { backgroundColor: colors.surface, borderColor: colors.primary }]}
                     onPress={() => setShowTimePicker(true)}
                   >
-                    <MaterialIcons name="access-time" size={20} color={colors.primary} />
+                    <MaterialIcons name="access-time" size={24} color={colors.primary} />
                     <Text style={[styles.timePickerText, { color: colors.text }]}>
                       {specificTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                     </Text>
+                    <MaterialIcons name="edit" size={20} color={colors.primary} />
                   </TouchableOpacity>
 
                   {showTimePicker && (
@@ -760,17 +764,25 @@ const styles = StyleSheet.create({
   timePickerContainer: {
     marginTop: Spacing.lg,
   },
+  timePickerLabel: {
+    fontSize: 15,
+    fontWeight: '500',
+    marginBottom: Spacing.md,
+  },
   timePickerButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: Spacing.md,
-    borderRadius: 12,
+    justifyContent: 'center',
+    padding: Spacing.lg,
+    borderRadius: 16,
     borderWidth: 2,
+    gap: Spacing.md,
   },
   timePickerText: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginLeft: Spacing.md,
+    fontSize: 24,
+    fontWeight: '700',
+    flex: 1,
+    textAlign: 'center',
   },
   practicesGrid: {
     flexDirection: 'row',
