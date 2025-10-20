@@ -43,8 +43,15 @@ export default function VisionBoardViewScreen() {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const imageTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Filtrar apenas imagens
-  const imageItems = items.filter(item => item.type === 'image') as any[];
+  // Filtrar apenas imagens e garantir que têm URI válida
+  const imageItems = items.filter(item => {
+    if (item.type !== 'image') return false;
+    const uri = (item as any).content || (item as any).uri;
+    return !!uri;
+  }).map(item => ({
+    ...item,
+    uri: (item as any).content || (item as any).uri
+  }));
 
   useEffect(() => {
     return () => {
@@ -500,11 +507,22 @@ export default function VisionBoardViewScreen() {
 
             {/* Animated Image */}
             <Animated.View style={[styles.imageContainer, getAnimatedStyle()]}>
-              <Image
-                source={{ uri: imageItems[currentImageIndex].uri }}
-                style={styles.fullImage}
-                contentFit="contain"
-              />
+              {imageItems[currentImageIndex]?.uri ? (
+                <Image
+                  source={{ uri: imageItems[currentImageIndex].uri }}
+                  style={styles.fullImage}
+                  contentFit="contain"
+                  cachePolicy="memory-disk"
+                  transition={300}
+                />
+              ) : (
+                <View style={[styles.placeholderContainer, { backgroundColor: colors.surface + '60' }]}>
+                  <MaterialIcons name="broken-image" size={64} color={colors.textMuted} />
+                  <Text style={[styles.placeholderText, { color: colors.textMuted }]}>
+                    Imagem não disponível
+                  </Text>
+                </View>
+              )}
             </Animated.View>
 
             {/* Progress Indicator */}
@@ -684,6 +702,18 @@ const styles = StyleSheet.create({
   fullImage: {
     width: '90%',
     height: '90%',
+  },
+  placeholderContainer: {
+    width: '90%',
+    height: '90%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 16,
+  },
+  placeholderText: {
+    fontSize: 16,
+    fontWeight: '500',
+    marginTop: Spacing.md,
   },
   progressContainer: {
     position: 'absolute',
