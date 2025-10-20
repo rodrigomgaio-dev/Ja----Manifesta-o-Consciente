@@ -239,33 +239,37 @@ export default function VisionBoardScreen() {
         {/* Floating Action Buttons */}
         <View style={styles.floatingActions}>
           <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: colors.error + 'E6' }]}
-            onPress={() => router.back()}
+            style={[styles.actionButton, { backgroundColor: 'rgba(239, 68, 68, 0.2)' }]}
+            onPress={() => router.push(`/cocriacao-details?id=${cocreationId}`)}
           >
-            <MaterialIcons name="close" size={28} color="white" />
+            <MaterialIcons name="close" size={28} color="#EF4444" />
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: colors.primary }]}
+            style={[styles.actionButton, { backgroundColor: 'rgba(59, 130, 246, 0.2)' }]}
             onPress={handleAddImage}
             disabled={uploading}
           >
             {uploading ? (
-              <ActivityIndicator size="small" color="white" />
+              <ActivityIndicator size="small" color="#3B82F6" />
             ) : (
-              <MaterialIcons name="add-photo-alternate" size={28} color="white" />
+              <MaterialIcons name="add-photo-alternate" size={28} color="#3B82F6" />
             )}
           </TouchableOpacity>
           
           <TouchableOpacity
             style={[
               styles.actionButton,
-              { backgroundColor: items.length > 0 ? colors.accent : colors.textMuted }
+              { backgroundColor: items.length > 0 ? 'rgba(34, 197, 94, 0.2)' : 'rgba(156, 163, 175, 0.2)' }
             ]}
             onPress={handleComplete}
             disabled={items.length === 0}
           >
-            <MaterialIcons name="check-circle" size={28} color="white" />
+            <MaterialIcons 
+              name="check-circle" 
+              size={28} 
+              color={items.length > 0 ? '#22C55E' : '#9CA3AF'} 
+            />
           </TouchableOpacity>
         </View>
 
