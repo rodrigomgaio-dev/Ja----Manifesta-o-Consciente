@@ -196,13 +196,6 @@ export default function VisionBoardScreen() {
       <View style={[styles.container, { paddingTop: insets.top }]}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity 
-            onPress={() => router.back()} 
-            style={[styles.headerButton, { backgroundColor: colors.surface + '80' }]}
-          >
-            <MaterialIcons name="arrow-back" size={24} color={colors.text} />
-          </TouchableOpacity>
-          
           <View style={styles.headerCenter}>
             <Text style={[styles.headerTitle, { color: colors.text }]}>Vision Board</Text>
             <Text style={[styles.headerSubtitle, { color: colors.textMuted }]}>
@@ -318,7 +311,7 @@ const styles = StyleSheet.create({
   headerCenter: {
     flex: 1,
     alignItems: 'center',
-    marginHorizontal: Spacing.md,
+    paddingRight: 44,
   },
   headerTitle: {
     fontSize: 22,
