@@ -181,7 +181,7 @@ export default function JaeMantramListScreen() {
         <View style={styles.titleSection}>
           <MaterialIcons name="record-voice-over" size={48} color="#3B82F6" />
           <Text style={[styles.title, { color: colors.text }]}>
-            Momento de Mantram
+            Momento de Mantralização
           </Text>
         </View>
 
