@@ -39,7 +39,7 @@ export default function PraticasScreen() {
       router.push('/affirmations-practice');
     } else if (practiceType === 'Meditação') {
       router.push('/meditation-practice');
-    } else if (practiceType === 'Mantrams') {
+    } else if (practiceType === 'Mantralização') {
       router.push('/mantram-practice');
     } else {
       showModal(
