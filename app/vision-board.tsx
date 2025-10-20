@@ -20,6 +20,7 @@ import SacredModal from '@/components/ui/SacredModal';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useVisionBoard } from '@/hooks/useVisionBoard';
+import { useIndividualCocriations } from '@/hooks/useIndividualCocriations';
 import { Spacing } from '@/constants/Colors';
 
 export default function VisionBoardScreen() {
@@ -30,9 +31,11 @@ export default function VisionBoardScreen() {
   const { width: screenWidth } = useWindowDimensions();
   
   const { items, loading, addItem, deleteItem, finalizeVisionBoard } = useVisionBoard(cocreationId || '');
+  const { updateCocriation } = useIndividualCocriations();
 
   // State
   const [uploading, setUploading] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [modalConfig, setModalConfig] = useState<{
     title: string;
@@ -77,6 +80,9 @@ export default function VisionBoardScreen() {
         const response = await addItem(newItem);
         if (response.error) {
           showModal('Erro', 'Não foi possível adicionar a imagem.', 'error');
+        } else {
+          // Marcar que houve mudanças
+          setHasChanges(true);
         }
       } catch (error) {
         console.error('Error adding image:', error);
@@ -109,6 +115,14 @@ export default function VisionBoardScreen() {
                 setTimeout(() => {
                   showModal('Erro', 'Não foi possível excluir a imagem.', 'error');
                 }, 300);
+              } else {
+                // Marcar que houve mudanças
+                setHasChanges(true);
+                
+                // Se todas as imagens foram excluídas, marcar Vision Board como não completo
+                if (items.length === 1) { // 1 porque ainda não atualizou o estado
+                  await updateCocriation(cocreationId, { vision_board_completed: false });
+                }
               }
             } catch (error) {
               console.error('Error deleting image:', error);
@@ -120,7 +134,7 @@ export default function VisionBoardScreen() {
         },
       ]
     );
-  }, [deleteItem, showModal]);
+  }, [deleteItem, showModal, items, cocreationId, updateCocriation]);
 
   const handleComplete = useCallback(async () => {
     if (items.length === 0) {
@@ -239,10 +253,10 @@ export default function VisionBoardScreen() {
         {/* Floating Action Buttons */}
         <View style={styles.floatingActions}>
           <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: 'rgba(239, 68, 68, 0.2)' }]}
+            style={[styles.actionButton, { backgroundColor: colors.primary + '20' }]}
             onPress={() => router.push(`/cocriacao-details?id=${cocreationId}`)}
           >
-            <MaterialIcons name="close" size={28} color="#EF4444" />
+            <MaterialIcons name="arrow-back" size={28} color={colors.primary} />
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -260,15 +274,15 @@ export default function VisionBoardScreen() {
           <TouchableOpacity
             style={[
               styles.actionButton,
-              { backgroundColor: items.length > 0 ? 'rgba(34, 197, 94, 0.2)' : 'rgba(156, 163, 175, 0.2)' }
+              { backgroundColor: (items.length > 0 && hasChanges) ? 'rgba(34, 197, 94, 0.2)' : 'rgba(156, 163, 175, 0.2)' }
             ]}
             onPress={handleComplete}
-            disabled={items.length === 0}
+            disabled={items.length === 0 || !hasChanges}
           >
             <MaterialIcons 
               name="check-circle" 
               size={28} 
-              color={items.length > 0 ? '#22C55E' : '#9CA3AF'} 
+              color={(items.length > 0 && hasChanges) ? '#22C55E' : '#9CA3AF'} 
             />
           </TouchableOpacity>
         </View>

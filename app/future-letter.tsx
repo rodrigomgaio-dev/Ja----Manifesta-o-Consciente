@@ -113,6 +113,13 @@ Eu do presente`,
           future_letter_completed: true 
         });
         
+        // Se vem dos detalhes, voltar para detalhes sem animação
+        if (!isFromCreation) {
+          router.replace(`/cocriacao-details?id=${cocreationId}`);
+          return;
+        }
+        
+        // Se vem da criação, fazer animação e ir para Vision Board
         setShowAnimation(true);
         startLetterAnimation();
       }
