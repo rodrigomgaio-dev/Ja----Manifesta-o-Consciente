@@ -1,15 +1,13 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  Modal,
-  Alert,
   Platform,
   useWindowDimensions,
   FlatList,
-  Image,
+  ActivityIndicator,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,7 +16,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Image as ExpoImage } from 'expo-image';
 
 import GradientBackground from '@/components/ui/GradientBackground';
-import SacredButton from '@/components/ui/SacredButton';
+import SacredModal from '@/components/ui/SacredModal';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useVisionBoard } from '@/hooks/useVisionBoard';
@@ -31,26 +29,32 @@ export default function VisionBoardScreen() {
   const { cocreationId } = useLocalSearchParams<{ cocreationId: string }>();
   const { width: screenWidth } = useWindowDimensions();
   
-  const { items, loading, addItem, deleteItem, finalizeVisionBoard, checkVisionBoardCompleted, refresh } = useVisionBoard(cocreationId || '');
+  const { items, loading, addItem, deleteItem, finalizeVisionBoard } = useVisionBoard(cocreationId || '');
 
   // State
-  const [showImagePicker, setShowImagePicker] = useState(false);
-  const [isCompleted, setIsCompleted] = useState(false);
-  const [isFinalizingVisionBoard, setIsFinalizingVisionBoard] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalConfig, setModalConfig] = useState<{
+    title: string;
+    message: string;
+    type: 'info' | 'success' | 'warning' | 'error';
+    buttons?: any[];
+  }>({ title: '', message: '', type: 'info' });
 
-  const showAlert = useCallback((title: string, message: string, onOk?: () => void) => {
-    if (Platform.OS === 'web') {
-      alert(`${title}: ${message}`);
-      onOk?.();
-    } else {
-      Alert.alert(title, message, onOk ? [{ text: 'OK', onPress: onOk }] : undefined);
-    }
+  const showModal = useCallback((
+    title: string,
+    message: string,
+    type: 'info' | 'success' | 'warning' | 'error' = 'info',
+    buttons?: any[]
+  ) => {
+    setModalConfig({ title, message, type, buttons });
+    setModalVisible(true);
   }, []);
 
   const handleAddImage = useCallback(async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      showAlert('Permissão Necessária', 'Precisamos de permissão para acessar suas fotos.');
+      showModal('Permissão Necessária', 'Precisamos de permissão para acessar suas fotos.', 'warning');
       return;
     }
 
@@ -58,9 +62,11 @@ export default function VisionBoardScreen() {
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       quality: 0.8,
+      allowsMultipleSelection: false,
     });
 
     if (!result.canceled) {
+      setUploading(true);
       try {
         const newItem = {
           type: 'image' as const,
@@ -70,58 +76,87 @@ export default function VisionBoardScreen() {
 
         const response = await addItem(newItem);
         if (response.error) {
-          showAlert('Erro', 'Não foi possível adicionar a imagem.');
+          showModal('Erro', 'Não foi possível adicionar a imagem.', 'error');
         }
       } catch (error) {
         console.error('Error adding image:', error);
-        showAlert('Erro', 'Algo deu errado ao adicionar a imagem.');
+        showModal('Erro', 'Algo deu errado ao adicionar a imagem.', 'error');
+      } finally {
+        setUploading(false);
       }
     }
-    setShowImagePicker(false);
-  }, [addItem, showAlert]);
+  }, [addItem, showModal]);
 
   const handleDeleteImage = useCallback(async (id: string) => {
-    try {
-      const response = await deleteItem(id);
-      if (response.error) {
-        showAlert('Erro', 'Não foi possível excluir a imagem.');
-      }
-    } catch (error) {
-      console.error('Error deleting image:', error);
-      showAlert('Erro', 'Algo deu errado ao excluir a imagem.');
+    showModal(
+      'Confirmar Exclusão',
+      'Deseja realmente excluir esta imagem do Vision Board?',
+      'warning',
+      [
+        {
+          text: 'Cancelar',
+          style: 'cancel',
+          onPress: () => setModalVisible(false),
+        },
+        {
+          text: 'Excluir',
+          style: 'destructive',
+          onPress: async () => {
+            setModalVisible(false);
+            try {
+              const response = await deleteItem(id);
+              if (response.error) {
+                setTimeout(() => {
+                  showModal('Erro', 'Não foi possível excluir a imagem.', 'error');
+                }, 300);
+              }
+            } catch (error) {
+              console.error('Error deleting image:', error);
+              setTimeout(() => {
+                showModal('Erro', 'Algo deu errado ao excluir a imagem.', 'error');
+              }, 300);
+            }
+          },
+        },
+      ]
+    );
+  }, [deleteItem, showModal]);
+
+  const handleComplete = useCallback(async () => {
+    if (items.length === 0) {
+      showModal(
+        'Vision Board Vazio',
+        'Adicione pelo menos uma imagem antes de concluir.',
+        'warning'
+      );
+      return;
     }
-  }, [deleteItem, showAlert]);
 
-  const handleExit = useCallback(() => {
-    router.back();
-  }, []);
-
-  const handleFinalize = useCallback(async () => {
-    setIsFinalizingVisionBoard(true);
-    
     try {
       const result = await finalizeVisionBoard();
       
       if (result.error) {
         console.error('Error finalizing vision board:', result.error);
-        showAlert('Erro', 'Não foi possível finalizar o Vision Board. Tente novamente.');
+        showModal('Erro', 'Não foi possível finalizar o Vision Board.', 'error');
       } else {
-        showAlert(
-          'Vision Board Finalizado',
-          'Sua manifestação consciente foi criada com sucesso! O Vision Board foi marcado como concluído.',
-          () => {
-            // Navigate back to individual cocriations list to see the updated status
-            router.replace('/(tabs)/individual');
-          }
+        showModal(
+          'Vision Board Finalizado!',
+          'Utilize-o para visualizar durante suas práticas e sentir que JÁ É.',
+          'success'
         );
+        setTimeout(() => {
+          router.push(`/cocriacao-details?id=${cocreationId}`);
+        }, 2000);
       }
     } catch (error) {
       console.error('Error finalizing vision board:', error);
-      showAlert('Erro Inesperado', 'Algo deu errado. Tente novamente.');
-    } finally {
-      setIsFinalizingVisionBoard(false);
+      showModal('Erro', 'Algo deu errado ao finalizar.', 'error');
     }
-  }, [finalizeVisionBoard, showAlert, router]);
+  }, [items, finalizeVisionBoard, showModal, cocreationId]);
+
+  // Calculate number of columns based on screen width
+  const numColumns = screenWidth > 600 ? 3 : 2;
+  const itemWidth = (screenWidth - (Spacing.lg * 2) - (Spacing.md * (numColumns - 1))) / numColumns;
 
   if (!user) {
     return (
@@ -137,10 +172,6 @@ export default function VisionBoardScreen() {
       </GradientBackground>
     );
   }
-
-  // Calculate number of columns based on screen width
-  const numColumns = screenWidth > 600 ? 3 : 2;
-  const itemWidth = (screenWidth - (Spacing.lg * 2) - (Spacing.md * (numColumns - 1))) / numColumns;
 
   const renderImageItem = ({ item }: { item: any }) => (
     <View style={[styles.imageItem, { width: itemWidth }]}>
@@ -165,26 +196,35 @@ export default function VisionBoardScreen() {
       <View style={[styles.container, { paddingTop: insets.top }]}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={handleExit} style={styles.headerButton}>
+          <TouchableOpacity 
+            onPress={() => router.back()} 
+            style={[styles.headerButton, { backgroundColor: colors.surface + '80' }]}
+          >
             <MaterialIcons name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
           
           <View style={styles.headerCenter}>
             <Text style={[styles.headerTitle, { color: colors.text }]}>Vision Board</Text>
             <Text style={[styles.headerSubtitle, { color: colors.textMuted }]}>
-              Manifeste conscientemente
+              Crie sua manifestação
             </Text>
           </View>
           
-          {/* Botão de salvar removido */}
+          <TouchableOpacity 
+            onPress={() => router.push(`/vision-board-view?cocreationId=${cocreationId}`)}
+            style={[styles.headerButton, { backgroundColor: colors.primary }]}
+            disabled={items.length === 0}
+          >
+            <MaterialIcons name="visibility" size={24} color="white" />
+          </TouchableOpacity>
         </View>
 
         {/* Image Grid */}
         <View style={styles.gridContainer}>
           {loading ? (
-            <View style={styles.emptyState}>
-              <MaterialIcons name="hourglass-empty" size={64} color={colors.textMuted} />
-              <Text style={[styles.emptyStateTitle, { color: colors.text }]}>
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={colors.primary} />
+              <Text style={[styles.loadingText, { color: colors.textMuted }]}>
                 Carregando...
               </Text>
             </View>
@@ -196,68 +236,59 @@ export default function VisionBoardScreen() {
               numColumns={numColumns}
               contentContainerStyle={styles.gridContent}
               showsVerticalScrollIndicator={false}
-              extraData={items} // <-- Força atualização ao adicionar/remover itens
+              extraData={items}
             />
           ) : (
             <View style={styles.emptyState}>
-              <MaterialIcons name="photo-library" size={64} color={colors.textMuted} />
-              <Text style={[styles.emptyStateTitle, { color: colors.text }]}>
-                Nenhuma Imagem
-              </Text>
-              <Text style={[styles.emptyStateText, { color: colors.textMuted }]}>
-                Adicione imagens para começar sua manifestação
-              </Text>
+              <View style={[styles.emptyCard, { backgroundColor: colors.surface + '60' }]}>
+                <MaterialIcons name="add-photo-alternate" size={80} color={colors.textMuted} />
+                <Text style={[styles.emptyStateTitle, { color: colors.text }]}>
+                  Vision Board Vazio
+                </Text>
+                <Text style={[styles.emptyStateText, { color: colors.textSecondary }]}>
+                  Adicione imagens que representam{"\n"}seus sonhos e manifestações
+                </Text>
+              </View>
             </View>
           )}
         </View>
 
-        {/* Action Buttons */}
-        <View style={styles.actionContainer}>
+        {/* Floating Action Buttons */}
+        <View style={styles.floatingActions}>
           <TouchableOpacity
-            style={[styles.addButton, { backgroundColor: colors.primary }]}
-            onPress={() => setShowImagePicker(true)}
+            style={[styles.floatingButton, { backgroundColor: colors.primary }]}
+            onPress={handleAddImage}
+            disabled={uploading}
           >
-            <MaterialIcons name="add-a-photo" size={32} color="white" />
+            {uploading ? (
+              <ActivityIndicator size="small" color="white" />
+            ) : (
+              <MaterialIcons name="add-photo-alternate" size={28} color="white" />
+            )}
           </TouchableOpacity>
-
-          <SacredButton
-            title={isFinalizingVisionBoard ? "Finalizando..." : "Finalizar Vision Board"}
-            onPress={handleFinalize}
-            loading={isFinalizingVisionBoard}
-            style={styles.finishButton}
-          />
+          
+          <TouchableOpacity
+            style={[
+              styles.completeButton,
+              { backgroundColor: items.length > 0 ? colors.accent : colors.textMuted }
+            ]}
+            onPress={handleComplete}
+            disabled={items.length === 0}
+          >
+            <MaterialIcons name="check-circle" size={24} color="white" />
+            <Text style={styles.completeButtonText}>Concluir Vision Board</Text>
+          </TouchableOpacity>
         </View>
 
-        {/* Image Picker Modal */}
-        <Modal visible={showImagePicker} transparent animationType="fade">
-          <TouchableOpacity
-            style={styles.modalOverlay}
-            onPress={() => setShowImagePicker(false)}
-          >
-            <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>
-                Adicionar Imagem
-              </Text>
-              <Text style={[styles.modalText, { color: colors.textMuted }]}>
-                Deseja selecionar uma imagem da galeria?
-              </Text>
-              <View style={styles.modalButtons}>
-                <TouchableOpacity
-                  style={[styles.modalButton, { backgroundColor: colors.textMuted }]}
-                  onPress={() => setShowImagePicker(false)}
-                >
-                  <Text style={styles.modalButtonText}>Cancelar</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.modalButton, { backgroundColor: colors.primary }]}
-                  onPress={handleAddImage}
-                >
-                  <Text style={styles.modalButtonText}>Selecionar</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </TouchableOpacity>
-        </Modal>
+        {/* Sacred Modal */}
+        <SacredModal
+          visible={modalVisible}
+          title={modalConfig.title}
+          message={modalConfig.message}
+          type={modalConfig.type}
+          buttons={modalConfig.buttons}
+          onClose={() => setModalVisible(false)}
+        />
       </View>
     </GradientBackground>
   );
@@ -278,19 +309,25 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   headerButton: {
-    padding: Spacing.sm,
-    borderRadius: 8,
-  },
-  headerCenter: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
     alignItems: 'center',
   },
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
+    marginHorizontal: Spacing.md,
+  },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: '600',
+    fontSize: 22,
+    fontWeight: '700',
   },
   headerSubtitle: {
-    fontSize: 12,
+    fontSize: 13,
     marginTop: 2,
+    fontStyle: 'italic',
   },
   
   // Grid
@@ -299,29 +336,49 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
   },
   gridContent: {
-    paddingBottom: Spacing.xl,
+    paddingBottom: Spacing.xl * 2,
   },
   imageItem: {
     margin: Spacing.md / 2,
-    borderRadius: 12,
+    borderRadius: 16,
     overflow: 'hidden',
     position: 'relative',
-    backgroundColor: '#000',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
   },
   deleteButton: {
     position: 'absolute',
-    top: Spacing.sm,
-    right: Spacing.sm,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: 'rgba(200, 0, 0, 0.8)',
+    top: 8,
+    right: 8,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(220, 38, 38, 0.95)',
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 1,
+    zIndex: 10,
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
   },
   image: {
-    borderRadius: 12,
+    borderRadius: 16,
+  },
+  
+  // Loading
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 16,
+    marginTop: Spacing.lg,
   },
   
   // Empty State
@@ -329,79 +386,66 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: Spacing.xl,
+  },
+  emptyCard: {
+    padding: Spacing.xl * 2,
+    borderRadius: 24,
+    alignItems: 'center',
+    width: '100%',
+    maxWidth: 400,
   },
   emptyStateTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    marginTop: Spacing.md,
+    fontSize: 24,
+    fontWeight: '700',
+    marginTop: Spacing.lg,
+    marginBottom: Spacing.sm,
   },
   emptyStateText: {
-    fontSize: 14,
+    fontSize: 16,
     textAlign: 'center',
-    marginTop: Spacing.sm,
+    lineHeight: 24,
   },
   
-  // Action Buttons
-  actionContainer: {
-    padding: Spacing.lg,
+  // Floating Actions
+  floatingActions: {
+    position: 'absolute',
+    bottom: Spacing.xl,
+    left: Spacing.lg,
+    right: Spacing.lg,
+    gap: Spacing.md,
     alignItems: 'center',
   },
-  addButton: {
+  floatingButton: {
     width: 64,
     height: 64,
     borderRadius: 32,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: Spacing.lg,
     elevation: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
   },
-  finishButton: {
-    width: '100%',
-  },
-  
-  // Modal
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
-    width: '80%',
-    maxWidth: 300,
-    padding: Spacing.xl,
-    borderRadius: 16,
-    alignItems: 'center',
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: Spacing.sm,
-  },
-  modalText: {
-    fontSize: 14,
-    textAlign: 'center',
-    marginBottom: Spacing.lg,
-  },
-  modalButtons: {
+  completeButton: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
-    gap: Spacing.md,
-  },
-  modalButton: {
-    flex: 1,
-    padding: Spacing.md,
-    borderRadius: 8,
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.md + 4,
+    paddingHorizontal: Spacing.xl,
+    borderRadius: 16,
+    gap: Spacing.sm,
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
   },
-  modalButtonText: {
+  completeButtonText: {
     color: 'white',
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '700',
   },
   
   // Error State
