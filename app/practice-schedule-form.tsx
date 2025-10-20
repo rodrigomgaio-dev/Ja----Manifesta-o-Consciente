@@ -34,7 +34,7 @@ const DAYS_OF_WEEK = [
 const PRACTICES = [
   { label: 'Gratidão', value: 'gratitude', icon: 'favorite' },
   { label: 'Meditação', value: 'meditation', icon: 'self-improvement' },
-  { label: 'Mantram', value: 'mantram', icon: 'music-note' },
+  { label: 'Mantralização', value: 'mantram', icon: 'music-note' },
   { label: 'Afirmação', value: 'affirmation', icon: 'psychology' },
 ];
 

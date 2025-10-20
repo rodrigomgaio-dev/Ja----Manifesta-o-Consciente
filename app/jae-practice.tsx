@@ -32,7 +32,7 @@ const ALL_PRACTICES = [
     description: 'Encontre paz no silêncio interior'
   },
   { 
-    label: 'Mantram', 
+    label: 'MaMantralização', 
     value: 'mantram', 
     icon: 'record-voice-over',
     color: '#3B82F6',

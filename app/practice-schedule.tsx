@@ -31,7 +31,7 @@ const TIME_TYPE_LABELS = {
 const PRACTICE_LABELS: Record<string, string> = {
   gratitude: 'Gratidão',
   meditation: 'Meditação',
-  mantram: 'Mantram',
+  mantram: 'Mantralização',
   affirmation: 'Afirmação',
 };
 
