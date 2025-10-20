@@ -1,9 +1,10 @@
-import React, { useEffect } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import GradientBackground from '@/components/ui/GradientBackground';
 import SacredCard from '@/components/ui/SacredCard';
 import SacredButton from '@/components/ui/SacredButton';
@@ -19,18 +20,23 @@ export default function IndividualScreen() {
   // Filtrar apenas cocriações não concluídas
   const activeCocriations = cocriations.filter(c => c.status !== 'completed');
 
+  const [tooltipVisible, setTooltipVisible] = useState<string | null>(null);
+
   useEffect(() => {
     // Verificar e atualizar status das cocriações
     activeCocriations.forEach(async (cocriation) => {
       if (cocriation.status === 'defining') {
-        // Verificar se todos os requisitos estão completos
-        if (
-          cocriation.vision_board_completed &&
-          cocriation.practice_schedule_completed &&
-          cocriation.future_letter_completed
-        ) {
-          // Atualizar status para active
-          await updateCocriation(cocriation.id, { status: 'active' });
+        // Verificar se todos os requisitos estão completos (exceto carta ao futuro)
+        const visionBoardDone = cocriation.vision_board_completed;
+        const scheduleDone = cocriation.practice_schedule_completed;
+        const letterStatus = cocriation.future_letter_completed;
+
+        // Se Vision Board e Schedule estão completos
+        if (visionBoardDone && scheduleDone) {
+          // Se a carta foi enviada (true) ou não enviada (false), ativa a cocriação
+          if (letterStatus === true || letterStatus === false) {
+            await updateCocriation(cocriation.id, { status: 'active' });
+          }
         }
       }
     });
@@ -42,13 +48,18 @@ export default function IndividualScreen() {
 
   const renderCocriation = (cocriation: any) => {
     const isDefining = cocriation.status === 'defining';
+    const isActive = cocriation.status === 'active';
+    const letterNotSent = cocriation.future_letter_completed === false;
     
     return (
       <SacredCard 
         key={cocriation.id}
         animated
         onPress={() => router.push(`/cocriacao-details?id=${cocriation.id}`)}
-        style={styles.cocriationCard}
+        style={[
+          styles.cocriationCard,
+          isActive && styles.activeCard
+        ]}
       >
         {cocriation.cover_image_url && (
           <Image 
@@ -56,6 +67,11 @@ export default function IndividualScreen() {
             style={styles.coverImage}
             contentFit="cover"
           />
+        )}
+        
+        {/* Active Card Glow Effect */}
+        {isActive && (
+          <View style={styles.activeGlow} />
         )}
         
         <View style={styles.cocriationContent}>
@@ -70,14 +86,33 @@ export default function IndividualScreen() {
                 </Text>
               )}
             </View>
-            <View style={[styles.statusBadge, { 
-              backgroundColor: cocriation.status === 'active' ? colors.success + '20' : colors.warning + '20'
-            }]}>
-              <Text style={[styles.statusText, { 
-                color: cocriation.status === 'active' ? colors.success : colors.warning
+            <View style={styles.statusContainer}>
+              <View style={[styles.statusBadge, { 
+                backgroundColor: isActive ? colors.success + '20' : colors.warning + '20'
               }]}>
-                {cocriation.status === 'active' ? 'Ativa' : 'Definindo'}
-              </Text>
+                <Text style={[styles.statusText, { 
+                  color: isActive ? colors.success : colors.warning
+                }]}>
+                  {isActive ? 'Ativa' : 'Definindo'}
+                </Text>
+              </View>
+              
+              {/* Warning icon for letter not sent on active cocreation */}
+              {isActive && letterNotSent && (
+                <TouchableOpacity 
+                  style={styles.warningIconContainer}
+                  onPress={() => setTooltipVisible(tooltipVisible === cocriation.id ? null : cocriation.id)}
+                >
+                  <MaterialIcons name="info" size={20} color={colors.warning} />
+                  {tooltipVisible === cocriation.id && (
+                    <View style={[styles.tooltip, { backgroundColor: colors.surface, borderColor: colors.warning }]}>
+                      <Text style={[styles.tooltipText, { color: colors.warning }]}>
+                        Carta ao Futuro não foi enviada
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              )}
             </View>
           </View>
 
@@ -120,11 +155,11 @@ export default function IndividualScreen() {
                   <MaterialIcons 
                     name={cocriation.future_letter_completed === true ? 'check-circle' : cocriation.future_letter_completed === false ? 'cancel' : 'radio-button-unchecked'}
                     size={20} 
-                    color={cocriation.future_letter_completed === true ? colors.success : cocriation.future_letter_completed === false ? colors.error : colors.textMuted}
+                    color={cocriation.future_letter_completed === true ? colors.success : cocriation.future_letter_completed === false ? colors.warning : colors.textMuted}
                   />
                   <Text style={[
                     styles.progressText, 
-                    { color: cocriation.future_letter_completed === true ? colors.success : cocriation.future_letter_completed === false ? colors.error : colors.textMuted }
+                    { color: cocriation.future_letter_completed === true ? colors.success : cocriation.future_letter_completed === false ? colors.warning : colors.textMuted }
                   ]}>
                     Carta ao Futuro{cocriation.future_letter_completed === false ? ' (não enviada)' : ''}
                   </Text>
@@ -133,19 +168,35 @@ export default function IndividualScreen() {
             </View>
           )}
 
-          {/* Mostrar apenas Momentos de Cocriação quando ativa */}
+          {/* Mostrar Momentos de Cocriação quando ativa - Design Místico */}
           {!isDefining && (
-            <View style={styles.activeActions}>
-              <TouchableOpacity 
-                style={styles.activeActionButton}
-                onPress={() => router.push(`/cocreation-moments?cocreationId=${cocriation.id}`)}
+            <TouchableOpacity 
+              style={styles.mysticMomentButton}
+              onPress={() => router.push(`/cocreation-moments?cocreationId=${cocriation.id}`)}
+              activeOpacity={0.8}
+            >
+              <LinearGradient
+                colors={['rgba(139, 92, 246, 0.3)', 'rgba(236, 72, 153, 0.3)', 'rgba(251, 191, 36, 0.3)']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.mysticGradient}
               >
-                <MaterialIcons name="self-improvement" size={20} color={colors.primary} />
-                <Text style={[styles.activeActionText, { color: colors.primary }]}>
-                  Momentos de Cocriação
-                </Text>
-              </TouchableOpacity>
-            </View>
+                <View style={styles.mysticIconContainer}>
+                  <MaterialIcons name="auto-awesome" size={28} color="#FBBF24" />
+                </View>
+                <View style={styles.mysticTextContainer}>
+                  <Text style={[styles.mysticTitle, { color: colors.text }]}>
+                    Momentos de Cocriação
+                  </Text>
+                  <Text style={[styles.mysticSubtitle, { color: colors.textSecondary }]}>
+                    Pratique e manifeste sua realidade
+                  </Text>
+                </View>
+                <View style={styles.mysticArrow}>
+                  <MaterialIcons name="chevron-right" size={24} color={colors.primary} />
+                </View>
+              </LinearGradient>
+            </TouchableOpacity>
           )}
         </View>
       </SacredCard>
@@ -335,6 +386,25 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
     padding: 0,
   },
+  activeCard: {
+    borderWidth: 2,
+    borderColor: 'rgba(16, 185, 129, 0.4)',
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  activeGlow: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 4,
+    backgroundColor: '#10B981',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+  },
   coverImage: {
     width: '100%',
     height: 120,
@@ -349,6 +419,40 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: Spacing.md,
+  },
+  statusContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+  },
+  warningIconContainer: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(251, 191, 36, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  tooltip: {
+    position: 'absolute',
+    top: 32,
+    right: 0,
+    backgroundColor: 'white',
+    borderRadius: 8,
+    borderWidth: 1,
+    padding: Spacing.sm,
+    minWidth: 180,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+    zIndex: 1000,
+  },
+  tooltipText: {
+    fontSize: 12,
+    fontWeight: '500',
   },
   cocriationInfo: {
     flex: 1,
@@ -395,21 +499,49 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
-  activeActions: {
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(139, 92, 246, 0.1)',
-    paddingTop: Spacing.md,
+  mysticMomentButton: {
+    marginTop: Spacing.md,
+    borderRadius: 12,
+    overflow: 'hidden',
   },
-  activeActionButton: {
+  mysticGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: Spacing.sm,
-    gap: Spacing.sm,
+    padding: Spacing.md,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.3)',
   },
-  activeActionText: {
-    fontSize: 14,
-    fontWeight: '600',
+  mysticIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(251, 191, 36, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.md,
+  },
+  mysticTextContainer: {
+    flex: 1,
+  },
+  mysticTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    marginBottom: 2,
+    letterSpacing: 0.3,
+  },
+  mysticSubtitle: {
+    fontSize: 12,
+    fontStyle: 'italic',
+  },
+  mysticArrow: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(139, 92, 246, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: Spacing.sm,
   },
   emptyState: {
     alignItems: 'center',
