@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import GradientBackground from '@/components/ui/GradientBackground';
 import SacredCard from '@/components/ui/SacredCard';
 import SacredModal from '@/components/ui/SacredModal';
@@ -22,26 +23,32 @@ import { Spacing } from '@/constants/Colors';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-type AnimationType = 'fade' | 'slide' | 'zoom' | 'rotate' | 'wave' | 'pulse' | 'flip' | 'random';
+type AnimationType = 'fade' | 'slide' | 'zoom' | 'blur' | 'wave' | 'pulse' | 'flip' | 'random';
 type DurationType = 30 | 60 | 300 | -1; // -1 para sem parar
+type SpeedType = 0.5 | 1 | 1.5 | 2; // Multiplicadores de velocidade
 
 export default function VisionBoardViewScreen() {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
   const { cocreationId } = useLocalSearchParams<{ cocreationId: string }>();
   const { items, loading } = useVisionBoardItems(cocreationId || '');
 
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const [showSettings, setShowSettings] = useState(true);
   const [selectedAnimation, setSelectedAnimation] = useState<AnimationType>('fade');
   const [duration, setDuration] = useState<DurationType>(60);
+  const [speed, setSpeed] = useState<SpeedType>(1);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [timeRemaining, setTimeRemaining] = useState(0);
+  const [totalElapsed, setTotalElapsed] = useState(0);
   const [modalVisible, setModalVisible] = useState(false);
 
   const animationValue = useRef(new Animated.Value(0)).current;
+  const fadeValue = useRef(new Animated.Value(1)).current;
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const imageTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const animationRef = useRef<Animated.CompositeAnimation | null>(null);
+  const currentAnimationType = useRef<Exclude<AnimationType, 'random'>>('fade');
 
   // Filtrar apenas imagens e garantir que têm URI válida
   const imageItems = items.filter(item => {
@@ -56,164 +63,186 @@ export default function VisionBoardViewScreen() {
   useEffect(() => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
-      if (imageTimerRef.current) clearInterval(imageTimerRef.current);
+      if (animationRef.current) animationRef.current.stop();
     };
   }, []);
 
   useEffect(() => {
-    if (isPlaying && imageItems.length > 0) {
-      startAnimation();
+    if (isPlaying && !isPaused && imageItems.length > 0) {
       startTimer();
-      startImageRotation();
+      startAnimationCycle();
     } else {
-      stopAnimation();
       if (timerRef.current) clearInterval(timerRef.current);
-      if (imageTimerRef.current) clearInterval(imageTimerRef.current);
+      if (animationRef.current) animationRef.current.stop();
     }
-  }, [isPlaying, selectedAnimation, currentImageIndex]);
+  }, [isPlaying, isPaused, currentImageIndex, speed]);
 
   const startTimer = () => {
-    if (duration === -1) return; // Sem parar
-    
-    setTimeRemaining(duration);
-    
     if (timerRef.current) clearInterval(timerRef.current);
     
     timerRef.current = setInterval(() => {
-      setTimeRemaining(prev => {
-        if (prev <= 1) {
-          handleStop();
-          return 0;
+      if (!isPaused) {
+        setTotalElapsed(prev => prev + 1);
+        
+        if (duration !== -1) {
+          setTimeRemaining(prev => {
+            if (prev <= 1) {
+              handleStop();
+              return 0;
+            }
+            return prev - 1;
+          });
         }
-        return prev - 1;
-      });
+      }
     }, 1000);
   };
 
-  const startImageRotation = () => {
-    if (imageTimerRef.current) clearInterval(imageTimerRef.current);
-    
-    // Mudar imagem a cada 5 segundos
-    imageTimerRef.current = setInterval(() => {
-      setCurrentImageIndex(prev => {
-        const next = (prev + 1) % imageItems.length;
-        return next;
-      });
-    }, 5000);
-  };
-
-  const getRandomAnimation = (): AnimationType => {
-    const animations: AnimationType[] = ['fade', 'slide', 'zoom', 'rotate', 'wave', 'pulse', 'flip'];
+  const getRandomAnimation = (): Exclude<AnimationType, 'random'> => {
+    const animations: Exclude<AnimationType, 'random'>[] = ['fade', 'slide', 'zoom', 'blur', 'wave', 'pulse', 'flip'];
     return animations[Math.floor(Math.random() * animations.length)];
   };
 
-  const startAnimation = () => {
-    animationValue.setValue(0);
-    
+  const startAnimationCycle = () => {
     const currentAnim = selectedAnimation === 'random' 
       ? getRandomAnimation() 
       : selectedAnimation;
-
-    const animations: { [key in Exclude<AnimationType, 'random'>]: Animated.CompositeAnimation } = {
-      fade: Animated.loop(
-        Animated.sequence([
-          Animated.timing(animationValue, {
-            toValue: 1,
-            duration: 2000,
-            useNativeDriver: true,
-          }),
-          Animated.timing(animationValue, {
-            toValue: 0,
-            duration: 2000,
-            useNativeDriver: true,
-          }),
-        ])
-      ),
-      slide: Animated.loop(
-        Animated.sequence([
-          Animated.timing(animationValue, {
-            toValue: 1,
-            duration: 3000,
-            useNativeDriver: true,
-          }),
-          Animated.timing(animationValue, {
-            toValue: 0,
-            duration: 0,
-            useNativeDriver: true,
-          }),
-        ])
-      ),
-      zoom: Animated.loop(
-        Animated.sequence([
-          Animated.timing(animationValue, {
-            toValue: 1,
-            duration: 2000,
-            useNativeDriver: true,
-          }),
-          Animated.timing(animationValue, {
-            toValue: 0,
-            duration: 2000,
-            useNativeDriver: true,
-          }),
-        ])
-      ),
-      rotate: Animated.loop(
-        Animated.timing(animationValue, {
-          toValue: 1,
-          duration: 4000,
-          useNativeDriver: true,
-        })
-      ),
-      wave: Animated.loop(
-        Animated.sequence([
-          Animated.timing(animationValue, {
-            toValue: 1,
-            duration: 1500,
-            useNativeDriver: true,
-          }),
-          Animated.timing(animationValue, {
-            toValue: 0,
-            duration: 1500,
-            useNativeDriver: true,
-          }),
-        ])
-      ),
-      pulse: Animated.loop(
-        Animated.sequence([
-          Animated.timing(animationValue, {
-            toValue: 1,
-            duration: 800,
-            useNativeDriver: true,
-          }),
-          Animated.timing(animationValue, {
-            toValue: 0,
-            duration: 800,
-            useNativeDriver: true,
-          }),
-        ])
-      ),
-      flip: Animated.loop(
-        Animated.sequence([
-          Animated.timing(animationValue, {
-            toValue: 1,
-            duration: 2000,
-            useNativeDriver: true,
-          }),
-          Animated.timing(animationValue, {
-            toValue: 0,
-            duration: 2000,
-            useNativeDriver: true,
-          }),
-        ])
-      ),
-    };
-
-    animations[currentAnim].start();
+    
+    currentAnimationType.current = currentAnim;
+    
+    // Fade out da imagem atual
+    Animated.timing(fadeValue, {
+      toValue: 0,
+      duration: 500,
+      useNativeDriver: true,
+    }).start(() => {
+      // Trocar imagem
+      // Fade in da nova imagem
+      Animated.timing(fadeValue, {
+        toValue: 1,
+        duration: 500,
+        useNativeDriver: true,
+      }).start(() => {
+        // Iniciar animação da imagem
+        startImageAnimation(currentAnim);
+      });
+    });
   };
 
-  const stopAnimation = () => {
-    animationValue.stopAnimation();
+  const startImageAnimation = (animType: Exclude<AnimationType, 'random'>) => {
     animationValue.setValue(0);
+    
+    const baseDuration = 4000 / speed;
+
+    const animations: { [key in Exclude<AnimationType, 'random'>]: Animated.CompositeAnimation } = {
+      fade: Animated.sequence([
+        Animated.timing(animationValue, {
+          toValue: 1,
+          duration: baseDuration / 2,
+          useNativeDriver: true,
+        }),
+        Animated.timing(animationValue, {
+          toValue: 0,
+          duration: baseDuration / 2,
+          useNativeDriver: true,
+        }),
+      ]),
+      
+      slide: Animated.sequence([
+        Animated.timing(animationValue, {
+          toValue: 0.5,
+          duration: baseDuration / 2,
+          useNativeDriver: true,
+        }),
+        Animated.timing(animationValue, {
+          toValue: 1,
+          duration: baseDuration / 2,
+          useNativeDriver: true,
+        }),
+      ]),
+      
+      zoom: Animated.sequence([
+        Animated.timing(animationValue, {
+          toValue: 1,
+          duration: baseDuration / 2,
+          useNativeDriver: true,
+        }),
+        Animated.timing(animationValue, {
+          toValue: 0,
+          duration: baseDuration / 2,
+          useNativeDriver: true,
+        }),
+      ]),
+      
+      blur: Animated.sequence([
+        Animated.timing(animationValue, {
+          toValue: 1,
+          duration: baseDuration / 2,
+          useNativeDriver: false,
+        }),
+        Animated.timing(animationValue, {
+          toValue: 0,
+          duration: baseDuration / 2,
+          useNativeDriver: false,
+        }),
+      ]),
+      
+      wave: Animated.sequence([
+        Animated.timing(animationValue, {
+          toValue: 0.5,
+          duration: baseDuration / 4,
+          useNativeDriver: true,
+        }),
+        Animated.timing(animationValue, {
+          toValue: 1,
+          duration: baseDuration / 4,
+          useNativeDriver: true,
+        }),
+        Animated.timing(animationValue, {
+          toValue: 0.5,
+          duration: baseDuration / 4,
+          useNativeDriver: true,
+        }),
+        Animated.timing(animationValue, {
+          toValue: 0,
+          duration: baseDuration / 4,
+          useNativeDriver: true,
+        }),
+      ]),
+      
+      pulse: Animated.sequence([
+        Animated.timing(animationValue, {
+          toValue: 1,
+          duration: baseDuration / 2,
+          useNativeDriver: true,
+        }),
+        Animated.timing(animationValue, {
+          toValue: 0,
+          duration: baseDuration / 2,
+          useNativeDriver: true,
+        }),
+      ]),
+      
+      flip: Animated.sequence([
+        Animated.timing(animationValue, {
+          toValue: 1,
+          duration: baseDuration / 2,
+          useNativeDriver: true,
+        }),
+        Animated.timing(animationValue, {
+          toValue: 0,
+          duration: baseDuration / 2,
+          useNativeDriver: true,
+        }),
+      ]),
+    };
+
+    animationRef.current = animations[animType];
+    animationRef.current.start(({ finished }) => {
+      if (finished && !isPaused) {
+        // Ciclo completo, mudar para próxima imagem
+        setCurrentImageIndex(prev => (prev + 1) % imageItems.length);
+      }
+    });
   };
 
   const handleStart = () => {
@@ -222,91 +251,119 @@ export default function VisionBoardViewScreen() {
       return;
     }
     setIsPlaying(true);
+    setIsPaused(false);
     setShowSettings(false);
+    setTimeRemaining(duration === -1 ? 0 : duration);
+    setTotalElapsed(0);
+    setCurrentImageIndex(0);
+  };
+
+  const handlePause = () => {
+    setIsPaused(!isPaused);
+    if (!isPaused && animationRef.current) {
+      animationRef.current.stop();
+    } else {
+      startAnimationCycle();
+    }
   };
 
   const handleStop = () => {
     setIsPlaying(false);
+    setIsPaused(false);
     setShowSettings(true);
     if (timerRef.current) clearInterval(timerRef.current);
-    if (imageTimerRef.current) clearInterval(imageTimerRef.current);
+    if (animationRef.current) animationRef.current.stop();
+    animationValue.setValue(0);
+    fadeValue.setValue(1);
   };
 
   const getAnimatedStyle = () => {
-    const currentAnim = selectedAnimation === 'random' 
-      ? getRandomAnimation() 
-      : selectedAnimation;
+    const currentAnim = currentAnimationType.current;
 
     const styles: { [key in Exclude<AnimationType, 'random'>]: any } = {
       fade: {
         opacity: animationValue.interpolate({
           inputRange: [0, 1],
-          outputRange: [0.3, 1],
+          outputRange: [0.4, 1],
         }),
       },
+      
       slide: {
         transform: [{
           translateX: animationValue.interpolate({
-            inputRange: [0, 1],
-            outputRange: [-SCREEN_WIDTH, SCREEN_WIDTH],
+            inputRange: [0, 0.5, 1],
+            outputRange: [-SCREEN_WIDTH * 0.8, 0, SCREEN_WIDTH * 0.8],
           }),
         }],
       },
+      
       zoom: {
         transform: [{
           scale: animationValue.interpolate({
-            inputRange: [0, 0.5, 1],
-            outputRange: [1, 1.3, 1],
-          }),
-        }],
-      },
-      rotate: {
-        transform: [{
-          rotate: animationValue.interpolate({
             inputRange: [0, 1],
-            outputRange: ['0deg', '360deg'],
+            outputRange: [0.3, 1.8],
           }),
         }],
       },
+      
+      blur: {
+        opacity: 1, // Blur será aplicado via blurRadius na Image
+      },
+      
       wave: {
         transform: [
           {
             translateY: animationValue.interpolate({
-              inputRange: [0, 1],
-              outputRange: [0, -20],
+              inputRange: [0, 0.5, 1],
+              outputRange: [0, -100, 0],
             }),
           },
           {
             scale: animationValue.interpolate({
               inputRange: [0, 0.5, 1],
-              outputRange: [1, 1.05, 1],
+              outputRange: [1, 1.15, 1],
             }),
           },
         ],
       },
+      
       pulse: {
         transform: [{
           scale: animationValue.interpolate({
             inputRange: [0, 1],
-            outputRange: [1, 1.1],
+            outputRange: [1, 1.2],
           }),
         }],
         opacity: animationValue.interpolate({
           inputRange: [0, 1],
-          outputRange: [1, 0.8],
+          outputRange: [1, 0.7],
         }),
       },
+      
       flip: {
         transform: [{
           rotateY: animationValue.interpolate({
             inputRange: [0, 1],
-            outputRange: ['0deg', '180deg'],
+            outputRange: ['0deg', '360deg'],
           }),
         }],
       },
     };
 
     return styles[currentAnim];
+  };
+
+  const getBlurAmount = () => {
+    if (currentAnimationType.current !== 'blur') return 0;
+    
+    // Interpolar manualmente baseado no animationValue
+    // 0 -> 10 (desfocado) -> 0 (focado) -> 10 (desfocado)
+    const value = animationValue.__getValue();
+    if (value <= 0.5) {
+      return 10 - (value * 20); // De 10 para 0
+    } else {
+      return (value - 0.5) * 20; // De 0 para 10
+    }
   };
 
   const formatTime = (seconds: number) => {
@@ -319,7 +376,7 @@ export default function VisionBoardViewScreen() {
     { type: 'fade', icon: 'opacity', label: 'Fade' },
     { type: 'slide', icon: 'swap-horiz', label: 'Deslizar' },
     { type: 'zoom', icon: 'zoom-in', label: 'Zoom' },
-    { type: 'rotate', icon: 'rotate-right', label: 'Rotação' },
+    { type: 'blur', icon: 'blur-on', label: 'Blur' },
     { type: 'wave', icon: 'waves', label: 'Onda' },
     { type: 'pulse', icon: 'favorite', label: 'Pulsar' },
     { type: 'flip', icon: 'flip', label: 'Virar' },
@@ -332,6 +389,17 @@ export default function VisionBoardViewScreen() {
     { value: 300, label: '5 minutos' },
     { value: -1, label: 'Sem parar' },
   ];
+
+  const speedOptions: { value: SpeedType; label: string }[] = [
+    { value: 0.5, label: '0.5x' },
+    { value: 1, label: '1x' },
+    { value: 1.5, label: '1.5x' },
+    { value: 2, label: '2x' },
+  ];
+
+  const progressPercentage = duration !== -1 && duration > 0
+    ? ((duration - timeRemaining) / duration) * 100
+    : 0;
 
   if (loading) {
     return (
@@ -361,16 +429,6 @@ export default function VisionBoardViewScreen() {
               Voltar
             </Text>
           </TouchableOpacity>
-
-          {isPlaying && (
-            <TouchableOpacity 
-              style={[styles.stopButton, { backgroundColor: colors.error }]}
-              onPress={handleStop}
-            >
-              <MaterialIcons name="stop" size={20} color="white" />
-              <Text style={styles.stopButtonText}>Parar</Text>
-            </TouchableOpacity>
-          )}
         </View>
 
         {/* Settings Panel */}
@@ -495,25 +553,68 @@ export default function VisionBoardViewScreen() {
         {/* Visualization Display */}
         {isPlaying && imageItems.length > 0 && (
           <View style={styles.visualizationContainer}>
-            {/* Timer Display */}
-            {duration !== -1 && (
-              <View style={[styles.timerContainer, { backgroundColor: colors.surface + '90' }]}>
-                <MaterialIcons name="timer" size={20} color={colors.primary} />
-                <Text style={[styles.timerText, { color: colors.text }]}>
-                  {formatTime(timeRemaining)}
+            {/* Timer and Speed Controls */}
+            <View style={styles.topControls}>
+              {duration !== -1 && (
+                <View style={[styles.timerContainer, { backgroundColor: colors.surface + 'CC' }]}>
+                  <MaterialIcons name="timer" size={20} color={colors.primary} />
+                  <Text style={[styles.timerText, { color: colors.text }]}>
+                    {formatTime(timeRemaining)}
+                  </Text>
+                </View>
+              )}
+
+              {/* Speed Control */}
+              <View style={[styles.speedContainer, { backgroundColor: colors.surface + 'CC' }]}>
+                <Text style={[styles.speedLabel, { color: colors.textSecondary }]}>
+                  Velocidade:
                 </Text>
+                {speedOptions.map((option) => (
+                  <TouchableOpacity
+                    key={option.value}
+                    style={[
+                      styles.speedButton,
+                      {
+                        backgroundColor: speed === option.value
+                          ? colors.primary
+                          : 'transparent',
+                      },
+                    ]}
+                    onPress={() => setSpeed(option.value)}
+                  >
+                    <Text
+                      style={[
+                        styles.speedButtonText,
+                        {
+                          color: speed === option.value
+                            ? 'white'
+                            : colors.textSecondary,
+                        },
+                      ]}
+                    >
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
               </View>
-            )}
+            </View>
 
             {/* Animated Image */}
-            <Animated.View style={[styles.imageContainer, getAnimatedStyle()]}>
+            <Animated.View 
+              style={[
+                styles.imageContainer, 
+                getAnimatedStyle(),
+                { opacity: fadeValue }
+              ]}
+            >
               {imageItems[currentImageIndex]?.uri ? (
                 <Image
                   source={{ uri: imageItems[currentImageIndex].uri }}
                   style={styles.fullImage}
                   contentFit="contain"
                   cachePolicy="memory-disk"
-                  transition={300}
+                  transition={0}
+                  blurRadius={currentAnimationType.current === 'blur' ? getBlurAmount() : 0}
                 />
               ) : (
                 <View style={[styles.placeholderContainer, { backgroundColor: colors.surface + '60' }]}>
@@ -525,11 +626,52 @@ export default function VisionBoardViewScreen() {
               )}
             </Animated.View>
 
-            {/* Progress Indicator */}
-            <View style={[styles.progressContainer, { backgroundColor: colors.surface + '90' }]}>
-              <Text style={[styles.progressText, { color: colors.textSecondary }]}>
-                {currentImageIndex + 1} / {imageItems.length}
-              </Text>
+            {/* Bottom Controls */}
+            <View style={styles.bottomControls}>
+              {/* Progress Bar */}
+              {duration !== -1 && (
+                <View style={styles.progressBarContainer}>
+                  <View style={[styles.progressBarBackground, { backgroundColor: colors.surface + '60' }]}>
+                    <View 
+                      style={[
+                        styles.progressBarFill, 
+                        { 
+                          backgroundColor: colors.primary,
+                          width: `${progressPercentage}%`
+                        }
+                      ]} 
+                    />
+                  </View>
+                </View>
+              )}
+
+              {/* Progress Text */}
+              <View style={[styles.progressContainer, { backgroundColor: colors.surface + 'CC' }]}>
+                <Text style={[styles.progressText, { color: colors.textSecondary }]}>
+                  {currentImageIndex + 1} / {imageItems.length}
+                </Text>
+              </View>
+
+              {/* Control Buttons */}
+              <View style={styles.controlButtons}>
+                <TouchableOpacity
+                  style={[styles.controlButton, { backgroundColor: colors.surface + 'CC' }]}
+                  onPress={handlePause}
+                >
+                  <MaterialIcons 
+                    name={isPaused ? "play-arrow" : "pause"} 
+                    size={28} 
+                    color={colors.primary} 
+                  />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.controlButton, { backgroundColor: colors.error + 'CC' }]}
+                  onPress={handleStop}
+                >
+                  <MaterialIcons name="stop" size={28} color="white" />
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         )}
@@ -576,19 +718,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     marginLeft: Spacing.xs,
-  },
-  stopButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: 20,
-    gap: Spacing.xs,
-  },
-  stopButtonText: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: '600',
   },
   settingsContainer: {
     flex: 1,
@@ -678,10 +807,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  timerContainer: {
+  topControls: {
     position: 'absolute',
     top: Spacing.lg,
+    left: Spacing.lg,
     right: Spacing.lg,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    zIndex: 10,
+  },
+  timerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: Spacing.md,
@@ -693,9 +829,31 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  speedContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    borderRadius: 20,
+    gap: Spacing.xs,
+  },
+  speedLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginRight: Spacing.xs,
+  },
+  speedButton: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  speedButtonText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
   imageContainer: {
     width: SCREEN_WIDTH,
-    height: SCREEN_HEIGHT * 0.7,
+    height: SCREEN_HEIGHT * 0.65,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -715,15 +873,47 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginTop: Spacing.md,
   },
-  progressContainer: {
+  bottomControls: {
     position: 'absolute',
-    bottom: Spacing.lg,
+    bottom: Spacing.xl,
+    left: Spacing.lg,
+    right: Spacing.lg,
+    alignItems: 'center',
+    gap: Spacing.md,
+  },
+  progressBarContainer: {
+    width: '100%',
+    marginBottom: Spacing.sm,
+  },
+  progressBarBackground: {
+    height: 4,
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 2,
+  },
+  progressContainer: {
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     borderRadius: 20,
+    marginBottom: Spacing.sm,
   },
   progressText: {
     fontSize: 14,
     fontWeight: '600',
+  },
+  controlButtons: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+    alignItems: 'center',
+  },
+  controlButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
