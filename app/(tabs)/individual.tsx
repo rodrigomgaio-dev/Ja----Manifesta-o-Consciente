@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Platform, Switch } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -19,6 +19,10 @@ export default function IndividualScreen() {
 
   // Filtrar apenas cocriações não concluídas
   const activeCocriations = cocriations.filter(c => c.status !== 'completed');
+  
+  // Separar cocriações ativas das que estão definindo
+  const activeOnes = activeCocriations.filter(c => c.status === 'active');
+  const definingOnes = activeCocriations.filter(c => c.status === 'defining');
 
   const [tooltipVisible, setTooltipVisible] = useState<string | null>(null);
 
@@ -46,10 +50,25 @@ export default function IndividualScreen() {
     router.push('/create-individual');
   };
 
+  const handleToggleStatus = async (cocriation: any) => {
+    const newStatus = cocriation.status === 'active' ? 'defining' : 'active';
+    await updateCocriation(cocriation.id, { status: newStatus });
+  };
+
+  const canToggleStatus = (cocriation: any) => {
+    // Pode ativar/desativar apenas se todos os itens estiverem completos
+    const visionBoardDone = cocriation.vision_board_completed;
+    const scheduleDone = cocriation.practice_schedule_completed;
+    const letterStatus = cocriation.future_letter_completed;
+    
+    return visionBoardDone && scheduleDone && (letterStatus === true || letterStatus === false);
+  };
+
   const renderCocriation = (cocriation: any) => {
     const isDefining = cocriation.status === 'defining';
     const isActive = cocriation.status === 'active';
     const letterNotSent = cocriation.future_letter_completed === false;
+    const canToggle = canToggleStatus(cocriation);
     
     return (
       <SacredCard 
@@ -69,11 +88,6 @@ export default function IndividualScreen() {
           />
         )}
         
-        {/* Active Card Glow Effect */}
-        {isActive && (
-          <View style={styles.activeGlow} />
-        )}
-        
         <View style={styles.cocriationContent}>
           <View style={styles.cocriationHeader}>
             <View style={styles.cocriationInfo}>
@@ -87,15 +101,18 @@ export default function IndividualScreen() {
               )}
             </View>
             <View style={styles.statusContainer}>
-              <View style={[styles.statusBadge, { 
-                backgroundColor: isActive ? colors.success + '20' : colors.warning + '20'
-              }]}>
-                <Text style={[styles.statusText, { 
-                  color: isActive ? colors.success : colors.warning
-                }]}>
-                  {isActive ? 'Ativa' : 'Definindo'}
-                </Text>
-              </View>
+              {/* Toggle para ativar/desativar */}
+              {canToggle && (
+                <View style={styles.toggleContainer}>
+                  <Switch
+                    value={isActive}
+                    onValueChange={() => handleToggleStatus(cocriation)}
+                    trackColor={{ false: colors.border, true: colors.primary }}
+                    thumbColor={isActive ? colors.primary : colors.textMuted}
+                    ios_backgroundColor={colors.border}
+                  />
+                </View>
+              )}
               
               {/* Warning icon for letter not sent on active cocreation */}
               {isActive && letterNotSent && (
@@ -265,7 +282,33 @@ export default function IndividualScreen() {
               </Text>
             </SacredCard>
           ) : activeCocriations.length > 0 ? (
-            activeCocriations.map(renderCocriation)
+            <>
+              {/* Cocriações Ativas */}
+              {activeOnes.length > 0 && (
+                <View style={styles.sectionGroup}>
+                  <View style={styles.sectionHeader}>
+                    <MaterialIcons name="stars" size={24} color={colors.primary} />
+                    <Text style={[styles.sectionHeaderText, { color: colors.text }]}>
+                      Cocriações Ativas
+                    </Text>
+                  </View>
+                  {activeOnes.map(renderCocriation)}
+                </View>
+              )}
+              
+              {/* Cocriações em Definição */}
+              {definingOnes.length > 0 && (
+                <View style={styles.sectionGroup}>
+                  <View style={styles.sectionHeader}>
+                    <MaterialIcons name="edit" size={24} color={colors.warning} />
+                    <Text style={[styles.sectionHeaderText, { color: colors.text }]}>
+                      Em Definição
+                    </Text>
+                  </View>
+                  {definingOnes.map(renderCocriation)}
+                </View>
+              )}
+            </>
           ) : (
             <View style={styles.emptyState}>
               <MaterialIcons 
@@ -387,23 +430,13 @@ const styles = StyleSheet.create({
     padding: 0,
   },
   activeCard: {
-    borderWidth: 2,
-    borderColor: 'rgba(16, 185, 129, 0.4)',
-    shadowColor: '#10B981',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    shadowColor: '#FFFFFF',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
     elevation: 8,
-  },
-  activeGlow: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 4,
-    backgroundColor: '#10B981',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
   },
   coverImage: {
     width: '100%',
@@ -423,7 +456,10 @@ const styles = StyleSheet.create({
   statusContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.xs,
+    gap: Spacing.sm,
+  },
+  toggleContainer: {
+    paddingLeft: Spacing.xs,
   },
   warningIconContainer: {
     width: 28,
@@ -468,13 +504,18 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 1,
   },
-  statusBadge: {
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.xs,
-    borderRadius: 12,
+  sectionGroup: {
+    marginBottom: Spacing.xl,
   },
-  statusText: {
-    fontSize: 12,
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+    paddingHorizontal: Spacing.xs,
+    gap: Spacing.sm,
+  },
+  sectionHeaderText: {
+    fontSize: 18,
     fontWeight: '600',
   },
   progressSection: {
