@@ -138,7 +138,7 @@ export default function IndividualScreen() {
             <View style={styles.activeActions}>
               <TouchableOpacity 
                 style={styles.activeActionButton}
-                onPress={() => router.push(`/practice-schedule?cocreationId=${cocriation.id}`)}
+                onPress={() => router.push(`/cocreation-moments?cocreationId=${cocriation.id}`)}
               >
                 <MaterialIcons name="self-improvement" size={20} color={colors.primary} />
                 <Text style={[styles.activeActionText, { color: colors.primary }]}>
