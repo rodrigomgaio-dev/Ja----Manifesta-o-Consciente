@@ -27,7 +27,7 @@ export default function CocriacaoDetailsScreen() {
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { cocriations, deleteCocriation, loadSingle } = useIndividualCocriations();
+  const { cocriations, deleteCocriation, loadSingle, updateCocriation } = useIndividualCocriations();
   const { getFutureLetter } = useFutureLetter();
 
   const [cocriation, setCocriation] = useState<any>(null);
