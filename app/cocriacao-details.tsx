@@ -166,24 +166,9 @@ export default function CocriacaoDetailsScreen() {
     }
   };
 
-  // --- FUNÇÃO CRÍTICA ALTERADA ---
   const handleVisionBoard = () => {
-    console.log("Abrindo Vision Board para cocreationId:", cocriation?.id);
-    
-    // Verifica se o VisionBoard está marcado como completo no status da cocriação
-    // NOTA: Certifique-se de que o campo no seu banco de dados seja 'vision_board_completed'.
-    // Se for diferente (ex: 'status' === 'completed'), ajuste a condição abaixo.
-    if (cocriation?.vision_board_completed) {
-      console.log("Vision Board está COMPLETO. Indo para visualização.");
-      // Navega para a tela de visualização somente leitura
-      router.push(`/vision-board-view?cocreationId=${cocriation.id}`);
-    } else {
-      console.log("Vision Board NÃO está completo. Indo para o EDITOR.");
-      // Navega para o NOVO editor
-      router.push(`/vision-board-editor?cocreationId=${cocriation.id}`);
-    }
+    router.push(`/vision-board?cocreationId=${cocriation.id}`);
   };
-  // --- FIM DA FUNÇÃO CRÍTICA ---
 
   const handleFutureLetter = () => {
     // Passar from=details para indicar que vem dos detalhes
@@ -305,19 +290,6 @@ export default function CocriacaoDetailsScreen() {
                   </Text>
                 </View>
               )}
-            </View>
-
-            <View style={[styles.statusBadge, { 
-              backgroundColor: cocriation.status === 'active' ? colors.primary + '20' : 
-                             cocriation.status === 'paused' ? colors.secondary + '20' : colors.success + '20' 
-            }]}>
-              <Text style={[styles.statusText, { 
-                color: cocriation.status === 'active' ? colors.primary : 
-                      cocriation.status === 'paused' ? colors.secondary : colors.success 
-              }]}>
-                {cocriation.status === 'active' ? 'Ativa' : 
-                 cocriation.status === 'paused' ? 'Pausada' : 'Concluída'}
-              </Text>
             </View>
           </View>
 
