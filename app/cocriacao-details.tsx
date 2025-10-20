@@ -6,6 +6,7 @@ import {
   ScrollView,
   StyleSheet,
   TouchableOpacity,
+  Switch,
 } from 'react-native';
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -35,6 +36,7 @@ export default function CocriacaoDetailsScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [hasLetterSent, setHasLetterSent] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isTogglingStatus, setIsTogglingStatus] = useState(false);
   const [modalConfig, setModalConfig] = useState<{
     title: string;
     message: string;
@@ -175,6 +177,37 @@ export default function CocriacaoDetailsScreen() {
     router.push(`/future-letter?cocreationId=${cocriation.id}&from=details`);
   };
 
+  const canToggleStatus = (cocriation: any) => {
+    // Pode ativar/desativar apenas se todos os itens estiverem completos
+    const visionBoardDone = cocriation.vision_board_completed;
+    const scheduleDone = cocriation.practice_schedule_completed;
+    const letterStatus = cocriation.future_letter_completed;
+    
+    return visionBoardDone && scheduleDone && (letterStatus === true || letterStatus === false);
+  };
+
+  const handleToggleStatus = async () => {
+    if (!cocriation || isTogglingStatus) return;
+    
+    setIsTogglingStatus(true);
+    const newStatus = cocriation.status === 'active' ? 'inactive' : 'active';
+    
+    const result = await updateCocriation(cocriation.id, { status: newStatus });
+    
+    if (result.error) {
+      showModal(
+        'Erro',
+        'Não foi possível alterar o status da cocriação. Tente novamente.',
+        'error'
+      );
+    } else {
+      // Atualizar cocriation local
+      setCocriation({ ...cocriation, status: newStatus });
+    }
+    
+    setIsTogglingStatus(false);
+  };
+
   // Mostrar loading apenas enquanto carrega
   if (isLoading && !cocriation) {
     return (
@@ -277,6 +310,36 @@ export default function CocriacaoDetailsScreen() {
 
         {/* Main Info */}
         <SacredCard glowing style={styles.mainCard}>
+          {/* Toggle Status */}
+          {canToggleStatus(cocriation) && (
+            <View style={styles.toggleSection}>
+              <View style={styles.toggleInfo}>
+                <MaterialIcons 
+                  name={cocriation.status === 'active' ? 'check-circle' : 'pause-circle-outline'} 
+                  size={24} 
+                  color={cocriation.status === 'active' ? colors.success : colors.textMuted} 
+                />
+                <View style={styles.toggleTextContainer}>
+                  <Text style={[styles.toggleTitle, { color: colors.text }]}>
+                    {cocriation.status === 'active' ? 'Cocriação Ativa' : 'Cocriação Inativa'}
+                  </Text>
+                  <Text style={[styles.toggleDescription, { color: colors.textSecondary }]}>
+                    {cocriation.status === 'active' 
+                      ? 'Momentos de cocriação estão disponíveis'
+                      : 'Ative para liberar os momentos de cocriação'}
+                  </Text>
+                </View>
+              </View>
+              <Switch
+                value={cocriation.status === 'active'}
+                onValueChange={handleToggleStatus}
+                trackColor={{ false: colors.border, true: colors.success }}
+                thumbColor={cocriation.status === 'active' ? colors.success : colors.textMuted}
+                ios_backgroundColor={colors.border}
+                disabled={isTogglingStatus}
+              />
+            </View>
+          )}
           <View style={styles.compactHeader}>
             <View style={styles.compactTitleSection}>
               <Text style={[styles.title, { color: colors.text }]}>
@@ -551,6 +614,34 @@ const styles = StyleSheet.create({
   },
   mainCard: {
     marginBottom: Spacing.lg,
+  },
+  toggleSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: Spacing.lg,
+    marginBottom: Spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(139, 92, 246, 0.1)',
+  },
+  toggleInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: Spacing.md,
+  },
+  toggleTextContainer: {
+    marginLeft: Spacing.md,
+    flex: 1,
+  },
+  toggleTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  toggleDescription: {
+    fontSize: 12,
+    lineHeight: 16,
   },
   compactHeader: {
     flexDirection: 'row',

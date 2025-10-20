@@ -20,8 +20,9 @@ export default function IndividualScreen() {
   // Filtrar apenas cocriações não concluídas
   const activeCocriations = cocriations.filter(c => c.status !== 'completed');
   
-  // Separar cocriações ativas das que estão definindo
+  // Separar cocriações por status
   const activeOnes = activeCocriations.filter(c => c.status === 'active');
+  const inactiveOnes = activeCocriations.filter(c => c.status === 'inactive');
   const definingOnes = activeCocriations.filter(c => c.status === 'defining');
 
   const [tooltipVisible, setTooltipVisible] = useState<string | null>(null);
@@ -50,25 +51,13 @@ export default function IndividualScreen() {
     router.push('/create-individual');
   };
 
-  const handleToggleStatus = async (cocriation: any) => {
-    const newStatus = cocriation.status === 'active' ? 'defining' : 'active';
-    await updateCocriation(cocriation.id, { status: newStatus });
-  };
 
-  const canToggleStatus = (cocriation: any) => {
-    // Pode ativar/desativar apenas se todos os itens estiverem completos
-    const visionBoardDone = cocriation.vision_board_completed;
-    const scheduleDone = cocriation.practice_schedule_completed;
-    const letterStatus = cocriation.future_letter_completed;
-    
-    return visionBoardDone && scheduleDone && (letterStatus === true || letterStatus === false);
-  };
 
   const renderCocriation = (cocriation: any) => {
     const isDefining = cocriation.status === 'defining';
     const isActive = cocriation.status === 'active';
+    const isInactive = cocriation.status === 'inactive';
     const letterNotSent = cocriation.future_letter_completed === false;
-    const canToggle = canToggleStatus(cocriation);
     
     return (
       <SacredCard 
@@ -101,19 +90,6 @@ export default function IndividualScreen() {
               )}
             </View>
             <View style={styles.statusContainer}>
-              {/* Toggle para ativar/desativar */}
-              {canToggle && (
-                <View style={styles.toggleContainer}>
-                  <Switch
-                    value={isActive}
-                    onValueChange={() => handleToggleStatus(cocriation)}
-                    trackColor={{ false: colors.border, true: colors.primary }}
-                    thumbColor={isActive ? colors.primary : colors.textMuted}
-                    ios_backgroundColor={colors.border}
-                  />
-                </View>
-              )}
-              
               {/* Warning icon for letter not sent on active cocreation */}
               {isActive && letterNotSent && (
                 <TouchableOpacity 
@@ -186,7 +162,7 @@ export default function IndividualScreen() {
           )}
 
           {/* Mostrar Momentos de Cocriação quando ativa - Design Místico */}
-          {!isDefining && (
+          {!isDefining && !isInactive && (
             <TouchableOpacity 
               style={styles.mysticMomentButton}
               onPress={() => router.push(`/cocreation-moments?cocreationId=${cocriation.id}`)}
@@ -287,12 +263,25 @@ export default function IndividualScreen() {
               {activeOnes.length > 0 && (
                 <View style={styles.sectionGroup}>
                   <View style={styles.sectionHeader}>
-                    <MaterialIcons name="stars" size={24} color={colors.primary} />
+                    <MaterialIcons name="stars" size={24} color="#F59E0B" />
                     <Text style={[styles.sectionHeaderText, { color: colors.text }]}>
                       Cocriações Ativas
                     </Text>
                   </View>
                   {activeOnes.map(renderCocriation)}
+                </View>
+              )}
+              
+              {/* Cocriações Inativas */}
+              {inactiveOnes.length > 0 && (
+                <View style={styles.sectionGroup}>
+                  <View style={styles.sectionHeader}>
+                    <MaterialIcons name="pause-circle-outline" size={24} color={colors.textMuted} />
+                    <Text style={[styles.sectionHeaderText, { color: colors.text }]}>
+                      Cocriações Inativas
+                    </Text>
+                  </View>
+                  {inactiveOnes.map(renderCocriation)}
                 </View>
               )}
               
@@ -430,13 +419,14 @@ const styles = StyleSheet.create({
     padding: 0,
   },
   activeCard: {
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
+    borderRadius: 16,
     shadowColor: '#FFFFFF',
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.4,
-    shadowRadius: 10,
-    elevation: 8,
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
+    elevation: 10,
   },
   coverImage: {
     width: '100%',
@@ -457,9 +447,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
-  },
-  toggleContainer: {
-    paddingLeft: Spacing.xs,
   },
   warningIconContainer: {
     width: 28,
