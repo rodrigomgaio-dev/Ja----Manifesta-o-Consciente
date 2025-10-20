@@ -9,6 +9,7 @@ import {
   Switch,
 } from 'react-native';
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
@@ -306,6 +307,34 @@ export default function CocriacaoDetailsScreen() {
               contentFit="cover"
             />
           </SacredCard>
+        )}
+
+        {/* Vision Board Visualization Button - Destacado no Topo */}
+        {cocriation.vision_board_completed && (
+          <TouchableOpacity
+            style={styles.visionBoardViewButton}
+            onPress={() => router.push(`/vision-board-view?cocreationId=${cocriation.id}`)}
+            activeOpacity={0.8}
+          >
+            <LinearGradient
+              colors={['rgba(139, 92, 246, 0.9)', 'rgba(236, 72, 153, 0.9)', 'rgba(251, 191, 36, 0.9)']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.visionBoardGradient}
+            >
+              <View style={styles.visionBoardIconContainer}>
+                <MaterialIcons name="visibility" size={32} color="white" />
+              </View>
+              <View style={styles.visionBoardTextContainer}>
+                <Text style={styles.visionBoardTitle}>
+                  Visualizar Vision Board
+                </Text>
+                <Text style={styles.visionBoardSubtitle}>
+                  Medite com suas imagens em animações místicas
+                </Text>
+              </View>
+            </LinearGradient>
+          </TouchableOpacity>
         )}
 
         {/* Main Info */}
@@ -795,5 +824,45 @@ const styles = StyleSheet.create({
   },
   celebrationButton: {
     minWidth: 200,
+  },
+  visionBoardViewButton: {
+    marginBottom: Spacing.lg,
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#8B5CF6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  visionBoardGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Spacing.lg,
+    borderRadius: 16,
+  },
+  visionBoardIconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.md,
+  },
+  visionBoardTextContainer: {
+    flex: 1,
+  },
+  visionBoardTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: 'white',
+    marginBottom: 4,
+    letterSpacing: 0.5,
+  },
+  visionBoardSubtitle: {
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontStyle: 'italic',
   },
 });

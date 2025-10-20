@@ -169,7 +169,7 @@ export default function IndividualScreen() {
               activeOpacity={0.8}
             >
               <LinearGradient
-                colors={['rgba(139, 92, 246, 0.3)', 'rgba(236, 72, 153, 0.3)', 'rgba(251, 191, 36, 0.3)']}
+                colors={['rgba(139, 92, 246, 0.5)', 'rgba(236, 72, 153, 0.5)', 'rgba(251, 191, 36, 0.5)']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.mysticGradient}
@@ -184,9 +184,6 @@ export default function IndividualScreen() {
                   <Text style={[styles.mysticSubtitle, { color: colors.textSecondary }]}>
                     Pratique e manifeste sua realidade
                   </Text>
-                </View>
-                <View style={styles.mysticArrow}>
-                  <MaterialIcons name="chevron-right" size={24} color={colors.primary} />
                 </View>
               </LinearGradient>
             </TouchableOpacity>
@@ -289,7 +286,7 @@ export default function IndividualScreen() {
               {definingOnes.length > 0 && (
                 <View style={styles.sectionGroup}>
                   <View style={styles.sectionHeader}>
-                    <MaterialIcons name="edit" size={24} color={colors.warning} />
+                    <MaterialIcons name="more-horiz" size={24} color={colors.warning} />
                     <Text style={[styles.sectionHeaderText, { color: colors.text }]}>
                       Em Definição
                     </Text>
@@ -561,15 +558,6 @@ const styles = StyleSheet.create({
   mysticSubtitle: {
     fontSize: 12,
     fontStyle: 'italic',
-  },
-  mysticArrow: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(139, 92, 246, 0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: Spacing.sm,
   },
   emptyState: {
     alignItems: 'center',
