@@ -350,6 +350,7 @@ export default function CreateIndividualScreen() {
                 'Definir práticas diárias personalizadas',
                 'Escrever sua carta para o futuro',
                 'Acompanhar sua jornada com presença',
+                'Celebrar de forma Inesquecível!',
               ].map((step, index) => (
                 <View key={index} style={styles.stepItem}>
                   <View style={[styles.stepNumber, { backgroundColor: colors.primary }]}>
