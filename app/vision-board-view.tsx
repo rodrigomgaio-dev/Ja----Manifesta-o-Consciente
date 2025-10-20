@@ -1,3 +1,4 @@
+// app/vision-board-view.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -7,17 +8,20 @@ import {
   ScrollView,
   Animated,
   Dimensions,
+  Alert,
+  Platform,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
+import * as ImagePicker from 'expo-image-picker';
 import GradientBackground from '@/components/ui/GradientBackground';
 import SacredCard from '@/components/ui/SacredCard';
-import SacredModal from '@/components/ui/SacredModal';
+import SacredButton from '@/components/ui/SacredButton';
 import { useTheme } from '@/contexts/ThemeContext';
-import { useVisionBoardItems, BoardElement } from '@/hooks/useVisionBoardItems';
+import { useAuth } from '@/contexts/AuthContext';
+import { useVisionBoardItems } from '@/hooks/useVisionBoardItems';
 import { Spacing } from '@/constants/Colors';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -27,10 +31,13 @@ type DurationType = 30 | 60 | 300 | -1; // -1 para sem parar
 
 export default function VisionBoardViewScreen() {
   const { colors } = useTheme();
+  const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const { cocreationId } = useLocalSearchParams<{ cocreationId: string }>();
-  const { items, loading } = useVisionBoardItems(cocreationId || '');
+  
+  const { items, loading, addItem, updateItem, deleteItem, refresh } = useVisionBoardItems(cocreationId || '');
 
+  // Estados
   const [isPlaying, setIsPlaying] = useState(false);
   const [showSettings, setShowSettings] = useState(true);
   const [selectedAnimation, setSelectedAnimation] = useState<AnimationType>('fade');
@@ -39,44 +46,69 @@ export default function VisionBoardViewScreen() {
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [modalVisible, setModalVisible] = useState(false);
 
+  // Valores animados
   const animationValue = useRef(new Animated.Value(0)).current;
+  const opacity = useRef(new Animated.Value(1)).current;
+  const scale = useRef(new Animated.Value(1)).current;
+  const translateX = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(0)).rotate = useRef(new Animated.Value(0)).current;
+
+  // Refs para timers
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const imageTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const animationRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Filtrar apenas imagens e garantir que têm URI válida
-  const imageItems = items.filter(item => {
-    if (item.type !== 'image') return false;
-    const uri = (item as any).content || (item as any).uri;
-    return !!uri;
-  }).map(item => ({
-    ...item,
-    uri: (item as any).content || (item as any).uri
-  }));
+  // Filtrar apenas imagens
+  const imageItems = items.filter(item => item.type === 'image' && item.content);
 
+  // Limpar timers ao desmontar
   useEffect(() => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
       if (imageTimerRef.current) clearInterval(imageTimerRef.current);
+      if (animationRef.current) clearTimeout(animationRef.current);
     };
   }, []);
 
+  // Controlar reprodução
   useEffect(() => {
     if (isPlaying && imageItems.length > 0) {
-      startAnimation();
-      startTimer();
-      startImageRotation();
+      startVisualization();
     } else {
-      stopAnimation();
-      if (timerRef.current) clearInterval(timerRef.current);
-      if (imageTimerRef.current) clearInterval(imageTimerRef.current);
+      stopVisualization();
     }
-  }, [isPlaying, selectedAnimation, currentImageIndex]);
+    
+    return () => {
+      stopVisualization();
+    };
+  }, [isPlaying, imageItems.length]);
 
+  // Iniciar visualização
+  const startVisualization = () => {
+    if (duration !== -1) {
+      setTimeRemaining(duration);
+      startTimer();
+    }
+    startImageRotation();
+  };
+
+  // Parar visualização
+  const stopVisualization = () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    if (imageTimerRef.current) clearInterval(imageTimerRef.current);
+    if (animationRef.current) clearTimeout(animationRef.current);
+    
+    // Resetar animações
+    opacity.setValue(1);
+    scale.setValue(1);
+    translateX.setValue(0);
+    translateY.setValue(0);
+    rotate.setValue(0);
+    animationValue.setValue(0);
+  };
+
+  // Iniciar timer de duração
   const startTimer = () => {
-    if (duration === -1) return; // Sem parar
-    
-    setTimeRemaining(duration);
-    
     if (timerRef.current) clearInterval(timerRef.current);
     
     timerRef.current = setInterval(() => {
@@ -90,132 +122,192 @@ export default function VisionBoardViewScreen() {
     }, 1000);
   };
 
+  // Iniciar rotação de imagens
   const startImageRotation = () => {
     if (imageTimerRef.current) clearInterval(imageTimerRef.current);
     
-    // Mudar imagem a cada 5 segundos
+    // Iniciar com a primeira imagem
+    if (imageItems.length > 0) {
+      setCurrentImageIndex(0);
+      animateTransition(0);
+    }
+    
+    // Mudar imagem após o tempo de animação
+    const animationDuration = getAnimationDuration();
     imageTimerRef.current = setInterval(() => {
       setCurrentImageIndex(prev => {
         const next = (prev + 1) % imageItems.length;
+        animateTransition(next);
         return next;
       });
-    }, 5000);
+    }, animationDuration + 2000); // 2 segundos entre animações
   };
 
+  // Obter duração da animação
+  const getAnimationDuration = () => {
+    switch (selectedAnimation) {
+      case 'fade': return 4000;
+      case 'slide': return 4000;
+      case 'zoom': return 4000;
+      case 'rotate': return 4000;
+      case 'wave': return 3000;
+      case 'pulse': return 1600;
+      case 'flip': return 4000;
+      default: return 4000;
+    }
+  };
+
+  // Animar transição entre imagens
+  const animateTransition = (nextIndex: number) => {
+    // Resetar valores
+    opacity.setValue(1);
+    scale.setValue(1);
+    translateX.setValue(0);
+    translateY.setValue(0);
+    rotate.setValue(0);
+    
+    const currentAnim = selectedAnimation === 'random' 
+      ? getRandomAnimation() 
+      : selectedAnimation;
+    
+    const duration = getAnimationDuration();
+    
+    // Executar animação apropriada
+    switch (currentAnim) {
+      case 'fade':
+        Animated.sequence([
+          Animated.timing(opacity, {
+            toValue: 0,
+            duration: duration / 2,
+            useNativeDriver: true,
+          }),
+          Animated.timing(opacity, {
+            toValue: 1,
+            duration: duration / 2,
+            useNativeDriver: true,
+          }),
+        ]).start();
+        break;
+        
+      case 'slide':
+        Animated.sequence([
+          Animated.timing(translateX, {
+            toValue: SCREEN_WIDTH,
+            duration: duration / 2,
+            useNativeDriver: true,
+          }),
+          Animated.timing(translateX, {
+            toValue: -SCREEN_WIDTH,
+            duration: 0,
+            useNativeDriver: true,
+          }),
+          Animated.timing(translateX, {
+            toValue: 0,
+            duration: duration / 2,
+            useNativeDriver: true,
+          }),
+        ]).start();
+        break;
+        
+      case 'zoom':
+        Animated.sequence([
+          Animated.timing(scale, {
+            toValue: 1.5,
+            duration: duration / 2,
+            useNativeDriver: true,
+          }),
+          Animated.timing(scale, {
+            toValue: 1,
+            duration: duration / 2,
+            useNativeDriver: true,
+          }),
+        ]).start();
+        break;
+        
+      case 'rotate':
+        Animated.loop(
+          Animated.timing(rotate, {
+            toValue: 360,
+            duration: duration,
+            useNativeDriver: true,
+          })
+        ).start();
+        break;
+        
+      case 'wave':
+        Animated.sequence([
+          Animated.timing(translateY, {
+            toValue: -20,
+            duration: duration / 4,
+            useNativeDriver: true,
+          }),
+          Animated.timing(translateY, {
+            toValue: 20,
+            duration: duration / 2,
+            useNativeDriver: true,
+          }),
+          Animated.timing(translateY, {
+            toValue: 0,
+            duration: duration / 4,
+            useNativeDriver: true,
+          }),
+        ]).start();
+        break;
+        
+      case 'pulse':
+        Animated.loop(
+          Animated.sequence([
+            Animated.timing(scale, {
+              toValue: 1.1,
+              duration: duration / 2,
+              useNativeDriver: true,
+            }),
+            Animated.timing(scale, {
+              toValue: 1,
+              duration: duration / 2,
+              useNativeDriver: true,
+            }),
+          ])
+        ).start();
+        break;
+        
+      case 'flip':
+        Animated.sequence([
+          Animated.timing(rotate, {
+            toValue: 180,
+            duration: duration / 2,
+            useNativeDriver: true,
+          }),
+          Animated.timing(rotate, {
+            toValue: 360,
+            duration: duration / 2,
+            useNativeDriver: true,
+          }),
+        ]).start();
+        break;
+    }
+  };
+
+  // Obter animação aleatória
   const getRandomAnimation = (): AnimationType => {
     const animations: AnimationType[] = ['fade', 'slide', 'zoom', 'rotate', 'wave', 'pulse', 'flip'];
     return animations[Math.floor(Math.random() * animations.length)];
   };
 
-  const startAnimation = () => {
-    animationValue.setValue(0);
-    
-    const currentAnim = selectedAnimation === 'random' 
-      ? getRandomAnimation() 
-      : selectedAnimation;
-
-    const animations: { [key in Exclude<AnimationType, 'random'>]: Animated.CompositeAnimation } = {
-      fade: Animated.loop(
-        Animated.sequence([
-          Animated.timing(animationValue, {
-            toValue: 1,
-            duration: 2000,
-            useNativeDriver: true,
-          }),
-          Animated.timing(animationValue, {
-            toValue: 0,
-            duration: 2000,
-            useNativeDriver: true,
-          }),
-        ])
-      ),
-      slide: Animated.loop(
-        Animated.sequence([
-          Animated.timing(animationValue, {
-            toValue: 1,
-            duration: 3000,
-            useNativeDriver: true,
-          }),
-          Animated.timing(animationValue, {
-            toValue: 0,
-            duration: 0,
-            useNativeDriver: true,
-          }),
-        ])
-      ),
-      zoom: Animated.loop(
-        Animated.sequence([
-          Animated.timing(animationValue, {
-            toValue: 1,
-            duration: 2000,
-            useNativeDriver: true,
-          }),
-          Animated.timing(animationValue, {
-            toValue: 0,
-            duration: 2000,
-            useNativeDriver: true,
-          }),
-        ])
-      ),
-      rotate: Animated.loop(
-        Animated.timing(animationValue, {
-          toValue: 1,
-          duration: 4000,
-          useNativeDriver: true,
-        })
-      ),
-      wave: Animated.loop(
-        Animated.sequence([
-          Animated.timing(animationValue, {
-            toValue: 1,
-            duration: 1500,
-            useNativeDriver: true,
-          }),
-          Animated.timing(animationValue, {
-            toValue: 0,
-            duration: 1500,
-            useNativeDriver: true,
-          }),
-        ])
-      ),
-      pulse: Animated.loop(
-        Animated.sequence([
-          Animated.timing(animationValue, {
-            toValue: 1,
-            duration: 800,
-            useNativeDriver: true,
-          }),
-          Animated.timing(animationValue, {
-            toValue: 0,
-            duration: 800,
-            useNativeDriver: true,
-          }),
-        ])
-      ),
-      flip: Animated.loop(
-        Animated.sequence([
-          Animated.timing(animationValue, {
-            toValue: 1,
-            duration: 2000,
-            useNativeDriver: true,
-          }),
-          Animated.timing(animationValue, {
-            toValue: 0,
-            duration: 2000,
-            useNativeDriver: true,
-          }),
-        ])
-      ),
+  // Estilo animado da imagem
+  const animatedImageStyle = useAnimatedStyle(() => {
+    return {
+      opacity: opacity.value,
+      transform: [
+        { scale: scale.value },
+        { translateX: translateX.value },
+        { translateY: translateY.value },
+        { rotate: `${rotate.value}deg` },
+      ],
     };
+  });
 
-    animations[currentAnim].start();
-  };
-
-  const stopAnimation = () => {
-    animationValue.stopAnimation();
-    animationValue.setValue(0);
-  };
-
+  // Manipuladores de eventos
   const handleStart = () => {
     if (imageItems.length === 0) {
       setModalVisible(true);
@@ -228,85 +320,7 @@ export default function VisionBoardViewScreen() {
   const handleStop = () => {
     setIsPlaying(false);
     setShowSettings(true);
-    if (timerRef.current) clearInterval(timerRef.current);
-    if (imageTimerRef.current) clearInterval(imageTimerRef.current);
-  };
-
-  const getAnimatedStyle = () => {
-    const currentAnim = selectedAnimation === 'random' 
-      ? getRandomAnimation() 
-      : selectedAnimation;
-
-    const styles: { [key in Exclude<AnimationType, 'random'>]: any } = {
-      fade: {
-        opacity: animationValue.interpolate({
-          inputRange: [0, 1],
-          outputRange: [0.3, 1],
-        }),
-      },
-      slide: {
-        transform: [{
-          translateX: animationValue.interpolate({
-            inputRange: [0, 1],
-            outputRange: [-SCREEN_WIDTH, SCREEN_WIDTH],
-          }),
-        }],
-      },
-      zoom: {
-        transform: [{
-          scale: animationValue.interpolate({
-            inputRange: [0, 0.5, 1],
-            outputRange: [1, 1.3, 1],
-          }),
-        }],
-      },
-      rotate: {
-        transform: [{
-          rotate: animationValue.interpolate({
-            inputRange: [0, 1],
-            outputRange: ['0deg', '360deg'],
-          }),
-        }],
-      },
-      wave: {
-        transform: [
-          {
-            translateY: animationValue.interpolate({
-              inputRange: [0, 1],
-              outputRange: [0, -20],
-            }),
-          },
-          {
-            scale: animationValue.interpolate({
-              inputRange: [0, 0.5, 1],
-              outputRange: [1, 1.05, 1],
-            }),
-          },
-        ],
-      },
-      pulse: {
-        transform: [{
-          scale: animationValue.interpolate({
-            inputRange: [0, 1],
-            outputRange: [1, 1.1],
-          }),
-        }],
-        opacity: animationValue.interpolate({
-          inputRange: [0, 1],
-          outputRange: [1, 0.8],
-        }),
-      },
-      flip: {
-        transform: [{
-          rotateY: animationValue.interpolate({
-            inputRange: [0, 1],
-            outputRange: ['0deg', '180deg'],
-          }),
-        }],
-      },
-    };
-
-    return styles[currentAnim];
+    stopVisualization();
   };
 
   const formatTime = (seconds: number) => {
@@ -315,31 +329,29 @@ export default function VisionBoardViewScreen() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const animationOptions: { type: AnimationType; icon: string; label: string }[] = [
-    { type: 'fade', icon: 'opacity', label: 'Fade' },
-    { type: 'slide', icon: 'swap-horiz', label: 'Deslizar' },
-    { type: 'zoom', icon: 'zoom-in', label: 'Zoom' },
-    { type: 'rotate', icon: 'rotate-right', label: 'Rotação' },
-    { type: 'wave', icon: 'waves', label: 'Onda' },
-    { type: 'pulse', icon: 'favorite', label: 'Pulsar' },
-    { type: 'flip', icon: 'flip', label: 'Virar' },
-    { type: 'random', icon: 'shuffle', label: 'Aleatório' },
-  ];
-
-  const durationOptions: { value: DurationType; label: string }[] = [
-    { value: 30, label: '30 segundos' },
-    { value: 60, label: '1 minuto' },
-    { value: 300, label: '5 minutos' },
-    { value: -1, label: 'Sem parar' },
-  ];
+  if (!user) {
+    return (
+      <GradientBackground>
+        <View style={[styles.container, { paddingTop: insets.top }]}>
+          <View style={styles.errorContainer}>
+            <MaterialIcons name="error" size={64} color={colors.error} />
+            <Text style={[styles.errorTitle, { color: colors.text }]}>
+              Acesso Negado
+            </Text>
+          </View>
+        </View>
+      </GradientBackground>
+    );
+  }
 
   if (loading) {
     return (
       <GradientBackground>
         <View style={[styles.container, { paddingTop: insets.top }]}>
           <View style={styles.loadingContainer}>
-            <Text style={[styles.loadingText, { color: colors.text }]}>
-              Carregando...
+            <MaterialIcons name="hourglass-empty" size={48} color={colors.textMuted} />
+            <Text style={[styles.loadingText, { color: colors.textMuted }]}>
+              Carregando sua manifestação...
             </Text>
           </View>
         </View>
@@ -353,19 +365,27 @@ export default function VisionBoardViewScreen() {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity 
-            style={styles.backButton}
-            onPress={() => router.back()}
+            onPress={() => router.back()} 
+            style={[styles.backButton, { backgroundColor: colors.surface + '80' }]}
+            activeOpacity={0.8}
           >
-            <MaterialIcons name="arrow-back" size={24} color={colors.primary} />
-            <Text style={[styles.backText, { color: colors.primary }]}>
-              Voltar
-            </Text>
+            <MaterialIcons name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
+          
+          <View style={styles.headerCenter}>
+            <Text style={[styles.headerTitle, { color: colors.text }]}>
+              Vision Board
+            </Text>
+            <Text style={[styles.headerSubtitle, { color: colors.textMuted }]}>
+              Contemple suas manifestações
+            </Text>
+          </View>
 
           {isPlaying && (
             <TouchableOpacity 
-              style={[styles.stopButton, { backgroundColor: colors.error }]}
               onPress={handleStop}
+              style={[styles.stopButton, { backgroundColor: colors.error }]}
+              activeOpacity={0.8}
             >
               <MaterialIcons name="stop" size={20} color="white" />
               <Text style={styles.stopButtonText}>Parar</Text>
@@ -377,6 +397,7 @@ export default function VisionBoardViewScreen() {
         {showSettings && (
           <ScrollView 
             style={styles.settingsContainer}
+            contentContainerStyle={styles.settingsContent}
             showsVerticalScrollIndicator={false}
           >
             <SacredCard style={styles.settingsCard}>
@@ -393,7 +414,16 @@ export default function VisionBoardViewScreen() {
                   Tipo de Animação
                 </Text>
                 <View style={styles.optionsGrid}>
-                  {animationOptions.map((option) => (
+                  {[
+                    { type: 'fade', icon: 'opacity', label: 'Fade' },
+                    { type: 'slide', icon: 'swap-horiz', label: 'Deslizar' },
+                    { type: 'zoom', icon: 'zoom-in', label: 'Zoom' },
+                    { type: 'rotate', icon: 'rotate-right', label: 'Rotação' },
+                    { type: 'wave', icon: 'waves', label: 'Onda' },
+                    { type: 'pulse', icon: 'favorite', label: 'Pulsar' },
+                    { type: 'flip', icon: 'flip', label: 'Virar' },
+                    { type: 'random', icon: 'shuffle', label: 'Aleatório' },
+                  ].map((option) => (
                     <TouchableOpacity
                       key={option.type}
                       style={[
@@ -407,7 +437,7 @@ export default function VisionBoardViewScreen() {
                             : colors.border,
                         },
                       ]}
-                      onPress={() => setSelectedAnimation(option.type)}
+                      onPress={() => setSelectedAnimation(option.type as AnimationType)}
                     >
                       <MaterialIcons
                         name={option.icon as any}
@@ -437,7 +467,12 @@ export default function VisionBoardViewScreen() {
                   Duração
                 </Text>
                 <View style={styles.durationOptions}>
-                  {durationOptions.map((option) => (
+                  {[
+                    { value: 30, label: '30 segundos' },
+                    { value: 60, label: '1 minuto' },
+                    { value: 300, label: '5 minutos' },
+                    { value: -1, label: 'Sem parar' },
+                  ].map((option) => (
                     <TouchableOpacity
                       key={option.value}
                       style={[
@@ -451,7 +486,7 @@ export default function VisionBoardViewScreen() {
                             : colors.border,
                         },
                       ]}
-                      onPress={() => setDuration(option.value)}
+                      onPress={() => setDuration(option.value as DurationType)}
                     >
                       <Text
                         style={[
@@ -471,13 +506,12 @@ export default function VisionBoardViewScreen() {
               </View>
 
               {/* Start Button */}
-              <TouchableOpacity
-                style={[styles.startButton, { backgroundColor: colors.primary }]}
+              <SacredButton
+                title="Iniciar Visualização"
                 onPress={handleStart}
-              >
-                <MaterialIcons name="play-arrow" size={24} color="white" />
-                <Text style={styles.startButtonText}>Iniciar Visualização</Text>
-              </TouchableOpacity>
+                style={styles.startButton}
+                disabled={imageItems.length === 0}
+              />
             </SacredCard>
 
             {/* Info */}
@@ -506,23 +540,19 @@ export default function VisionBoardViewScreen() {
             )}
 
             {/* Animated Image */}
-            <Animated.View style={[styles.imageContainer, getAnimatedStyle()]}>
-              {imageItems[currentImageIndex]?.uri ? (
-                <Image
-                  source={{ uri: imageItems[currentImageIndex].uri }}
-                  style={styles.fullImage}
-                  contentFit="contain"
-                  cachePolicy="memory-disk"
-                  transition={300}
-                />
-              ) : (
-                <View style={[styles.placeholderContainer, { backgroundColor: colors.surface + '60' }]}>
-                  <MaterialIcons name="broken-image" size={64} color={colors.textMuted} />
-                  <Text style={[styles.placeholderText, { color: colors.textMuted }]}>
-                    Imagem não disponível
-                  </Text>
-                </View>
-              )}
+            <Animated.View 
+              style={[
+                styles.imageContainer, 
+                animatedImageStyle
+              ]}
+            >
+              <Image 
+                source={{ uri: imageItems[currentImageIndex]?.content }} 
+                style={styles.image}
+                contentFit="contain"
+                cachePolicy="memory-disk"
+                transition={300}
+              />
             </Animated.View>
 
             {/* Progress Indicator */}
@@ -534,14 +564,55 @@ export default function VisionBoardViewScreen() {
           </View>
         )}
 
+        {/* Empty State */}
+        {!isPlaying && imageItems.length === 0 && (
+          <View style={styles.emptyState}>
+            <View style={[styles.emptyStateContent, { backgroundColor: colors.surface + '80' }]}>
+              <MaterialIcons name="visibility" size={64} color={colors.textMuted} />
+              <Text style={[styles.emptyStateTitle, { color: colors.text }]}>
+                Vision Board Vazio
+              </Text>
+              <Text style={[styles.emptyStateText, { color: colors.textSecondary }]}>
+                Não há imagens para visualizar ainda.{'\n'}
+                Adicione elementos ao seu Vision Board primeiro.
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {/* Inspiration Text */}
+        {imageItems.length > 0 && (
+          <View style={styles.inspirationContainer}>
+            <Text style={[styles.inspirationText, { color: colors.textMuted }]}>
+              ✨ Observe. Sinta. Manifeste conscientemente. ✨
+            </Text>
+          </View>
+        )}
+
         {/* Modal */}
-        <SacredModal
-          visible={modalVisible}
-          title="Vision Board Vazio"
-          message="Adicione imagens ao seu Vision Board antes de iniciar a visualização."
-          type="info"
-          onClose={() => setModalVisible(false)}
-        />
+        <Modal visible={modalVisible} transparent animationType="fade">
+          <TouchableOpacity 
+            style={styles.modalOverlay} 
+            onPress={() => setModalVisible(false)}
+            activeOpacity={1}
+          >
+            <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+              <MaterialIcons name="info" size={48} color={colors.primary} />
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
+                Vision Board Vazio
+              </Text>
+              <Text style={[styles.modalText, { color: colors.textSecondary }]}>
+                Adicione imagens ao seu Vision Board antes de iniciar a visualização.
+              </Text>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: colors.primary }]}
+                onPress={() => setModalVisible(false)}
+              >
+                <Text style={styles.modalButtonText}>Entendi</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </Modal>
       </View>
     </GradientBackground>
   );
@@ -551,31 +622,33 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    fontSize: 16,
-    fontWeight: '500',
-  },
+  
+  // Header
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: Spacing.lg,
-    marginTop: Spacing.lg,
-    marginBottom: Spacing.lg,
+    paddingVertical: Spacing.md,
+    zIndex: 1000,
   },
   backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    padding: Spacing.sm,
+    borderRadius: 8,
   },
-  backText: {
-    fontSize: 16,
-    fontWeight: '500',
-    marginLeft: Spacing.xs,
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
+    marginHorizontal: Spacing.md,
+  },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+  },
+  headerSubtitle: {
+    fontSize: 13,
+    marginTop: 2,
+    fontStyle: 'italic',
   },
   stopButton: {
     flexDirection: 'row',
@@ -590,28 +663,33 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
+  
+  // Settings
   settingsContainer: {
     flex: 1,
     paddingHorizontal: Spacing.lg,
+  },
+  settingsContent: {
+    paddingBottom: Spacing.xl,
   },
   settingsCard: {
     marginBottom: Spacing.lg,
   },
   settingsTitle: {
     fontSize: 24,
-    fontWeight: '600',
+    fontWeight: '700',
     marginBottom: Spacing.sm,
   },
   settingsDescription: {
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 16,
+    lineHeight: 24,
     marginBottom: Spacing.xl,
   },
   section: {
     marginBottom: Spacing.xl,
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
     marginBottom: Spacing.md,
   },
@@ -621,7 +699,7 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   optionButton: {
-    width: (SCREEN_WIDTH - Spacing.lg * 2 - 80 - Spacing.sm * 3) / 4,
+    width: (SCREEN_WIDTH - Spacing.lg * 2 - Spacing.sm * 3) / 4,
     aspectRatio: 1,
     borderRadius: 12,
     borderWidth: 2,
@@ -645,22 +723,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   durationLabel: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
   },
   startButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: Spacing.md,
-    borderRadius: 12,
-    marginTop: Spacing.md,
-  },
-  startButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: Spacing.sm,
+    marginTop: Spacing.lg,
   },
   infoCard: {
     flexDirection: 'row',
@@ -673,6 +740,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
   },
+  
+  // Visualization
   visualizationContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -694,26 +763,15 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   imageContainer: {
-    width: SCREEN_WIDTH,
-    height: SCREEN_HEIGHT * 0.7,
+    width: SCREEN_WIDTH * 0.9,
+    height: SCREEN_HEIGHT * 0.6,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  fullImage: {
-    width: '90%',
-    height: '90%',
-  },
-  placeholderContainer: {
-    width: '90%',
-    height: '90%',
-    justifyContent: 'center',
-    alignItems: 'center',
+  image: {
+    width: '100%',
+    height: '100%',
     borderRadius: 16,
-  },
-  placeholderText: {
-    fontSize: 16,
-    fontWeight: '500',
-    marginTop: Spacing.md,
   },
   progressContainer: {
     position: 'absolute',
@@ -725,5 +783,113 @@ const styles = StyleSheet.create({
   progressText: {
     fontSize: 14,
     fontWeight: '600',
+  },
+  
+  // Empty State
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.xl,
+  },
+  emptyStateContent: {
+    padding: Spacing.xl,
+    borderRadius: 24,
+    alignItems: 'center',
+    width: '100%',
+    maxWidth: 320,
+  },
+  emptyStateTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    marginTop: Spacing.lg,
+    marginBottom: Spacing.sm,
+  },
+  emptyStateText: {
+    fontSize: 16,
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+  
+  // Inspiration
+  inspirationContainer: {
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.lg,
+    alignItems: 'center',
+  },
+  inspirationText: {
+    fontSize: 14,
+    textAlign: 'center',
+    fontStyle: 'italic',
+    letterSpacing: 0.5,
+  },
+  
+  // Modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.lg,
+  },
+  modalContent: {
+    width: '100%',
+    maxWidth: 400,
+    padding: Spacing.xl,
+    borderRadius: 24,
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    marginTop: Spacing.lg,
+    marginBottom: Spacing.sm,
+    textAlign: 'center',
+  },
+  modalText: {
+    fontSize: 16,
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: Spacing.lg,
+  },
+  modalButton: {
+    width: '100%',
+    paddingVertical: Spacing.md,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  modalButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  
+  // States
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 16,
+    marginTop: Spacing.lg,
+    textAlign: 'center',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.xl,
+  },
+  errorTitle: {
+    fontSize: 24,
+    fontWeight: '600',
+    marginTop: Spacing.lg,
+    marginBottom: Spacing.sm,
+  },
+  errorText: {
+    fontSize: 16,
+    textAlign: 'center',
+    lineHeight: 24,
   },
 });
