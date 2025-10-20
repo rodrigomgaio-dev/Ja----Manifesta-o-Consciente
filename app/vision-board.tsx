@@ -196,20 +196,10 @@ export default function VisionBoardScreen() {
       <View style={[styles.container, { paddingTop: insets.top }]}>
         {/* Header */}
         <View style={styles.header}>
-          <View style={styles.headerCenter}>
-            <Text style={[styles.headerTitle, { color: colors.text }]}>Vision Board</Text>
-            <Text style={[styles.headerSubtitle, { color: colors.textMuted }]}>
-              Crie sua manifestação
-            </Text>
-          </View>
-          
-          <TouchableOpacity 
-            onPress={() => router.push(`/vision-board-view?cocreationId=${cocreationId}`)}
-            style={[styles.headerButton, { backgroundColor: colors.primary }]}
-            disabled={items.length === 0}
-          >
-            <MaterialIcons name="visibility" size={24} color="white" />
-          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Vision Board</Text>
+          <Text style={[styles.headerSubtitle, { color: colors.textMuted }]}>
+            Crie sua manifestação
+          </Text>
         </View>
 
         {/* Image Grid */}
@@ -249,7 +239,14 @@ export default function VisionBoardScreen() {
         {/* Floating Action Buttons */}
         <View style={styles.floatingActions}>
           <TouchableOpacity
-            style={[styles.floatingButton, { backgroundColor: colors.primary }]}
+            style={[styles.actionButton, { backgroundColor: colors.error + 'E6' }]}
+            onPress={() => router.back()}
+          >
+            <MaterialIcons name="close" size={28} color="white" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.actionButton, { backgroundColor: colors.primary }]}
             onPress={handleAddImage}
             disabled={uploading}
           >
@@ -262,14 +259,13 @@ export default function VisionBoardScreen() {
           
           <TouchableOpacity
             style={[
-              styles.completeButton,
+              styles.actionButton,
               { backgroundColor: items.length > 0 ? colors.accent : colors.textMuted }
             ]}
             onPress={handleComplete}
             disabled={items.length === 0}
           >
-            <MaterialIcons name="check-circle" size={24} color="white" />
-            <Text style={styles.completeButtonText}>Concluir Vision Board</Text>
+            <MaterialIcons name="check-circle" size={28} color="white" />
           </TouchableOpacity>
         </View>
 
@@ -294,24 +290,10 @@ const styles = StyleSheet.create({
   
   // Header
   header: {
-    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
     zIndex: 10,
-  },
-  headerButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerCenter: {
-    flex: 1,
-    alignItems: 'center',
-    paddingRight: 44,
   },
   headerTitle: {
     fontSize: 22,
@@ -404,12 +386,15 @@ const styles = StyleSheet.create({
   floatingActions: {
     position: 'absolute',
     bottom: Spacing.xl,
-    left: Spacing.lg,
-    right: Spacing.lg,
-    gap: Spacing.md,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
+    gap: Spacing.lg,
+    paddingHorizontal: Spacing.lg,
   },
-  floatingButton: {
+  actionButton: {
     width: 64,
     height: 64,
     borderRadius: 32,
@@ -420,25 +405,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
-  },
-  completeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: Spacing.md + 4,
-    paddingHorizontal: Spacing.xl,
-    borderRadius: 16,
-    gap: Spacing.sm,
-    elevation: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-  },
-  completeButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '700',
   },
   
   // Error State
