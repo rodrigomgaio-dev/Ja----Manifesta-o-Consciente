@@ -48,8 +48,15 @@ const isScheduleAvailable = (schedule: any): boolean => {
   const scheduleDays = schedule.days_of_week || [0, 1, 2, 3, 4, 5, 6]; // null means daily
   if (!scheduleDays.includes(currentDay)) return false;
 
-  // Parse schedule time
-  const [scheduleHour, scheduleMinute] = schedule.specific_time.split(':').map(Number);
+  // Parse schedule time (HH:MM format)
+  const timeParts = schedule.specific_time.split(':');
+  if (timeParts.length !== 2) return false;
+  
+  const scheduleHour = parseInt(timeParts[0], 10);
+  const scheduleMinute = parseInt(timeParts[1], 10);
+  
+  if (isNaN(scheduleHour) || isNaN(scheduleMinute)) return false;
+  
   const scheduleTimeInMinutes = scheduleHour * 60 + scheduleMinute;
 
   // Check if within ±15 minutes window
@@ -144,9 +151,20 @@ export default function CocreationMomentsScreen() {
       ? schedule.days_of_week.map((d: number) => DAYS_MAP[d]).join(', ')
       : 'Diário';
 
-    const timeText = schedule.time_type === 'specific' && schedule.specific_time
-      ? schedule.specific_time
-      : TIME_TYPE_LABELS[schedule.time_type as keyof typeof TIME_TYPE_LABELS] || 'Flexível';
+    let timeText = 'Flexível';
+    if (schedule.time_type === 'specific' && schedule.specific_time) {
+      // Format time as HH:MM
+      const timeParts = schedule.specific_time.split(':');
+      if (timeParts.length === 2) {
+        const hour = timeParts[0].padStart(2, '0');
+        const minute = timeParts[1].padStart(2, '0');
+        timeText = `${hour}:${minute}`;
+      } else {
+        timeText = schedule.specific_time;
+      }
+    } else if (schedule.time_type) {
+      timeText = TIME_TYPE_LABELS[schedule.time_type as keyof typeof TIME_TYPE_LABELS] || 'Flexível';
+    }
 
     const practicesText = schedule.practices
       .map((p: string) => PRACTICE_LABELS[p] || p)

@@ -11,7 +11,7 @@ import {
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
-import DateTimePicker from '@react-native-community/datetimepicker';
+
 import GradientBackground from '@/components/ui/GradientBackground';
 import SacredCard from '@/components/ui/SacredCard';
 import SacredButton from '@/components/ui/SacredButton';
@@ -59,8 +59,8 @@ export default function PracticeScheduleScreen() {
   const [selectedDays, setSelectedDays] = useState<number[]>([]);
   const [isDailyMode, setIsDailyMode] = useState(false);
   const [timeType, setTimeType] = useState<'specific' | 'wake_up' | 'before_sleep' | 'flexible'>('flexible');
-  const [specificTime, setSpecificTime] = useState(new Date());
-  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [selectedHour, setSelectedHour] = useState(8);
+  const [selectedMinute, setSelectedMinute] = useState(0);
   const [selectedPractices, setSelectedPractices] = useState<string[]>([]);
   const [durationHours, setDurationHours] = useState('');
   const [durationMinutes, setDurationMinutes] = useState('');
@@ -107,9 +107,8 @@ export default function PracticeScheduleScreen() {
         
         if (schedule.specific_time) {
           const [hours, minutes] = schedule.specific_time.split(':');
-          const date = new Date();
-          date.setHours(parseInt(hours), parseInt(minutes));
-          setSpecificTime(date);
+          setSelectedHour(parseInt(hours));
+          setSelectedMinute(parseInt(minutes));
         }
         
         setSelectedPractices(schedule.practices || []);
@@ -168,7 +167,7 @@ export default function PracticeScheduleScreen() {
         days_of_week: mode === 'routine' ? (isDailyMode ? null : selectedDays) : null,
         time_type: mode === 'routine' ? timeType : null,
         specific_time: mode === 'routine' && timeType === 'specific' 
-          ? `${specificTime.getHours().toString().padStart(2, '0')}:${specificTime.getMinutes().toString().padStart(2, '0')}`
+          ? `${selectedHour.toString().padStart(2, '0')}:${selectedMinute.toString().padStart(2, '0')}`
           : null,
         practices: mode === 'routine' ? selectedPractices : [],
         duration_hours: durationHours ? parseInt(durationHours) : null,
@@ -459,31 +458,72 @@ export default function PracticeScheduleScreen() {
                   <Text style={[styles.timePickerLabel, { color: colors.text }]}>
                     Selecione o horário:
                   </Text>
-                  <TouchableOpacity
-                    style={[styles.timePickerButton, { backgroundColor: colors.surface, borderColor: colors.primary }]}
-                    onPress={() => setShowTimePicker(true)}
-                  >
-                    <MaterialIcons name="access-time" size={24} color={colors.primary} />
-                    <Text style={[styles.timePickerText, { color: colors.text }]}>
-                      {specificTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                    </Text>
-                    <MaterialIcons name="edit" size={20} color={colors.primary} />
-                  </TouchableOpacity>
+                  
+                  <View style={styles.customTimePicker}>
+                    {/* Hour Picker */}
+                    <View style={styles.timePickerColumn}>
+                      <Text style={[styles.timePickerColumnLabel, { color: colors.textSecondary }]}>Hora</Text>
+                      <ScrollView 
+                        style={[styles.timeScrollView, { backgroundColor: colors.surface }]}
+                        showsVerticalScrollIndicator={false}
+                      >
+                        {Array.from({ length: 24 }, (_, i) => i).map((hour) => (
+                          <TouchableOpacity
+                            key={hour}
+                            style={[
+                              styles.timeOption,
+                              selectedHour === hour && { backgroundColor: colors.primary + '30' }
+                            ]}
+                            onPress={() => setSelectedHour(hour)}
+                          >
+                            <Text style={[
+                              styles.timeOptionText,
+                              { color: selectedHour === hour ? colors.primary : colors.text }
+                            ]}>
+                              {hour.toString().padStart(2, '0')}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </ScrollView>
+                    </View>
 
-                  {showTimePicker && (
-                    <DateTimePicker
-                      value={specificTime}
-                      mode="time"
-                      is24Hour={true}
-                      display="default"
-                      onChange={(event, selectedDate) => {
-                        setShowTimePicker(Platform.OS === 'ios');
-                        if (selectedDate) {
-                          setSpecificTime(selectedDate);
-                        }
-                      }}
-                    />
-                  )}
+                    <Text style={[styles.timeSeparator, { color: colors.text }]}>:</Text>
+
+                    {/* Minute Picker */}
+                    <View style={styles.timePickerColumn}>
+                      <Text style={[styles.timePickerColumnLabel, { color: colors.textSecondary }]}>Minuto</Text>
+                      <ScrollView 
+                        style={[styles.timeScrollView, { backgroundColor: colors.surface }]}
+                        showsVerticalScrollIndicator={false}
+                      >
+                        {Array.from({ length: 60 }, (_, i) => i).map((minute) => (
+                          <TouchableOpacity
+                            key={minute}
+                            style={[
+                              styles.timeOption,
+                              selectedMinute === minute && { backgroundColor: colors.primary + '30' }
+                            ]}
+                            onPress={() => setSelectedMinute(minute)}
+                          >
+                            <Text style={[
+                              styles.timeOptionText,
+                              { color: selectedMinute === minute ? colors.primary : colors.text }
+                            ]}>
+                              {minute.toString().padStart(2, '0')}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </ScrollView>
+                    </View>
+                  </View>
+
+                  {/* Selected Time Display */}
+                  <View style={[styles.selectedTimeDisplay, { backgroundColor: colors.primary + '20', borderColor: colors.primary }]}>
+                    <MaterialIcons name="access-time" size={24} color={colors.primary} />
+                    <Text style={[styles.selectedTimeText, { color: colors.primary }]}>
+                      {selectedHour.toString().padStart(2, '0')}:{selectedMinute.toString().padStart(2, '0')}
+                    </Text>
+                  </View>
                 </View>
               )}
             </SacredCard>
@@ -768,8 +808,46 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '500',
     marginBottom: Spacing.md,
+    textAlign: 'center',
   },
-  timePickerButton: {
+  customTimePicker: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.md,
+    marginBottom: Spacing.lg,
+  },
+  timePickerColumn: {
+    alignItems: 'center',
+  },
+  timePickerColumnLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: Spacing.xs,
+    textTransform: 'uppercase',
+  },
+  timeScrollView: {
+    height: 150,
+    width: 70,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.2)',
+  },
+  timeOption: {
+    paddingVertical: Spacing.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  timeOptionText: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  timeSeparator: {
+    fontSize: 32,
+    fontWeight: '700',
+    marginTop: 20,
+  },
+  selectedTimeDisplay: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -778,11 +856,9 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     gap: Spacing.md,
   },
-  timePickerText: {
-    fontSize: 24,
+  selectedTimeText: {
+    fontSize: 28,
     fontWeight: '700',
-    flex: 1,
-    textAlign: 'center',
   },
   practicesGrid: {
     flexDirection: 'row',
