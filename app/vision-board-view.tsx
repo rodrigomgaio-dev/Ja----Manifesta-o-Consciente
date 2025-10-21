@@ -378,21 +378,27 @@ export default function VisionBoardViewScreen() {
     }
 
     // Ajuste específico para 'flip' para virar e desvirar
+    // Ajuste específico para 'flip' para virar e desvirar
     if (currentAnim === 'flip') {
       // Virar 180 graus e depois voltar para 0 graus (desvirar)
       // Intervalo do efeito: 0.1 -> 0.8 (0.7 unidades)
       // Virar: 0.1 -> 0.45 (0.35 unid) -> 180deg
       // Desvirar: 0.45 -> 0.8 (0.35 unid) -> 0deg
+      // A opacidade: 0 (antes de 0.1) -> 1 (de 0.1 a 0.8) -> 0 (de 0.8 em diante)
       const flipInputRange = [0, 0.1, 0.45, 0.8, 0.9, 1.0];
-      const flipOutputRange = [0, 0, 180, 0, 0, 0]; // Começa invisível, vira, desvira, termina invisível
+      const flipOpacityOutputRange = [0, 1, 1, 1, 0, 0]; // Começa e termina invisível
+      const flipRotateOutputRange = [0, 0, 180, 0, 0, 0]; // Começa sem rotação, vira, desvira, termina sem rotação
 
       return {
-        opacity: opacity,
+        opacity: sequenceAnimationValue.interpolate({
+          inputRange: flipInputRange,
+          outputRange: flipOpacityOutputRange,
+        }),
         transform: [
           {
             rotateY: sequenceAnimationValue.interpolate({
               inputRange: flipInputRange,
-              outputRange: flipOutputRange,
+              outputRange: flipRotateOutputRange,
             }),
           },
         ],
