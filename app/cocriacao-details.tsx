@@ -49,7 +49,6 @@ export default function CocriacaoDetailsScreen() {
 
   // --- FUNÇÃO PARA CARREGAR COCRIAÇÃO ESPECÍFICA ---
   // Tenta primeiro do cache do hook, depois do banco
-  {/*
   const loadSpecificCocriation = useCallback(async () => {
     if (!id) return;
 
@@ -89,8 +88,10 @@ export default function CocriacaoDetailsScreen() {
     }
     setIsLoading(false);
   }, [id, cocriations, loadSingle, getFutureLetter]); // Dependências críticas
-  */}
-  const loadSpecificCocriation = useCallback(async () => {
+  
+
+  {/* Esta solução não funcionou, deixou o app lento e instável
+    const loadSpecificCocriation = useCallback(async () => {
   if (!id) return;
 
     console.log('Attempting to load cocriation with ID:', id);
@@ -123,7 +124,7 @@ export default function CocriacaoDetailsScreen() {
         setHasLetterSent(!!letterResult.data);
       }
     }
-  }, [id, cocriations, loadSingle, getFutureLetter]);
+  }, [id, cocriations, loadSingle, getFutureLetter]); */}
   // --- FIM DA FUNÇÃO DE CARREGAMENTO ---
 
   // --- CARREGAMENTO INICIAL ---
