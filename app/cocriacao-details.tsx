@@ -49,6 +49,7 @@ export default function CocriacaoDetailsScreen() {
 
   // --- FUNÇÃO PARA CARREGAR COCRIAÇÃO ESPECÍFICA ---
   // Tenta primeiro do cache do hook, depois do banco
+  {/*
   const loadSpecificCocriation = useCallback(async () => {
     if (!id) return;
 
@@ -88,6 +89,41 @@ export default function CocriacaoDetailsScreen() {
     }
     setIsLoading(false);
   }, [id, cocriations, loadSingle, getFutureLetter]); // Dependências críticas
+  */}
+  const loadSpecificCocriation = useCallback(async () => {
+  if (!id) return;
+
+    console.log('Attempting to load cocriation with ID:', id);
+
+    // 1. First, try to find in cache (FAST!)
+    const cachedCocriation = cocriations.find(c => c.id === id);
+    if (cachedCocriation) {
+      console.log('Cocriation found in cache:', cachedCocriation);
+      setCocriation(cachedCocriation);
+
+      // Check future letter if needed
+      if (cachedCocriation.future_letter_completed) {
+        const letterResult = await getFutureLetter(id);
+        setHasLetterSent(!!letterResult.data);
+      }
+
+      // Don't return yet - we'll refresh in background
+    }
+
+    // 2. Always refresh from database in the background
+    // This ensures we have the latest data, but doesn't block the UI
+    console.log('Refreshing from database in background:', id);
+    const result = await loadSingle(id);
+    if (result.data) {
+      console.log('Background refresh completed:', result.data);
+      setCocriation(result.data);
+
+      if (result.data.future_letter_completed) {
+        const letterResult = await getFutureLetter(id);
+        setHasLetterSent(!!letterResult.data);
+      }
+    }
+  }, [id, cocriations, loadSingle, getFutureLetter]);
   // --- FIM DA FUNÇÃO DE CARREGAMENTO ---
 
   // --- CARREGAMENTO INICIAL ---
