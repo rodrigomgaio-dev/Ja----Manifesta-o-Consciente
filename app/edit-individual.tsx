@@ -142,7 +142,10 @@ export default function EditIndividualScreen() {
           'Cocriação editada com sucesso.',
           'success',
           () => {
-            router.back();
+            // Small delay to ensure state is updated before navigation
+            setTimeout(() => {
+            router.back(); // Volta para a tela de detalhes
+            }, 200);          
           }
         );
       }
