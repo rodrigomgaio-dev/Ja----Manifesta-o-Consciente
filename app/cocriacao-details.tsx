@@ -44,14 +44,17 @@ export default function CocriacaoDetailsScreen() {
     buttons?: any[];
   }>({ title: '', message: '', type: 'info' });
 
+  // Carregar cocriação específica do cache ou banco
   const loadCocriation = useCallback(async () => {
     if (!id) return;
 
+    // Primeiro, tenta do cache (o hook atualizado deve ter o item correto aqui)
     const cached = cocriations.find(c => c.id === id);
     if (cached) {
-      console.log('Cocriation found in cache, updating state:', cached);
+      console.log('Cocriation found in cache (potentially updated):', cached);
       setCocriation(cached);
       
+      // Verificar se existe carta enviada
       if (cached.future_letter_completed) {
         const letterResult = await getFutureLetter(id);
         setHasLetterSent(!!letterResult.data);
@@ -59,32 +62,38 @@ export default function CocriacaoDetailsScreen() {
       return;
     }
 
-    console.log('Cocriation not in cache, loading from database:', id);
+    // Se não está no cache, carrega do banco
+    console.log('Loading cocriation from database (not found in cache):', id);
     setIsLoading(true);
     const result = await loadSingle(id);
     if (result.data) {
       setCocriation(result.data);
       
+      // Verificar se existe carta enviada
       if (result.data.future_letter_completed) {
         const letterResult = await getFutureLetter(id);
         setHasLetterSent(!!letterResult.data);
       }
     }
     setIsLoading(false);
-  }, [id, cocriations, loadSingle, getFutureLetter]);
+  }, [id, cocriations, loadSingle, getFutureLetter]); // Adicione 'cocriations' como dependência
 
+  // Carregar ao montar
   useEffect(() => {
     loadCocriation();
   }, [loadCocriation]);
 
+  // Recarregar quando retorna ao foco - ESTE É O PONTO CRUCIAL
   useFocusEffect(
     useCallback(() => {
-      if (id) {
-        console.log('Screen focused, reloading cocriation:', id);
-        loadCocriation();
-      }
-    }, [id, loadCocriation])
+      console.log('CocriacaoDetailsScreen focused, checking for updates...');
+      // Ao voltar da tela de edição, este efeito será acionado.
+      // Ele tentará carregar a cocriação, que agora pode estar atualizada no cache do hook.
+      loadCocriation();
+    }, [loadCocriation]) // Apenas loadCocriation como dependência
   );
+
+  // ... (restante das funções permanecem as mesmas) ...
 
   const showModal = (
     title: string,
@@ -138,7 +147,9 @@ export default function CocriacaoDetailsScreen() {
         );
         setIsDeleting(false);
       } else {
+        // Redireciona imediatamente após exclusão bem-sucedida
         router.replace('/(tabs)/individual');
+        // Aguarda um momento e então mostra o modal de sucesso
         setTimeout(() => {
           showModal(
             'Sucesso',
@@ -163,10 +174,12 @@ export default function CocriacaoDetailsScreen() {
   };
 
   const handleFutureLetter = () => {
+    // Passar from=details para indicar que vem dos detalhes
     router.push(`/future-letter?cocreationId=${cocriation.id}&from=details`);
   };
 
   const canToggleStatus = (cocriation: any) => {
+    // Pode ativar/desativar apenas se todos os itens estiverem completos
     const visionBoardDone = cocriation.vision_board_completed;
     const scheduleDone = cocriation.practice_schedule_completed;
     const letterStatus = cocriation.future_letter_completed;
@@ -188,11 +201,15 @@ export default function CocriacaoDetailsScreen() {
         'Não foi possível alterar o status da cocriação. Tente novamente.',
         'error'
       );
+    } else {
+      // Atualizar cocriation local - Isto agora será feito via o useEffect de foco ou cache
+      setCocriation({ ...cocriation, status: newStatus });
     }
     
     setIsTogglingStatus(false);
   };
 
+  // Mostrar loading apenas enquanto carrega
   if (isLoading && !cocriation) {
     return (
       <GradientBackground>
@@ -207,6 +224,7 @@ export default function CocriacaoDetailsScreen() {
     );
   }
 
+  // Mostrar erro apenas se não houver cocriação e não estiver deletando
   if (!isLoading && !cocriation && !isDeleting) {
     return (
       <GradientBackground>
@@ -227,10 +245,12 @@ export default function CocriacaoDetailsScreen() {
     );
   }
 
+  // Se estiver deletando ou não houver cocriação, não renderiza nada
   if (!cocriation) {
     return null;
   }
 
+  // Determinar o texto do subtitulo do botão VisionBoard
   let visionBoardStatusText = "Em construção";
   let visionBoardStatusColor = colors.warning || colors.textMuted;
 
@@ -248,6 +268,7 @@ export default function CocriacaoDetailsScreen() {
         style={[styles.container, { paddingTop: insets.top }]}
         showsVerticalScrollIndicator={false}
       >
+        {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity 
             style={styles.backButton}
@@ -277,6 +298,7 @@ export default function CocriacaoDetailsScreen() {
           </View>
         </View>
 
+        {/* Cover Image */}
         {cocriation.cover_image_url && (
           <SacredCard style={styles.coverCard}>
             <Image 
@@ -287,6 +309,7 @@ export default function CocriacaoDetailsScreen() {
           </SacredCard>
         )}
 
+        {/* Vision Board Visualization Button - Destacado no Topo */}
         {cocriation.vision_board_completed && (
           <TouchableOpacity
             style={styles.visionBoardViewButton}
@@ -314,7 +337,9 @@ export default function CocriacaoDetailsScreen() {
           </TouchableOpacity>
         )}
 
+        {/* Main Info */}
         <SacredCard glowing style={styles.mainCard}>
+          {/* Toggle Status */}
           {canToggleStatus(cocriation) && (
             <View style={styles.toggleSection}>
               <View style={styles.toggleInfo}>
@@ -360,6 +385,7 @@ export default function CocriacaoDetailsScreen() {
             </View>
           </View>
 
+          {/* Expand/Collapse Button */}
           {(cocriation.description || cocriation.why_reason) && (
             <TouchableOpacity 
               style={styles.expandButton}
@@ -376,6 +402,7 @@ export default function CocriacaoDetailsScreen() {
             </TouchableOpacity>
           )}
 
+          {/* Expanded Content */}
           {isExpanded && (
             <View style={styles.expandedContent}>
               {cocriation.description && (
@@ -418,11 +445,13 @@ export default function CocriacaoDetailsScreen() {
           )}
         </SacredCard>
 
+        {/* Quick Actions */}
         <SacredCard style={styles.actionsCard}>
           <View style={styles.actionsList}>
+            {/* --- BOTÃO VISION BOARD ALTERADO --- */}
             <TouchableOpacity 
               style={styles.actionButton}
-              onPress={handleVisionBoard}
+              onPress={handleVisionBoard} // Chama a função atualizada
             >
               <MaterialIcons name="dashboard" size={24} color={colors.primary} />
               <View style={styles.actionTextContainer}>
@@ -435,7 +464,9 @@ export default function CocriacaoDetailsScreen() {
               </View>
               <MaterialIcons name="chevron-right" size={20} color={colors.textMuted} />
             </TouchableOpacity>
+            {/* --- FIM DO BOTÃO VISION BOARD --- */}
 
+            {/* Carta ao Futuro - só mostra se não estiver completa */}
             {!cocriation.future_letter_completed && (
               <TouchableOpacity 
                 style={styles.actionButton}
@@ -454,6 +485,7 @@ export default function CocriacaoDetailsScreen() {
               </TouchableOpacity>
             )}
             
+            {/* Carta enviada - apenas informativo */}
             {cocriation.future_letter_completed && hasLetterSent && (
               <View style={[styles.actionButton, styles.actionButtonDisabled]}>
                 <MaterialIcons name="mail" size={24} color={colors.success} />
@@ -487,6 +519,7 @@ export default function CocriacaoDetailsScreen() {
           </View>
         </SacredCard>
 
+        {/* Statistics */}
         <SacredCard style={styles.statsCard}>
           <Text style={[styles.statsTitle, { color: colors.text }]}>
             Estatísticas
@@ -509,6 +542,7 @@ export default function CocriacaoDetailsScreen() {
           </View>
         </SacredCard>
 
+        {/* Celebration */}
         <SacredCard glowing style={styles.celebrationCard}>
           <View style={styles.celebrationHeader}>
             <MaterialIcons name="celebration" size={48} color={colors.primary} />
@@ -532,6 +566,7 @@ export default function CocriacaoDetailsScreen() {
           />
         </SacredCard>
 
+        {/* Modal */}
         <SacredModal
           visible={modalVisible}
           title={modalConfig.title}
