@@ -277,27 +277,27 @@ export default function VisionBoardViewScreen() {
         break;
       case 'flip':
         sequence = Animated.sequence([
-          Animated.timing(sequenceAnimationValue, {
-            toValue: 0.1, // Fade In completo
-            duration: fadeInDuration,
-            useNativeDriver: true,
-          }),
-          Animated.timing(sequenceAnimationValue, {
-            toValue: 0.8, // Efeito (virar e desvirar)
-            duration: effectDuration,
-            useNativeDriver: true,
-          }),
-          Animated.timing(sequenceAnimationValue, {
-            toValue: 0.9, // Fade Out completo
-            duration: fadeOutDuration,
-            useNativeDriver: true,
-          }),
-          Animated.timing(sequenceAnimationValue, {
-            toValue: 1.0, // Pausa
-            duration: pauseDuration,
-            useNativeDriver: true,
-          }),
-        ]);
+        Animated.timing(sequenceAnimationValue, {
+          toValue: 0.1, // Fade In completo
+          duration: fadeInDuration,
+          useNativeDriver: true, // Mantém para fade in
+        }),
+        Animated.timing(sequenceAnimationValue, {
+          toValue: 0.8, // Efeito (virar e desvirar)
+          duration: effectDuration,
+          useNativeDriver: false, // Muda para false para rotateY
+        }),
+        Animated.timing(sequenceAnimationValue, {
+          toValue: 0.9, // Fade Out completo
+          duration: fadeOutDuration,
+          useNativeDriver: false, // Muda para false para manter consistência com a parte do efeito
+        }),
+        Animated.timing(sequenceAnimationValue, {
+          toValue: 1.0, // Pausa
+          duration: pauseDuration,
+          useNativeDriver: false, // Muda para false
+        }),
+      ]);
         break;
       default:
         // Caso padrão, mesmo que 'fade'
