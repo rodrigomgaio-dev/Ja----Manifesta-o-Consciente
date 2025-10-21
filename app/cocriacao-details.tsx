@@ -84,15 +84,14 @@ export default function CocriacaoDetailsScreen() {
     loadCocriation();
   }, [loadCocriation]);
 
-  // Recarregar quando retorna ao foco (apenas se necessário)
+  // Recarregar quando retorna ao foco
   useFocusEffect(
     useCallback(() => {
-      // Apenas recarrega se a cocriação já existe no cache
-      // Isso evita carregamentos desnecessários
-      if (id && cocriations.some(c => c.id === id)) {
+      if (id) {
+        console.log('Screen focused, reloading cocriation:', id);
         loadCocriation();
       }
-    }, [id, cocriations.length])
+    }, [id, loadCocriation])
   );
 
   const showModal = (

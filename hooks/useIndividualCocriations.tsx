@@ -157,15 +157,12 @@ export function useIndividualCocriations() {
 
       console.log('Cocriation updated successfully:', data);
 
-      // Update local state immediately
-      setCocriations(prev =>
-        prev.map(c => (c.id === id ? { ...c, ...data } : c))
-      );
-
-      // Also reload data to ensure full synchronization
-      setTimeout(() => {
-        loadCocriations();
-      }, 100);
+      // Update local state immediately with the full updated data
+      setCocriations(prev => {
+        const updated = prev.map(c => (c.id === id ? data : c));
+        console.log('Updated cocriations cache:', updated);
+        return updated;
+      });
 
       return { data, error: null };
     } catch (error) {
