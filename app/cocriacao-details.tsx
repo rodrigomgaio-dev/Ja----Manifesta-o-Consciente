@@ -1,5 +1,4 @@
 // app/cocriacao-details.tsx
-// FIXED VERSION - Copy and paste this entire file
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -20,7 +19,7 @@ import SacredButton from '@/components/ui/SacredButton';
 import SacredModal from '@/components/ui/SacredModal';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { useIndividualCocriations } from '@/hooks/useIndividualCocriations';
+import { useIndividualCocriations } from '@/hooks/useIndividualCocriations'; // Certifique-se que o caminho está correto
 import { useFutureLetter } from '@/hooks/useFutureLetter';
 import { Spacing } from '@/constants/Colors';
 
@@ -30,7 +29,8 @@ export default function CocriacaoDetailsScreen() {
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
 
-  const { deleteCocriation, loadSingle, updateCocriation } = useIndividualCocriations();
+  // Importa o hook e o método loadSingle
+  const { cocriations, deleteCocriation, loadSingle, updateCocriation } = useIndividualCocriations();
   const { getFutureLetter } = useFutureLetter();
 
   const [cocriation, setCocriation] = useState<any>(null);
@@ -47,48 +47,67 @@ export default function CocriacaoDetailsScreen() {
     buttons?: any[];
   }>({ title: '', message: '', type: 'info' });
 
-  // ==========================================
-  // FIXED: Simplified function - always loads fresh from database
-  // ==========================================
+  // --- FUNÇÃO PARA CARREGAR COCRIAÇÃO ESPECÍFICA ---
+  // Tenta primeiro do cache do hook, depois do banco
   const loadSpecificCocriation = useCallback(async () => {
     if (!id) return;
 
-    console.log('Loading cocriation from database:', id);
-    
+    console.log('Attempting to load cocriation with ID:', id);
+
+    // 1. Primeiro, tenta encontrar no cache do hook (cocriations)
+    // Este array foi atualizado pelo refresh() na tela de edição.
+    const cachedCocriation = cocriations.find(c => c.id === id);
+    if (cachedCocriation) {
+      console.log('Cocriation found in hook cache:', cachedCocriation);
+      setCocriation(cachedCocriation);
+
+      // Verificar carta futura se necessário
+      if (cachedCocriation.future_letter_completed) {
+        const letterResult = await getFutureLetter(id);
+        setHasLetterSent(!!letterResult.data);
+      }
+      return; // Encontrou no cache, fim.
+    }
+
+    // 2. Se não estiver no cache do hook, carrega do banco (fallback)
+    console.log('Cocriation not in hook cache, loading from database:', id);
     setIsLoading(true);
     const result = await loadSingle(id);
-    
     if (result.data) {
-      console.log('Cocriation loaded successfully:', result.data);
+      console.log('Cocriation loaded from database:', result.data);
       setCocriation(result.data);
 
-      // Check future letter if needed
+      // Verificar carta futura se necessário
       if (result.data.future_letter_completed) {
         const letterResult = await getFutureLetter(id);
         setHasLetterSent(!!letterResult.data);
       }
     } else {
-      console.warn('Cocriation not found in database.');
-      setCocriation(null);
+      console.warn('Cocriation not found in database either.');
+      setCocriation(null); // Ou tratar erro
     }
-    
     setIsLoading(false);
-  }, [id, loadSingle, getFutureLetter]);
+  }, [id, cocriations, loadSingle, getFutureLetter]); // Dependências críticas
+  // --- FIM DA FUNÇÃO DE CARREGAMENTO ---
 
-  // Load on initial mount
+  // --- CARREGAMENTO INICIAL ---
   useEffect(() => {
     loadSpecificCocriation();
   }, [loadSpecificCocriation]);
+  // --- FIM DO CARREGAMENTO INICIAL ---
 
-  // ==========================================
-  // FIXED: Reload fresh data every time screen comes into focus
-  // ==========================================
+  // --- useFocusEffect: AO VOLTAR PARA ESTA TELA ---
+  // Esta é a parte crucial para atualização automática após a edição.
   useFocusEffect(
     useCallback(() => {
-      console.log('Screen focused. Reloading cocriation data...');
+      console.log('Screen focused. Reloading specific cocriation from hook cache/database.');
+      // Ao voltar da tela de edição, esta função é chamada.
+      // Ela tentará primeiro carregar do cache do hook (cocriations),
+      // que foi atualizado pelo refresh() da tela de edição.
       loadSpecificCocriation();
-    }, [loadSpecificCocriation])
+    }, [loadSpecificCocriation]) // loadSpecificCocriation já tem as dependências corretas
   );
+  // --- FIM useFocusEffect ---
 
   const showModal = (
     title: string,
@@ -142,7 +161,9 @@ export default function CocriacaoDetailsScreen() {
         );
         setIsDeleting(false);
       } else {
+        // Redireciona imediatamente após exclusão bem-sucedida
         router.replace('/(tabs)/individual');
+        // Aguarda um momento e então mostra o modal de sucesso
         setTimeout(() => {
           showModal(
             'Sucesso',
@@ -193,13 +214,16 @@ export default function CocriacaoDetailsScreen() {
         'error'
       );
     } else {
+      // Atualiza o estado local com o novo status
+      // O useFocusEffect cuidará da sincronização ao voltar de outras telas.
       setCocriation(prev => ({ ...prev, status: newStatus }));
     }
 
     setIsTogglingStatus(false);
   };
 
-  // Show loading while fetching
+
+  // Mostrar loading apenas enquanto carrega
   if (isLoading && !cocriation) {
     return (
       <GradientBackground>
@@ -214,7 +238,7 @@ export default function CocriacaoDetailsScreen() {
     );
   }
 
-  // Show error if not found
+  // Mostrar erro apenas se não houver cocriação e não estiver deletando
   if (!isLoading && !cocriation && !isDeleting) {
     return (
       <GradientBackground>
@@ -235,11 +259,12 @@ export default function CocriacaoDetailsScreen() {
     );
   }
 
+  // Se estiver deletando ou não houver cocriação, não renderiza nada
   if (!cocriation) {
     return null;
   }
 
-  // Determine vision board status
+  // Determinar o texto do subtitulo do botão VisionBoard
   let visionBoardStatusText = "Em construção";
   let visionBoardStatusColor = colors.warning || colors.textMuted;
 
@@ -298,7 +323,7 @@ export default function CocriacaoDetailsScreen() {
           </SacredCard>
         )}
 
-        {/* Vision Board Visualization Button */}
+        {/* Vision Board Visualization Button - Destacado no Topo */}
         {cocriation.vision_board_completed && (
           <TouchableOpacity
             style={styles.visionBoardViewButton}
@@ -437,9 +462,10 @@ export default function CocriacaoDetailsScreen() {
         {/* Quick Actions */}
         <SacredCard style={styles.actionsCard}>
           <View style={styles.actionsList}>
+            {/* --- BOTÃO VISION BOARD ALTERADO --- */}
             <TouchableOpacity
               style={styles.actionButton}
-              onPress={handleVisionBoard}
+              onPress={handleVisionBoard} // Chama a função atualizada
             >
               <MaterialIcons name="dashboard" size={24} color={colors.primary} />
               <View style={styles.actionTextContainer}>
@@ -452,7 +478,9 @@ export default function CocriacaoDetailsScreen() {
               </View>
               <MaterialIcons name="chevron-right" size={20} color={colors.textMuted} />
             </TouchableOpacity>
+            {/* --- FIM DO BOTÃO VISION BOARD --- */}
 
+            {/* Carta ao Futuro - só mostra se não estiver completa */}
             {!cocriation.future_letter_completed && (
               <TouchableOpacity
                 style={styles.actionButton}
@@ -471,6 +499,7 @@ export default function CocriacaoDetailsScreen() {
               </TouchableOpacity>
             )}
 
+            {/* Carta enviada - apenas informativo */}
             {cocriation.future_letter_completed && hasLetterSent && (
               <View style={[styles.actionButton, styles.actionButtonDisabled]}>
                 <MaterialIcons name="mail" size={24} color={colors.success} />
