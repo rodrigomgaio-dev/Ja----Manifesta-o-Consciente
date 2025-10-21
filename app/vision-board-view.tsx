@@ -179,14 +179,34 @@ export default function VisionBoardViewScreen() {
       };
     }
 
+    //if (currentAnim === 'flip') {
+    //  return {
+    //    opacity: opacity,
+    //    transform: [
+    //      {
+    //        rotateY: sequenceAnimationValue.interpolate({
+    //          inputRange: inputRange,
+    //          outputRange: ['0deg', '0deg', '180deg', '180deg', '180deg'],
+    //        }),
+    //      },
+    //    ],
+    //  };
+    //}
+    // Ajuste específico para 'flip' para virar e desvirar
     if (currentAnim === 'flip') {
+      // Virar 180 graus e depois voltar para 0 graus (desvirar)
+      // Intervalo do efeito: 0.1 -> 0.8 (0.7 unidades)
+      // Virar: 0.1 -> 0.45 (0.35 unid) -> 180deg
+      // Desvirar: 0.45 -> 0.8 (0.35 unid) -> 0deg
+      const flipInputRange = [0, 0.1, 0.45, 0.8, 0.9, 1.0];
+      const flipOutputRange = [0, 0, 180, 0, 0, 0]; // Começa invisível, vira, desvira, termina invisível
       return {
         opacity: opacity,
         transform: [
           {
             rotateY: sequenceAnimationValue.interpolate({
-              inputRange: inputRange,
-              outputRange: ['0deg', '0deg', '180deg', '180deg', '180deg'],
+              inputRange: flipInputRange,
+              outputRange: flipOutputRange,
             }),
           },
         ],
