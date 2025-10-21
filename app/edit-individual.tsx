@@ -136,7 +136,7 @@ export default function EditIndividualScreen() {
       } else {
         console.log('Cocriation updated successfully');
         // Force a refresh to ensure cache is updated
-        await refresh();
+        {/*await refresh();
         showModal(
           'Sucesso',
           'Cocriação editada com sucesso.',
@@ -147,7 +147,17 @@ export default function EditIndividualScreen() {
             router.back(); // Volta para a tela de detalhes
             }, 200);          
           }
-        );
+        );*/}
+
+        {/* INÍCIO ALTERAÇÃO: RODRIGO */}
+        await refresh(); // Wait for cache to update
+        await new Promise(resolve => setTimeout(resolve, 100)); // Small delay
+        router.back(); // Now navigate
+        // Show success message after navigation
+        setTimeout(() => {
+          // Success handled by details screen
+        }, 300);
+        {/*FIM ALTERAÇÃO: RODRIGO */}
       }
     } catch (error) {
       console.error('Unexpected error updating cocriation:', error);
