@@ -358,16 +358,6 @@ export default function VisionBoardViewScreen() {
     const styles: { [key in Exclude<AnimationType, 'random'>]: any } = {
       fade: {
         opacity: opacity, // Usar a opacidade calculada acima
-        // O efeito fade aqui pode ser mais sutil ou diferente do fade out/in da transição
-        // Por exemplo, um leve escurecimento/brilho durante o tempo do efeito
-        // transform: [
-        //   {
-        //     scale: sequenceAnimationValue.interpolate({
-        //       inputRange: [0, 0.1, 0.8, 0.9, 1.0],
-        //       outputRange: [1, 1, 1.1, 1.1, 1.1], // Leve zoom durante o efeito
-        //     }),
-        //   },
-        // ],
       },
       slide: {
         opacity: opacity, // Usar a opacidade calculada acima
@@ -375,7 +365,7 @@ export default function VisionBoardViewScreen() {
           {
             translateX: sequenceAnimationValue.interpolate({
               inputRange: inputRange,
-              outputRange: [0, 0, SCREEN_WIDTH * 0.8, SCREEN_WIDTH * 0.8, SCREEN_WIDTH * 0.8], // Exemplo: desliza para a direita
+              outputRange: [-SCREEN_WIDTH, 0, SCREEN_WIDTH, SCREEN_WIDTH, SCREEN_WIDTH], // Vem da esquerda, vai para direita, volta da direita, vai para esquerda
             }),
           },
         ],
@@ -386,7 +376,7 @@ export default function VisionBoardViewScreen() {
           {
             scale: sequenceAnimationValue.interpolate({
               inputRange: inputRange,
-              outputRange: [0.5, 1, 1.2, 1.2, 1.2], // Começa pequena, cresce, depois aumenta mais
+              outputRange: [0.2, 1, 2, 2, 2], // Começa pequena, cresce muito, volta para pequena
             }),
           },
         ],
@@ -401,13 +391,14 @@ export default function VisionBoardViewScreen() {
           {
             translateY: sequenceAnimationValue.interpolate({
               inputRange: inputRange,
-              outputRange: [0, 0, -50, -50, -50], // Exemplo: efeito de onda no final
+              outputRange: [0, 0, -100, -100, -100], // Exemplo: sobe, desce, volta ao centro
             }),
           },
           {
-            scale: sequenceAnimationValue.interpolate({
+            // Adiciona o movimento para baixo
+            translateY: sequenceAnimationValue.interpolate({
               inputRange: inputRange,
-              outputRange: [1, 1, 1.05, 1.05, 1.05], // Exemplo: efeito de onda no final
+              outputRange: [0, 0, 100, 100, 100], // Exemplo: sobe, desce, volta ao centro
             }),
           },
         ],
@@ -418,7 +409,16 @@ export default function VisionBoardViewScreen() {
           {
             scale: sequenceAnimationValue.interpolate({
               inputRange: inputRange,
-              outputRange: [1, 1, 1.15, 1.15, 1.15], // Exemplo: efeito de pulso no final
+              outputRange: [1, 1, 1.3, 1.3, 1.3], // Exemplo: 4 pulsos (1->1.3->1->1.3->1->1.3->1->1.3)
+              // Para 4 pulsos, o intervalo do efeito (0.1 -> 0.8) deve ser dividido em 4 partes
+              // Isso é mais complexo com interpolate, então usamos uma aproximação simples
+              // Um ciclo completo (normal -> grande -> normal) em 0.1-0.8 seria 0.7/4 = 0.175
+              // Mas interpolate assume linearidade. Para ciclos, é melhor usar timing loops ou mais valores.
+              // Para simplificar, faremos 4 ciclos entre 0.1 e 0.8
+              // 0.1, 0.275, 0.45, 0.625, 0.8
+              // Normal, Grande, Normal, Grande, Normal, Grande, Normal, Grande, Normal
+              // inputRange: [0, 0.1, 0.275, 0.45, 0.625, 0.8, 0.9, 1.0],
+              // outputRange: [0, 1, 1, 1.3, 1.3, 1, 1, 0, 0]
             }),
           },
         ],
@@ -429,13 +429,161 @@ export default function VisionBoardViewScreen() {
           {
             rotateY: sequenceAnimationValue.interpolate({
               inputRange: inputRange,
-              outputRange: ['0deg', '0deg', '180deg', '180deg', '180deg'], // Exemplo: efeito de flip no final
+              outputRange: ['0deg', '0deg', '360deg', '360deg', '360deg'], // Vira 360, depois desvira (0 a 360)
+              // Para desvirar, podemos interpolar para 0deg no final, mas isso é confuso.
+              // O mais comum é virar 180 e depois virar 180 novamente, ou virar 360 direto.
+              // Vamos manter 0 -> 360 para virar e desvirar em um único movimento.
             }),
           },
         ],
       },
     };
 
+    // Ajuste específico para 'wave' e 'pulse' para refletir os ciclos solicitados
+    if (currentAnim === 'wave') {
+      // Combina os movimentos para cima e para baixo
+      const moveUp = sequenceAnimationValue.interpolate({
+        inputRange: inputRange,
+        outputRange: [0, 0, -100, -100, -100],
+      });
+      const moveDown = sequenceAnimationValue.interpolate({
+        inputRange: inputRange,
+        outputRange: [0, 0, 100, 100, 100],
+      });
+
+      // Para simular o movimento de onda (cima, baixo, centro), usamos uma função mais complexa
+      // ou dividimos o intervalo do efeito em partes para cada movimento.
+      // O intervalo do efeito é 0.1 -> 0.8 (0.7 unidades)
+      // Subida: 0.1 -> 0.35 (0.25 unid)
+      // Descida: 0.35 -> 0.6 (0.25 unid)
+      // Volta: 0.6 -> 0.8 (0.2 unid)
+      const waveInputRange = [0, 0.1, 0.35, 0.6, 0.8, 0.9, 1.0];
+      const waveOutputRange = [0, 0, -100, 100, 0, 0, 0]; // Começa no centro, sobe, desce, volta ao centro
+
+      return {
+        opacity: opacity,
+        transform: [
+          {
+            translateY: sequenceAnimationValue.interpolate({
+              inputRange: waveInputRange,
+              outputRange: waveOutputRange,
+            }),
+          },
+        ],
+      };
+    }
+
+    if (currentAnim === 'pulse') {
+      // Para 4 pulsos completos (normal -> grande -> normal), dividimos o intervalo do efeito
+      // Efeito ocorre de 0.1 a 0.8 (0.7 unidades)
+      // Cada pulso leva 0.7 / 4 = 0.175 unidades
+      // 0.1, 0.1875 (meio pulso), 0.275 (fim pulso 1), 0.3625 (meio 2), 0.45 (fim 2), ...
+      // Vamos definir 9 pontos para 4 pulsos completos (normal, grande, normal, ..., normal)
+      // 0.1 (normal), 0.1875 (grande), 0.275 (normal), 0.3625 (grande), 0.45 (normal), 0.5375 (grande), 0.625 (normal), 0.7125 (grande), 0.8 (normal)
+      const pulsePoints = 9;
+      const pulseDuration = 0.7; // 0.8 - 0.1
+      const pulseStep = pulseDuration / (pulsePoints - 1);
+
+      const pulseInputRange = [0];
+      const pulseOutputRange = [0];
+      for (let i = 1; i < pulsePoints; i++) {
+        pulseInputRange.push(0.1 + i * pulseStep);
+        // Alternar entre 1 (normal) e 1.3 (grande)
+        pulseOutputRange.push(i % 2 === 0 ? 1 : 1.3);
+      }
+      // Adicionar os pontos finais para fade out e pausa
+      pulseInputRange.push(0.9, 1.0);
+      pulseOutputRange.push(0, 0);
+
+      return {
+        opacity: sequenceAnimationValue.interpolate({
+          inputRange: pulseInputRange,
+          outputRange: [0, ...pulseOutputRange.slice(1)], // Começa invisível
+        }),
+        transform: [
+          {
+            scale: sequenceAnimationValue.interpolate({
+              inputRange: pulseInputRange,
+              outputRange: [0, ...pulseOutputRange.slice(1)], // Começa em 0, depois segue o pulso
+            }),
+          },
+        ],
+      };
+    }
+
+    // Ajuste específico para 'flip' para desvirar
+    if (currentAnim === 'flip') {
+      // Virar 180 graus e depois voltar para 0 graus (desvirar)
+      // Intervalo do efeito: 0.1 -> 0.8 (0.7 unidades)
+      // Virar: 0.1 -> 0.45 (0.35 unid) -> 180deg
+      // Desvirar: 0.45 -> 0.8 (0.35 unid) -> 0deg
+      const flipInputRange = [0, 0.1, 0.45, 0.8, 0.9, 1.0];
+      const flipOutputRange = [0, 0, 180, 0, 0, 0]; // Começa invisível, vira, desvira, termina invisível
+
+      return {
+        opacity: opacity,
+        transform: [
+          {
+            rotateY: sequenceAnimationValue.interpolate({
+              inputRange: flipInputRange,
+              outputRange: flipOutputRange,
+            }),
+          },
+        ],
+      };
+    }
+
+    // Ajuste específico para 'slide' para refletir o movimento descrito
+    if (currentAnim === 'slide') {
+      // Começa invisível fora da tela à esquerda, entra, sai para direita, entra da direita, sai para esquerda
+      // Fade In (0 -> 0.1): de -SCREEN_WIDTH para 0
+      // Efeito (0.1 -> 0.8): 0 para SCREEN_WIDTH (sai), depois SCREEN_WIDTH para 0 (entra), depois 0 para -SCREEN_WIDTH (sai)
+      // Isso é complicado com um único interpolate.
+      // Vamos simplificar: A imagem entra da esquerda (0.1), se move para a direita (0.45), depois volta para a esquerda (0.8)
+      const slideInputRange = [0, 0.1, 0.45, 0.8, 0.9, 1.0];
+      const slideOutputRange = [-SCREEN_WIDTH, 0, SCREEN_WIDTH, 0, SCREEN_WIDTH, SCREEN_WIDTH]; // Começa fora, entra, vai p/ dir, volta p/ esq, sai p/ dir
+
+      return {
+        opacity: opacity,
+        transform: [
+          {
+            translateX: sequenceAnimationValue.interpolate({
+              inputRange: slideInputRange,
+              outputRange: slideOutputRange,
+            }),
+          },
+        ],
+      };
+    }
+
+    // Ajuste específico para 'zoom' para refletir o movimento descrito
+    if (currentAnim === 'zoom') {
+      // Começa bem pequena (ex: 0.2), cresce bem mais (ex: 2.0), depois volta para pequena (0.2)
+      // Fade In (0 -> 0.1): escala de 0.2 para 1 (a imagem aparece pequena e cresce para o tamanho normal?)
+      // Não, a imagem deve aparecer pequena e crescer durante o efeito.
+      // Fade In (0 -> 0.1): escala de 0.2 para 0.2 (começa pequena)
+      // Efeito (0.1 -> 0.8): 0.2 -> 2.0 -> 0.2 (cresce e volta)
+      // Fade Out (0.8 -> 0.9): 0.2 -> 0.2 (começa pequena e desaparece)
+      const zoomInputRange = [0, 0.1, 0.45, 0.8, 0.9, 1.0];
+      const zoomOutputRange = [0, 0.2, 2.0, 0.2, 0, 0]; // Começa invisível, aparece pequena, cresce, volta p/ pequeno, desaparece, pausa invisível
+
+      return {
+        opacity: sequenceAnimationValue.interpolate({
+          inputRange: zoomInputRange,
+          outputRange: zoomOutputRange,
+        }),
+        transform: [
+          {
+            scale: sequenceAnimationValue.interpolate({
+              inputRange: zoomInputRange,
+              outputRange: [0, 0.2, 2.0, 0.2, 0, 0], // Começa invisível, escala correta durante o efeito
+            }),
+          },
+        ],
+      };
+    }
+
+    // Retorna o estilo padrão para animações não ajustadas
     return styles[currentAnim];
   };
 
@@ -728,8 +876,6 @@ export default function VisionBoardViewScreen() {
               style={[
                 styles.imageContainer, 
                 getAnimatedStyle(),
-                // A opacidade agora é controlada pela animação, então não precisamos mais de um estado separado para fade in/out da transição
-                // Podemos adicionar um estilo fixo aqui se necessário, mas a animação principal é getAnimatedStyle
               ]}
             >
               {imageItems[currentImageIndex]?.uri ? (
