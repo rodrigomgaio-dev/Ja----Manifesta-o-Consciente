@@ -1,4 +1,27 @@
-// ... (imports permanecem os mesmos)
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet, // <-- Importação adicional necessária
+  TouchableOpacity,
+  ScrollView,
+  Animated,
+  Dimensions,
+} from 'react-native';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { MaterialIcons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
+import GradientBackground from '@/components/ui/GradientBackground';
+import SacredCard from '@/components/ui/SacredCard';
+import SacredModal from '@/components/ui/SacredModal';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useVisionBoardItems, BoardElement } from '@/hooks/useVisionBoardItems';
+import { Spacing } from '@/constants/Colors';
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 type AnimationType = 'fade' | 'slide' | 'zoom' | 'blur' | 'wave' | 'pulse' | 'flip' | 'random';
 type DurationType = 30 | 60 | 300 | -1; // -1 para sem parar
@@ -26,8 +49,6 @@ export default function VisionBoardViewScreen() {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const animationRef = useRef<Animated.CompositeAnimation | null>(null);
   const currentAnimationType = useRef<Exclude<AnimationType, 'random'>>('fade');
-
-  // ... (restante dos estados e efeito de limpeza permanecem os mesmos)
 
   // Filtrar apenas imagens e garantir que têm URI válida
   const imageItems = items.filter(item => {
@@ -502,15 +523,40 @@ export default function VisionBoardViewScreen() {
     sequenceAnimationValue.setValue(0); // Resetar o valor da animação principal
   };
 
-  // ... (restante das funções e JSX permanecem os mesmos, exceto a parte do Animated.View)
-
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // ... (restante das opções e cálculos permanecem os mesmos)
+  const animationOptions: { type: AnimationType; icon: string; label: string }[] = [
+    { type: 'fade', icon: 'opacity', label: 'Fade' },
+    { type: 'slide', icon: 'swap-horiz', label: 'Deslizar' },
+    { type: 'zoom', icon: 'zoom-in', label: 'Zoom' },
+    { type: 'blur', icon: 'blur-on', label: 'Blur' },
+    { type: 'wave', icon: 'waves', label: 'Onda' },
+    { type: 'pulse', icon: 'favorite', label: 'Pulsar' },
+    { type: 'flip', icon: 'flip', label: 'Virar' },
+    { type: 'random', icon: 'shuffle', label: 'Aleatório' },
+  ];
+
+  const durationOptions: { value: DurationType; label: string }[] = [
+    { value: 30, label: '30 segundos' },
+    { value: 60, label: '1 minuto' },
+    { value: 300, label: '5 minutos' },
+    { value: -1, label: 'Sem parar' },
+  ];
+
+  const speedOptions: { value: SpeedType; label: string }[] = [
+    { value: 0.5, label: '0.5x' },
+    { value: 1, label: '1x' },
+    { value: 1.5, label: '1.5x' },
+    { value: 2, label: '2x' },
+  ];
+
+  const progressPercentage = duration !== -1 && duration > 0
+    ? ((duration - timeRemaining) / duration) * 100
+    : 0;
 
   if (loading) {
     return (
@@ -530,16 +576,185 @@ export default function VisionBoardViewScreen() {
     <GradientBackground>
       <View style={[styles.container, { paddingTop: insets.top }]}>
         {/* Header */}
-        {/* ... (Header permanece o mesmo) */}
+        <View style={styles.header}>
+          <TouchableOpacity 
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
+            <MaterialIcons name="arrow-back" size={24} color={colors.primary} />
+            <Text style={[styles.backText, { color: colors.primary }]}>
+              Voltar
+            </Text>
+          </TouchableOpacity>
+        </View>
 
         {/* Settings Panel */}
-        {/* ... (Settings permanece o mesmo) */}
+        {showSettings && (
+          <ScrollView 
+            style={styles.settingsContainer}
+            showsVerticalScrollIndicator={false}
+          >
+            <SacredCard style={styles.settingsCard}>
+              <Text style={[styles.settingsTitle, { color: colors.text }]}>
+                Visualização do Vision Board
+              </Text>
+              <Text style={[styles.settingsDescription, { color: colors.textSecondary }]}>
+                Escolha uma animação e duração para meditar com suas imagens
+              </Text>
+
+              {/* Animation Selection */}
+              <View style={styles.section}>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                  Tipo de Animação
+                </Text>
+                <View style={styles.optionsGrid}>
+                  {animationOptions.map((option) => (
+                    <TouchableOpacity
+                      key={option.type}
+                      style={[
+                        styles.optionButton,
+                        {
+                          backgroundColor: selectedAnimation === option.type
+                            ? colors.primary + '30'
+                            : colors.surface,
+                          borderColor: selectedAnimation === option.type
+                            ? colors.primary
+                            : colors.border,
+                        },
+                      ]}
+                      onPress={() => setSelectedAnimation(option.type)}
+                    >
+                      <MaterialIcons
+                        name={option.icon as any}
+                        size={24}
+                        color={selectedAnimation === option.type ? colors.primary : colors.textMuted}
+                      />
+                      <Text
+                        style={[
+                          styles.optionLabel,
+                          {
+                            color: selectedAnimation === option.type
+                              ? colors.primary
+                              : colors.textSecondary,
+                          },
+                        ]}
+                      >
+                        {option.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              {/* Duration Selection */}
+              <View style={styles.section}>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                  Duração
+                </Text>
+                <View style={styles.durationOptions}>
+                  {durationOptions.map((option) => (
+                    <TouchableOpacity
+                      key={option.value}
+                      style={[
+                        styles.durationButton,
+                        {
+                          backgroundColor: duration === option.value
+                            ? colors.accent + '30'
+                            : colors.surface,
+                          borderColor: duration === option.value
+                            ? colors.accent
+                            : colors.border,
+                        },
+                      ]}
+                      onPress={() => setDuration(option.value)}
+                    >
+                      <Text
+                        style={[
+                          styles.durationLabel,
+                          {
+                            color: duration === option.value
+                              ? colors.accent
+                              : colors.textSecondary,
+                          },
+                        ]}
+                      >
+                        {option.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              {/* Start Button */}
+              <TouchableOpacity
+                style={[styles.startButton, { backgroundColor: colors.primary }]}
+                onPress={handleStart}
+              >
+                <MaterialIcons name="play-arrow" size={24} color="white" />
+                <Text style={styles.startButtonText}>Iniciar Visualização</Text>
+              </TouchableOpacity>
+            </SacredCard>
+
+            {/* Info */}
+            <SacredCard style={styles.infoCard}>
+              <MaterialIcons name="info-outline" size={24} color={colors.primary} />
+              <Text style={[styles.infoText, { color: colors.textSecondary }]}>
+                {imageItems.length === 0
+                  ? 'Adicione imagens ao seu Vision Board para começar a visualização.'
+                  : `${imageItems.length} ${imageItems.length === 1 ? 'imagem' : 'imagens'} encontrada${imageItems.length === 1 ? '' : 's'} no seu Vision Board.`}
+              </Text>
+            </SacredCard>
+          </ScrollView>
+        )}
 
         {/* Visualization Display */}
         {isPlaying && imageItems.length > 0 && (
           <View style={styles.visualizationContainer}>
             {/* Timer and Speed Controls */}
-            {/* ... (Controles superiores permanecem os mesmos) */}
+            <View style={styles.topControls}>
+              {duration !== -1 && (
+                <View style={[styles.timerContainer, { backgroundColor: colors.surface + 'CC' }]}>
+                  <MaterialIcons name="timer" size={20} color={colors.primary} />
+                  <Text style={[styles.timerText, { color: colors.text }]}>
+                    {formatTime(timeRemaining)}
+                  </Text>
+                </View>
+              )}
+
+              {/* Speed Control */}
+              <View style={[styles.speedContainer, { backgroundColor: colors.surface + 'CC' }]}>
+                <Text style={[styles.speedLabel, { color: colors.textSecondary }]}>
+                  Velocidade:
+                </Text>
+                {speedOptions.map((option) => (
+                  <TouchableOpacity
+                    key={option.value}
+                    style={[
+                      styles.speedButton,
+                      {
+                        backgroundColor: speed === option.value
+                          ? colors.primary
+                          : 'transparent',
+                      },
+                    ]}
+                    onPress={() => setSpeed(option.value)}
+                  >
+                    <Text
+                      style={[
+                        styles.speedButtonText,
+                        {
+                          color: speed === option.value
+                            ? 'white'
+                            : colors.textSecondary,
+                        },
+                      ]}
+                    >
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
 
             {/* Animated Image */}
             {/* Remover o fadeValue do estilo e aplicar opacidade via getAnimatedStyle */}
@@ -570,18 +785,67 @@ export default function VisionBoardViewScreen() {
             </Animated.View>
 
             {/* Bottom Controls */}
-            {/* ... (Controles inferiores permanecem os mesmos) */}
+            <View style={styles.bottomControls}>
+              {/* Progress Bar */}
+              {duration !== -1 && (
+                <View style={styles.progressBarContainer}>
+                  <View style={[styles.progressBarBackground, { backgroundColor: colors.surface + '60' }]}>
+                    <View 
+                      style={[
+                        styles.progressBarFill, 
+                        { 
+                          backgroundColor: colors.primary,
+                          width: `${progressPercentage}%`
+                        }
+                      ]} 
+                    />
+                  </View>
+                </View>
+              )}
+
+              {/* Progress Text */}
+              <View style={[styles.progressContainer, { backgroundColor: colors.surface + 'CC' }]}>
+                <Text style={[styles.progressText, { color: colors.textSecondary }]}>
+                  {currentImageIndex + 1} / {imageItems.length}
+                </Text>
+              </View>
+
+              {/* Control Buttons */}
+              <View style={styles.controlButtons}>
+                <TouchableOpacity
+                  style={[styles.controlButton, { backgroundColor: colors.surface + 'CC' }]}
+                  onPress={handlePause}
+                >
+                  <MaterialIcons 
+                    name={isPaused ? "play-arrow" : "pause"} 
+                    size={28} 
+                    color={colors.primary} 
+                  />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.controlButton, { backgroundColor: colors.error + 'CC' }]}
+                  onPress={handleStop}
+                >
+                  <MaterialIcons name="stop" size={28} color="white" />
+                </TouchableOpacity>
+              </View>
+            </View>
           </View>
         )}
 
         {/* Modal */}
-        {/* ... (Modal permanece o mesmo) */}
+        <SacredModal
+          visible={modalVisible}
+          title="Vision Board Vazio"
+          message="Adicione imagens ao seu Vision Board antes de iniciar a visualização."
+          type="info"
+          onClose={() => setModalVisible(false)}
+        />
       </View>
     </GradientBackground>
   );
 }
-
-// ... (styles permanecem os mesmos)
 
 const styles = StyleSheet.create({
   container: {
