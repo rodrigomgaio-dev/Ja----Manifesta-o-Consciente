@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
-  StyleSheet, // <-- Importação adicional necessária
+  StyleSheet,
   TouchableOpacity,
   ScrollView,
   Animated,
@@ -12,8 +12,6 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
 import GradientBackground from '@/components/ui/GradientBackground';
 import SacredCard from '@/components/ui/SacredCard';
 import SacredModal from '@/components/ui/SacredModal';
@@ -114,18 +112,20 @@ export default function VisionBoardViewScreen() {
     currentAnimationType.current = currentAnim;
 
     // Calcular a duração base para cada etapa da sequência
-    const baseFadeDuration = 500; // Duração base do fade (ms)
-    const baseEffectDuration = 3000; // Duração base do efeito específico (ms)
-    const basePauseDuration = 500; // Pausa após o fade in antes do efeito (ms)
+    const baseFadeInDuration = 500;   // Tempo para a imagem surgir
+    const baseEffectDuration = 2500;  // Tempo que o efeito específico dura
+    const baseFadeOutDuration = 500;  // Tempo para a imagem desaparecer
+    const basePauseDuration = 500;    // Pausa após o fade out antes da próxima imagem
 
     // Aplicar fator de velocidade a cada etapa
-    const fadeDuration = baseFadeDuration / speed;
+    const fadeInDuration = baseFadeInDuration / speed;
     const effectDuration = baseEffectDuration / speed;
+    const fadeOutDuration = baseFadeOutDuration / speed;
     const pauseDuration = basePauseDuration / speed;
 
     // Definir os ranges de interpolação para a sequência completa
-    // Fade Out (0 -> 0.2), Pausa Invisível (0.2 -> 0.22), Fade In (0.22 -> 0.42), Pausa Visível (0.42 -> 0.45), Efeito (0.45 -> 1)
-    const inputRange = [0, 0.2, 0.22, 0.42, 0.45, 1];
+    // Fade In (0 -> 0.1), Efeito (0.1 -> 0.8), Fade Out (0.8 -> 0.9), Pausa (0.9 -> 1.0)
+    const inputRange = [0, 0.1, 0.8, 0.9, 1.0];
     
     // Definir a sequência de animações
     let sequence: Animated.CompositeAnimation;
@@ -134,28 +134,23 @@ export default function VisionBoardViewScreen() {
       case 'fade':
         sequence = Animated.sequence([
           Animated.timing(sequenceAnimationValue, {
-            toValue: 0.2, // Fade Out completo
-            duration: fadeDuration,
+            toValue: 0.1, // Fade In completo
+            duration: fadeInDuration,
             useNativeDriver: true,
           }),
           Animated.timing(sequenceAnimationValue, {
-            toValue: 0.22, // Pausa invisível
-            duration: pauseDuration * 0.2, // 20% da pausa total
-            useNativeDriver: true,
-          }),
-          Animated.timing(sequenceAnimationValue, {
-            toValue: 0.42, // Fade In completo
-            duration: fadeDuration,
-            useNativeDriver: true,
-          }),
-          Animated.timing(sequenceAnimationValue, {
-            toValue: 0.45, // Pausa visível
-            duration: pauseDuration * 0.8, // 80% da pausa total
-            useNativeDriver: true,
-          }),
-          Animated.timing(sequenceAnimationValue, {
-            toValue: 1, // Efeito completo
+            toValue: 0.8, // Efeito completo
             duration: effectDuration,
+            useNativeDriver: true,
+          }),
+          Animated.timing(sequenceAnimationValue, {
+            toValue: 0.9, // Fade Out completo
+            duration: fadeOutDuration,
+            useNativeDriver: true,
+          }),
+          Animated.timing(sequenceAnimationValue, {
+            toValue: 1.0, // Pausa
+            duration: pauseDuration,
             useNativeDriver: true,
           }),
         ]);
@@ -163,28 +158,23 @@ export default function VisionBoardViewScreen() {
       case 'slide':
         sequence = Animated.sequence([
           Animated.timing(sequenceAnimationValue, {
-            toValue: 0.2, // Fade Out completo
-            duration: fadeDuration,
+            toValue: 0.1, // Fade In completo
+            duration: fadeInDuration,
             useNativeDriver: true,
           }),
           Animated.timing(sequenceAnimationValue, {
-            toValue: 0.22, // Pausa invisível
-            duration: pauseDuration * 0.2,
-            useNativeDriver: true,
-          }),
-          Animated.timing(sequenceAnimationValue, {
-            toValue: 0.42, // Fade In completo
-            duration: fadeDuration,
-            useNativeDriver: true,
-          }),
-          Animated.timing(sequenceAnimationValue, {
-            toValue: 0.45, // Pausa visível
-            duration: pauseDuration * 0.8,
-            useNativeDriver: true,
-          }),
-          Animated.timing(sequenceAnimationValue, {
-            toValue: 1, // Efeito completo
+            toValue: 0.8, // Efeito completo
             duration: effectDuration,
+            useNativeDriver: true,
+          }),
+          Animated.timing(sequenceAnimationValue, {
+            toValue: 0.9, // Fade Out completo
+            duration: fadeOutDuration,
+            useNativeDriver: true,
+          }),
+          Animated.timing(sequenceAnimationValue, {
+            toValue: 1.0, // Pausa
+            duration: pauseDuration,
             useNativeDriver: true,
           }),
         ]);
@@ -192,28 +182,23 @@ export default function VisionBoardViewScreen() {
       case 'zoom':
         sequence = Animated.sequence([
           Animated.timing(sequenceAnimationValue, {
-            toValue: 0.2, // Fade Out completo
-            duration: fadeDuration,
+            toValue: 0.1, // Fade In completo
+            duration: fadeInDuration,
             useNativeDriver: true,
           }),
           Animated.timing(sequenceAnimationValue, {
-            toValue: 0.22, // Pausa invisível
-            duration: pauseDuration * 0.2,
-            useNativeDriver: true,
-          }),
-          Animated.timing(sequenceAnimationValue, {
-            toValue: 0.42, // Fade In completo
-            duration: fadeDuration,
-            useNativeDriver: true,
-          }),
-          Animated.timing(sequenceAnimationValue, {
-            toValue: 0.45, // Pausa visível
-            duration: pauseDuration * 0.8,
-            useNativeDriver: true,
-          }),
-          Animated.timing(sequenceAnimationValue, {
-            toValue: 1, // Efeito completo
+            toValue: 0.8, // Efeito completo
             duration: effectDuration,
+            useNativeDriver: true,
+          }),
+          Animated.timing(sequenceAnimationValue, {
+            toValue: 0.9, // Fade Out completo
+            duration: fadeOutDuration,
+            useNativeDriver: true,
+          }),
+          Animated.timing(sequenceAnimationValue, {
+            toValue: 1.0, // Pausa
+            duration: pauseDuration,
             useNativeDriver: true,
           }),
         ]);
@@ -221,57 +206,47 @@ export default function VisionBoardViewScreen() {
       case 'blur':
         sequence = Animated.sequence([
           Animated.timing(sequenceAnimationValue, {
-            toValue: 0.2, // Fade Out completo
-            duration: fadeDuration,
-            useNativeDriver: true, // Usar false se blurRadius for manipulado via interpolação
+            toValue: 0.1, // Fade In completo
+            duration: fadeInDuration,
+            useNativeDriver: true, // blurRadius é manipulado manualmente
           }),
           Animated.timing(sequenceAnimationValue, {
-            toValue: 0.22, // Pausa invisível
-            duration: pauseDuration * 0.2,
-            useNativeDriver: true,
-          }),
-          Animated.timing(sequenceAnimationValue, {
-            toValue: 0.42, // Fade In completo
-            duration: fadeDuration,
-            useNativeDriver: true,
-          }),
-          Animated.timing(sequenceAnimationValue, {
-            toValue: 0.45, // Pausa visível
-            duration: pauseDuration * 0.8,
-            useNativeDriver: true,
-          }),
-          Animated.timing(sequenceAnimationValue, {
-            toValue: 1, // Efeito completo
+            toValue: 0.8, // Efeito completo
             duration: effectDuration,
-            useNativeDriver: true, // Usar false se blurRadius for manipulado via interpolação
+            useNativeDriver: true, // blurRadius é manipulado manualmente
+          }),
+          Animated.timing(sequenceAnimationValue, {
+            toValue: 0.9, // Fade Out completo
+            duration: fadeOutDuration,
+            useNativeDriver: true, // blurRadius é manipulado manualmente
+          }),
+          Animated.timing(sequenceAnimationValue, {
+            toValue: 1.0, // Pausa
+            duration: pauseDuration,
+            useNativeDriver: true, // blurRadius é manipulado manualmente
           }),
         ]);
         break;
       case 'wave':
         sequence = Animated.sequence([
           Animated.timing(sequenceAnimationValue, {
-            toValue: 0.2, // Fade Out completo
-            duration: fadeDuration,
+            toValue: 0.1, // Fade In completo
+            duration: fadeInDuration,
             useNativeDriver: true,
           }),
           Animated.timing(sequenceAnimationValue, {
-            toValue: 0.22, // Pausa invisível
-            duration: pauseDuration * 0.2,
-            useNativeDriver: true,
-          }),
-          Animated.timing(sequenceAnimationValue, {
-            toValue: 0.42, // Fade In completo
-            duration: fadeDuration,
-            useNativeDriver: true,
-          }),
-          Animated.timing(sequenceAnimationValue, {
-            toValue: 0.45, // Pausa visível
-            duration: pauseDuration * 0.8,
-            useNativeDriver: true,
-          }),
-          Animated.timing(sequenceAnimationValue, {
-            toValue: 1, // Efeito completo
+            toValue: 0.8, // Efeito completo
             duration: effectDuration,
+            useNativeDriver: true,
+          }),
+          Animated.timing(sequenceAnimationValue, {
+            toValue: 0.9, // Fade Out completo
+            duration: fadeOutDuration,
+            useNativeDriver: true,
+          }),
+          Animated.timing(sequenceAnimationValue, {
+            toValue: 1.0, // Pausa
+            duration: pauseDuration,
             useNativeDriver: true,
           }),
         ]);
@@ -279,28 +254,23 @@ export default function VisionBoardViewScreen() {
       case 'pulse':
         sequence = Animated.sequence([
           Animated.timing(sequenceAnimationValue, {
-            toValue: 0.2, // Fade Out completo
-            duration: fadeDuration,
+            toValue: 0.1, // Fade In completo
+            duration: fadeInDuration,
             useNativeDriver: true,
           }),
           Animated.timing(sequenceAnimationValue, {
-            toValue: 0.22, // Pausa invisível
-            duration: pauseDuration * 0.2,
-            useNativeDriver: true,
-          }),
-          Animated.timing(sequenceAnimationValue, {
-            toValue: 0.42, // Fade In completo
-            duration: fadeDuration,
-            useNativeDriver: true,
-          }),
-          Animated.timing(sequenceAnimationValue, {
-            toValue: 0.45, // Pausa visível
-            duration: pauseDuration * 0.8,
-            useNativeDriver: true,
-          }),
-          Animated.timing(sequenceAnimationValue, {
-            toValue: 1, // Efeito completo
+            toValue: 0.8, // Efeito completo
             duration: effectDuration,
+            useNativeDriver: true,
+          }),
+          Animated.timing(sequenceAnimationValue, {
+            toValue: 0.9, // Fade Out completo
+            duration: fadeOutDuration,
+            useNativeDriver: true,
+          }),
+          Animated.timing(sequenceAnimationValue, {
+            toValue: 1.0, // Pausa
+            duration: pauseDuration,
             useNativeDriver: true,
           }),
         ]);
@@ -308,28 +278,23 @@ export default function VisionBoardViewScreen() {
       case 'flip':
         sequence = Animated.sequence([
           Animated.timing(sequenceAnimationValue, {
-            toValue: 0.2, // Fade Out completo
-            duration: fadeDuration,
+            toValue: 0.1, // Fade In completo
+            duration: fadeInDuration,
             useNativeDriver: true,
           }),
           Animated.timing(sequenceAnimationValue, {
-            toValue: 0.22, // Pausa invisível
-            duration: pauseDuration * 0.2,
-            useNativeDriver: true,
-          }),
-          Animated.timing(sequenceAnimationValue, {
-            toValue: 0.42, // Fade In completo
-            duration: fadeDuration,
-            useNativeDriver: true,
-          }),
-          Animated.timing(sequenceAnimationValue, {
-            toValue: 0.45, // Pausa visível
-            duration: pauseDuration * 0.8,
-            useNativeDriver: true,
-          }),
-          Animated.timing(sequenceAnimationValue, {
-            toValue: 1, // Efeito completo
+            toValue: 0.8, // Efeito completo
             duration: effectDuration,
+            useNativeDriver: true,
+          }),
+          Animated.timing(sequenceAnimationValue, {
+            toValue: 0.9, // Fade Out completo
+            duration: fadeOutDuration,
+            useNativeDriver: true,
+          }),
+          Animated.timing(sequenceAnimationValue, {
+            toValue: 1.0, // Pausa
+            duration: pauseDuration,
             useNativeDriver: true,
           }),
         ]);
@@ -338,28 +303,23 @@ export default function VisionBoardViewScreen() {
         // Caso padrão, mesmo que 'fade'
         sequence = Animated.sequence([
           Animated.timing(sequenceAnimationValue, {
-            toValue: 0.2, // Fade Out completo
-            duration: fadeDuration,
+            toValue: 0.1, // Fade In completo
+            duration: fadeInDuration,
             useNativeDriver: true,
           }),
           Animated.timing(sequenceAnimationValue, {
-            toValue: 0.22, // Pausa invisível
-            duration: pauseDuration * 0.2,
-            useNativeDriver: true,
-          }),
-          Animated.timing(sequenceAnimationValue, {
-            toValue: 0.42, // Fade In completo
-            duration: fadeDuration,
-            useNativeDriver: true,
-          }),
-          Animated.timing(sequenceAnimationValue, {
-            toValue: 0.45, // Pausa visível
-            duration: pauseDuration * 0.8,
-            useNativeDriver: true,
-          }),
-          Animated.timing(sequenceAnimationValue, {
-            toValue: 1, // Efeito completo
+            toValue: 0.8, // Efeito completo
             duration: effectDuration,
+            useNativeDriver: true,
+          }),
+          Animated.timing(sequenceAnimationValue, {
+            toValue: 0.9, // Fade Out completo
+            duration: fadeOutDuration,
+            useNativeDriver: true,
+          }),
+          Animated.timing(sequenceAnimationValue, {
+            toValue: 1.0, // Pausa
+            duration: pauseDuration,
             useNativeDriver: true,
           }),
         ]);
@@ -386,21 +346,28 @@ export default function VisionBoardViewScreen() {
     const currentAnim = currentAnimationType.current;
 
     // Definir os ranges de interpolação com base na sequência acima
-    // Fade Out (0 -> 0.2), Pausa Invisível (0.2 -> 0.22), Fade In (0.22 -> 0.42), Pausa Visível (0.42 -> 0.45), Efeito (0.45 -> 1)
-    const inputRange = [0, 0.2, 0.22, 0.42, 0.45, 1];
+    // Fade In (0 -> 0.1), Efeito (0.1 -> 0.8), Fade Out (0.8 -> 0.9), Pausa (0.9 -> 1.0)
+    const inputRange = [0, 0.1, 0.8, 0.9, 1.0];
 
-    // Opacidade: 1 -> 0 (fade out) -> 0 (pausa invisível) -> 1 (fade in) -> 1 (pausa visível) -> 1 (efeito)
+    // Opacidade: 0 -> 1 (fade in) -> 1 (efeito) -> 0 (fade out) -> 0 (pausa)
     const opacity = sequenceAnimationValue.interpolate({
       inputRange: inputRange,
-      outputRange: [1, 0, 0, 1, 1, 1], // Mantém opacidade 1 após fade in
+      outputRange: [0, 1, 1, 0, 0], // Começa invisível, termina invisível
     });
 
     const styles: { [key in Exclude<AnimationType, 'random'>]: any } = {
       fade: {
-        opacity: sequenceAnimationValue.interpolate({
-          inputRange: inputRange,
-          outputRange: [1, 0, 0, 1, 1, 0.4], // Exemplo: fade out, fade in, efeito de fade parcial
-        }),
+        opacity: opacity, // Usar a opacidade calculada acima
+        // O efeito fade aqui pode ser mais sutil ou diferente do fade out/in da transição
+        // Por exemplo, um leve escurecimento/brilho durante o tempo do efeito
+        // transform: [
+        //   {
+        //     scale: sequenceAnimationValue.interpolate({
+        //       inputRange: [0, 0.1, 0.8, 0.9, 1.0],
+        //       outputRange: [1, 1, 1.1, 1.1, 1.1], // Leve zoom durante o efeito
+        //     }),
+        //   },
+        // ],
       },
       slide: {
         opacity: opacity, // Usar a opacidade calculada acima
@@ -408,7 +375,7 @@ export default function VisionBoardViewScreen() {
           {
             translateX: sequenceAnimationValue.interpolate({
               inputRange: inputRange,
-              outputRange: [0, -SCREEN_WIDTH * 0.8, -SCREEN_WIDTH * 0.8, 0, 0, SCREEN_WIDTH * 0.8], // Exemplo: entra da direita, sai para a direita
+              outputRange: [0, 0, SCREEN_WIDTH * 0.8, SCREEN_WIDTH * 0.8, SCREEN_WIDTH * 0.8], // Exemplo: desliza para a direita
             }),
           },
         ],
@@ -419,7 +386,7 @@ export default function VisionBoardViewScreen() {
           {
             scale: sequenceAnimationValue.interpolate({
               inputRange: inputRange,
-              outputRange: [1, 0.3, 0.3, 1, 1, 1.8], // Exemplo: entra pequena, cresce, depois efeito de zoom extra
+              outputRange: [0.5, 1, 1.2, 1.2, 1.2], // Começa pequena, cresce, depois aumenta mais
             }),
           },
         ],
@@ -434,13 +401,13 @@ export default function VisionBoardViewScreen() {
           {
             translateY: sequenceAnimationValue.interpolate({
               inputRange: inputRange,
-              outputRange: [0, 0, 0, 0, 0, -100], // Exemplo: efeito de onda no final
+              outputRange: [0, 0, -50, -50, -50], // Exemplo: efeito de onda no final
             }),
           },
           {
             scale: sequenceAnimationValue.interpolate({
               inputRange: inputRange,
-              outputRange: [1, 1, 1, 1, 1, 1.15], // Exemplo: efeito de onda no final
+              outputRange: [1, 1, 1.05, 1.05, 1.05], // Exemplo: efeito de onda no final
             }),
           },
         ],
@@ -451,7 +418,7 @@ export default function VisionBoardViewScreen() {
           {
             scale: sequenceAnimationValue.interpolate({
               inputRange: inputRange,
-              outputRange: [1, 1, 1, 1, 1, 1.2], // Exemplo: efeito de pulso no final
+              outputRange: [1, 1, 1.15, 1.15, 1.15], // Exemplo: efeito de pulso no final
             }),
           },
         ],
@@ -462,7 +429,7 @@ export default function VisionBoardViewScreen() {
           {
             rotateY: sequenceAnimationValue.interpolate({
               inputRange: inputRange,
-              outputRange: ['0deg', '0deg', '0deg', '0deg', '0deg', '360deg'], // Exemplo: efeito de flip no final
+              outputRange: ['0deg', '0deg', '180deg', '180deg', '180deg'], // Exemplo: efeito de flip no final
             }),
           },
         ],
@@ -477,18 +444,18 @@ export default function VisionBoardViewScreen() {
     if (currentAnimationType.current !== 'blur') return 0;
 
     const value = sequenceAnimationValue.__getValue();
-    // Supondo que o efeito de blur ocorra na parte final da sequência (0.45 -> 1)
-    if (value < 0.45) return 0; // Sem blur durante fade out/in e pausas
+    // Supondo que o efeito de blur ocorra durante a parte do efeito (0.1 -> 0.8)
+    if (value < 0.1 || value > 0.8) return 0; // Sem blur durante fade in/out e pausa
 
-    // Normalizar o valor para a parte específica do blur (0.45 -> 1)
-    const normalizedValue = (value - 0.45) / (1 - 0.45); // Vai de 0 a 1
+    // Normalizar o valor para a parte específica do blur (0.1 -> 0.8)
+    const normalizedValue = (value - 0.1) / (0.8 - 0.1); // Vai de 0 a 1
 
     // Aplicar a interpolação para o efeito de blur
-    // 0 (no início do efeito) -> 10 (máximo) -> 0 (no final do efeito)
+    // 0 (no início do efeito) -> 8 (máximo) -> 0 (no final do efeito)
     if (normalizedValue <= 0.5) {
-      return 10 - (normalizedValue * 2 * 10); // De 10 para 0 (metade do efeito)
+      return 8 - (normalizedValue * 2 * 8); // De 8 para 0 (metade do efeito)
     } else {
-      return (normalizedValue - 0.5) * 2 * 10; // De 0 para 10 (metade do efeito)
+      return (normalizedValue - 0.5) * 2 * 8; // De 0 para 8 (metade do efeito)
     }
   };
 
@@ -757,12 +724,12 @@ export default function VisionBoardViewScreen() {
             </View>
 
             {/* Animated Image */}
-            {/* Remover o fadeValue do estilo e aplicar opacidade via getAnimatedStyle */}
             <Animated.View 
               style={[
                 styles.imageContainer, 
                 getAnimatedStyle(),
-                // { opacity: fadeValue } // <-- REMOVIDO
+                // A opacidade agora é controlada pela animação, então não precisamos mais de um estado separado para fade in/out da transição
+                // Podemos adicionar um estilo fixo aqui se necessário, mas a animação principal é getAnimatedStyle
               ]}
             >
               {imageItems[currentImageIndex]?.uri ? (
