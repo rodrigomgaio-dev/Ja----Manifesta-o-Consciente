@@ -1,4 +1,21 @@
-// app/cocriacao-details.tsx
+Okay, entendi o problema. A tela de detalhes (`app/cocriacao-details.tsx`) carrega os dados da cocriação específica (`id`) e os armazena no estado local `cocriation`. O hook `useIndividualCocriations` fornece uma lista de *todas* as cocriações do usuário (`cocriations`), e a tela tenta usar essa lista para encontrar a cocriação específica no cache.
+
+O problema ocorre porque:
+
+1.  A tela de edição (`app/edit-individual.tsx`) provavelmente chama `updateCocriation` do hook `useIndividualCocriations`.
+2.  A função `updateCocriation` no hook atualiza corretamente o banco de dados e **também atualiza o estado local `cocriations`** no hook.
+3.  No entanto, a tela de detalhes (`app/cocriacao-details.tsx`) **não escuta as mudanças no estado `cocriations` do hook** após a atualização. Ela carrega a cocriação uma vez no `useEffect` ou `useFocusEffect`.
+4.  Portanto, o estado local `cocriation` na tela de detalhes não é atualizado automaticamente com os dados recém-atualizados, mesmo que o hook tenha recebido os dados novos.
+
+A solução é garantir que, quando o estado `cocriations` no hook `useIndividualCocriations` mudar, a tela de detalhes verifique se a cocriação específica foi atualizada e atualize seu estado local `cocriation`.
+
+**Solução:**
+
+Adicione um `useEffect` na tela `cocriacao-details.tsx` que escute as mudanças no array `cocriations` retornado pelo hook. Se a cocriação específica estiver presente no array atualizado, atualize o estado local `cocriation`.
+
+**Código Atualizado (app/cocriacao-details.tsx):**
+
+```typescript
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -28,7 +45,7 @@ export default function CocriacaoDetailsScreen() {
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { cocriations, deleteCocriation, loadSingle, updateCocriation } = useIndividualCocriations();
+  const { cocriations, deleteCocriation, loadSingle, updateCocriation } = useIndividualCocriations(); // 'cocriations' está sendo importado
   const { getFutureLetter } = useFutureLetter();
 
   const [cocriation, setCocriation] = useState<any>(null);
@@ -93,6 +110,25 @@ export default function CocriacaoDetailsScreen() {
       }
     }, [id, loadCocriation])
   );
+
+  // NOVO EFFECT: Atualizar estado local se a lista geral (cache) for atualizada
+  useEffect(() => {
+    // Verifica se a cocriação específica está na lista atualizada e se é diferente da atual
+    if (id && cocriations.length > 0) {
+      const updatedCocriation = cocriations.find(c => c.id === id);
+      if (updatedCocriation && JSON.stringify(updatedCocriation) !== JSON.stringify(cocriation)) {
+        console.log('Cocriation updated in cache, updating local state:', updatedCocriation);
+        setCocriation(updatedCocriation);
+        // Opcional: verificar novamente a carta futura se o status mudar
+        if (updatedCocriation.future_letter_completed && !hasLetterSent) {
+             getFutureLetter(id).then(result => {
+                 setHasLetterSent(!!result.data);
+             });
+        }
+      }
+    }
+  }, [cocriations, id, cocriation, hasLetterSent, getFutureLetter]); // Adiciona 'cocriations' como dependência
+
 
   const showModal = (
     title: string,
@@ -201,8 +237,8 @@ export default function CocriacaoDetailsScreen() {
         'error'
       );
     } else {
-      // Atualizar cocriation local
-      setCocriation({ ...cocriation, status: newStatus });
+      // Atualizar cocriation local - Isto agora será feito via o useEffect acima quando o hook atualizar o cache
+      // setCocriation({ ...cocriation, status: newStatus }); // Removido
     }
     
     setIsTogglingStatus(false);
@@ -865,3 +901,4 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
 });
+```
