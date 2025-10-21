@@ -114,17 +114,107 @@ export default function CocriacaoDetailsScreen() {
   );
   // --- FIM useFocusEffect ---
 
-  // ... (restante das funções, como showModal, handleEdit, handleDelete, etc., permanecem as mesmas) ...
-  const showModal = (...) {...}
-  const handleEdit = () => {...}
-  const handleDelete = () => {...}
-  const confirmDelete = async () => {...}
-  const handleVisionBoard = () => {...}
-  const handleFutureLetter = () => {...}
-  const canToggleStatus = (cocriation: any) => {...}
-  const handleToggleStatus = async () => {...}
+  const showModal = (
+    title: string,
+    message: string,
+    type: 'info' | 'success' | 'warning' | 'error' = 'info',
+    buttons?: any[]
+  ) => {
+    setModalConfig({ title, message, type, buttons });
+    setModalVisible(true);
+  };
 
-  // ... (restante do código JSX e styles permanecem os mesmos) ...
+  const handleEdit = () => {
+    if (cocriation) {
+      router.push(`/edit-individual?id=${cocriation.id}`);
+    }
+  };
+
+  const handleDelete = () => {
+    showModal(
+      'Excluir Cocriação',
+      'Tem certeza que deseja excluir esta cocriação? Esta ação não pode ser desfeita.',
+      'warning',
+      [
+        {
+          text: 'Cancelar',
+          onPress: () => setModalVisible(false),
+          variant: 'outline' as const,
+        },
+        {
+          text: 'Excluir',
+          onPress: confirmDelete,
+          variant: 'primary' as const,
+        },
+      ]
+    );
+  };
+
+  const confirmDelete = async () => {
+    setModalVisible(false);
+    setIsDeleting(true);
+
+    const result = await deleteCocriation(cocriation.id);
+
+    if (result.error) {
+      setIsDeleting(false);
+      showModal(
+        'Erro',
+        'Não foi possível excluir a cocriação. Tente novamente.',
+        'error'
+      );
+    } else {
+      router.push('/(tabs)/individual');
+    }
+  };
+
+  const handleVisionBoard = () => {
+    if (!cocriation) return;
+
+    if (cocriation.vision_board_completed) {
+      // Se o Vision Board está completo, vai para a tela de visualização
+      router.push(`/vision-board-view?cocreationId=${cocriation.id}`);
+    } else {
+      // Se não está completo, vai para a tela de edição
+      router.push(`/vision-board?cocreationId=${cocriation.id}`);
+    }
+  };
+
+  const handleFutureLetter = () => {
+    if (cocriation) {
+      router.push(`/future-letter?cocreationId=${cocriation.id}`);
+    }
+  };
+
+  const canToggleStatus = (cocriation: any) => {
+    return (
+      cocriation.vision_board_completed &&
+      cocriation.practice_schedule_completed &&
+      cocriation.future_letter_completed
+    );
+  };
+
+  const handleToggleStatus = async () => {
+    if (!cocriation || !canToggleStatus(cocriation)) return;
+
+    setIsTogglingStatus(true);
+
+    const newStatus = cocriation.status === 'active' ? 'defining' : 'active';
+
+    const result = await updateCocriation(cocriation.id, { status: newStatus });
+
+    if (result.error) {
+      showModal(
+        'Erro',
+        'Não foi possível alterar o status da cocriação.',
+        'error'
+      );
+    } else {
+      setCocriation(prev => ({ ...prev, status: newStatus }));
+    }
+
+    setIsTogglingStatus(false);
+  };
 
   // Mostrar loading apenas enquanto carrega
   if (isLoading && !cocriation) {
