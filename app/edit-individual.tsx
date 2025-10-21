@@ -29,9 +29,7 @@ export default function EditIndividualScreen() {
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
-  // --- MODIFICAÇÃO AQUI: Adicionando 'refresh' ao destructuring ---
   const { cocriations, updateCocriation, loading, refresh } = useIndividualCocriations();
-  // --- FIM DA MODIFICAÇÃO ---
 
   const [cocriation, setCocriation] = useState<any>(null);
   const [formData, setFormData] = useState({
@@ -137,18 +135,14 @@ export default function EditIndividualScreen() {
         showModal('Erro', 'Não foi possível salvar as alterações. Tente novamente.', 'error');
       } else {
         console.log('Cocriation updated successfully');
-        // --- MODIFICAÇÃO AQUI: Chamar refresh() antes de navegar ---
-        await refresh(); // Espera o refresh ser concluído
-        // --- FIM DA MODIFICAÇÃO ---
+        // Force a refresh to ensure cache is updated
+        await refresh();
         showModal(
           'Sucesso',
           'Cocriação editada com sucesso.',
           'success',
           () => {
-            // Small delay to ensure state is updated before navigation
-            setTimeout(() => {
-              router.back();
-            }, 200);
+            router.back();
           }
         );
       }

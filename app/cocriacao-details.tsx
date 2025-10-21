@@ -49,7 +49,7 @@ export default function CocriacaoDetailsScreen() {
 
     const cached = cocriations.find(c => c.id === id);
     if (cached) {
-      console.log('Cocriation found in cache:', cached);
+      console.log('Cocriation found in cache, updating state:', cached);
       setCocriation(cached);
       
       if (cached.future_letter_completed) {
@@ -59,7 +59,7 @@ export default function CocriacaoDetailsScreen() {
       return;
     }
 
-    console.log('Loading cocriation from database:', id);
+    console.log('Cocriation not in cache, loading from database:', id);
     setIsLoading(true);
     const result = await loadSingle(id);
     if (result.data) {
@@ -85,25 +85,6 @@ export default function CocriacaoDetailsScreen() {
       }
     }, [id, loadCocriation])
   );
-
-  useEffect(() => {
-    if (id && cocriations.length > 0) {
-      const updatedCocriation = cocriations.find(c => c.id === id);
-
-      if (updatedCocriation) {
-        console.log('Cocriation found in updated cache, checking for differences:', updatedCocriation);
-        if (updatedCocriation !== cocriation) {
-             console.log('Cocriation object is different, updating local state:', updatedCocriation);
-             setCocriation(updatedCocriation);
-             if (updatedCocriation.future_letter_completed && !hasLetterSent) {
-                 getFutureLetter(id).then(result => {
-                     setHasLetterSent(!!result.data);
-                 });
-             }
-        }
-      }
-    }
-  }, [cocriations, id, cocriation, hasLetterSent, getFutureLetter]);
 
   const showModal = (
     title: string,
