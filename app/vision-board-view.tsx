@@ -147,7 +147,16 @@ export default function VisionBoardViewScreen() {
 
     animationRef.current.start(({ finished }) => {
       if (finished && !isPaused) {
-        setCurrentImageIndex(prev => (prev + 1) % imageItems.length);
+        const nextIndex = (currentImageIndex + 1) % imageItems.length;
+        setCurrentImageIndex(nextIndex);
+        // Force restart animation even for single image
+        if (imageItems.length === 1) {
+          setTimeout(() => {
+            if (isPlaying && !isPaused) {
+              startAnimationCycle();
+            }
+          }, 10);
+        }
       }
     });
   };
