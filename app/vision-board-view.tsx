@@ -107,11 +107,10 @@ export default function VisionBoardViewScreen() {
 
     currentAnimationType.current = currentAnim;
 
-    // Timings ajustados para transição mais suave do blur
-    const baseFadeInDuration = 500;  // Aumentado para transição mais suave
-    const baseEffectDuration = 3000;   // Aumentado para mais tempo na imagem nítida
-    const baseFadeOutDuration = 1500;  // Aumentado para transição mais suave
-    const basePauseDuration = 100;     // Pequena pausa antes da próxima imagem
+    const baseFadeInDuration = 500;
+    const baseEffectDuration = 2500;
+    const baseFadeOutDuration = 500;
+    const basePauseDuration = 10;
 
     const fadeInDuration = baseFadeInDuration / speed;
     const effectDuration = baseEffectDuration / speed;
@@ -120,17 +119,17 @@ export default function VisionBoardViewScreen() {
 
     const sequence = Animated.sequence([
       Animated.timing(sequenceAnimationValue, {
-        toValue: 0.25,  // Fase de fade in mais longa
+        toValue: 0.1,
         duration: fadeInDuration,
         useNativeDriver: true,
       }),
       Animated.timing(sequenceAnimationValue, {
-        toValue: 0.75,  // Mantém a imagem nítida
+        toValue: 0.8,
         duration: effectDuration,
         useNativeDriver: true,
       }),
       Animated.timing(sequenceAnimationValue, {
-        toValue: 1.0,   // Fase de fade out
+        toValue: 0.9,
         duration: fadeOutDuration,
         useNativeDriver: true,
       }),
@@ -164,11 +163,11 @@ export default function VisionBoardViewScreen() {
 
   const getAnimatedStyle = () => {
     const currentAnim = currentAnimationType.current;
-    const inputRange = [0, 0.25, 0.75, 1.0];
+    const inputRange = [0, 0.1, 0.8, 0.9, 1.0];
 
     const opacity = sequenceAnimationValue.interpolate({
       inputRange: inputRange,
-      outputRange: [1, 1, 1, 1],  // Mantém opacidade constante, blur faz o efeito
+      outputRange: [0, 1, 1, 0, 0],
     });
 
     if (currentAnim === 'slide') {
@@ -181,8 +180,8 @@ export default function VisionBoardViewScreen() {
         transform: [
           {
             translateX: sequenceAnimationValue.interpolate({
-              inputRange: [0, 0.25, 0.75, 1.0],
-              outputRange: [startX, 0, 0, endX],
+              inputRange: [0, 0.1, 0.8, 0.9, 1.0],
+              outputRange: [startX, 0, endX, endX, endX],
             }),
           },
         ],
@@ -190,8 +189,8 @@ export default function VisionBoardViewScreen() {
     }
 
     if (currentAnim === 'flip') {
-      const flipInputRange = [0, 0.25, 0.5, 0.75, 1.0];
-      const flipOutputRange = ['0deg', '0deg', '180deg', '0deg', '0deg'];
+      const flipInputRange = [0, 0.1, 0.45, 0.8, 0.9, 1.0];
+      const flipOutputRange = ['0deg', '0deg', '180deg', '0deg', '0deg', '0deg'];
       return {
         opacity: opacity,
         transform: [
@@ -212,8 +211,8 @@ export default function VisionBoardViewScreen() {
     }
 
     if (currentAnim === 'zoom') {
-      const zoomInputRange = [0, 0.25, 0.5, 0.75, 1.0];
-      const zoomOutputRange = [0.2, 1.0, 2.0, 1.0, 0.2];
+      const zoomInputRange = [0, 0.1, 0.45, 0.8, 0.9, 1.0];
+      const zoomOutputRange = [0.2, 0.2, 2.0, 0.2, 0.2, 0.2];
 
       return {
         opacity: opacity,
@@ -229,8 +228,8 @@ export default function VisionBoardViewScreen() {
     }
 
     if (currentAnim === 'wave') {
-      const waveInputRange = [0, 0.25, 0.4, 0.6, 0.75, 1.0];
-      const waveOutputRange = [0, 0, -100, 100, 0, 0];
+      const waveInputRange = [0, 0.1, 0.35, 0.6, 0.8, 0.9, 1.0];
+      const waveOutputRange = [0, 0, -100, 100, 0, 0, 0];
 
       return {
         opacity: opacity,
@@ -311,23 +310,14 @@ export default function VisionBoardViewScreen() {
     if (currentAnimationType.current !== 'blur') return 0;
 
     const value = sequenceAnimationValue.__getValue();
-    
-    // value vai de 0 → 0.25 → 0.75 → 1.0
-    // Blur: Começa em 20 (totalmente blur), vai para 0 (nítida), volta para 20 (totalmente blur)
-    
-    if (value <= 0.25) {
-      // Fase 1: De totalmente blur (20) para nítida (0)
-      // value 0 → 0.25 = blur 20 → 0
-      const progress = value / 0.25;  // 0 a 1
-      return 20 - (progress * 20);    // 20 a 0
-    } else if (value <= 0.75) {
-      // Fase 2: Mantém nítida
-      return 0;
+    if (value < 0.1 || value > 0.8) return 0;
+
+    const normalizedValue = (value - 0.1) / (0.8 - 0.1);
+
+    if (normalizedValue <= 0.5) {
+      return 10 - (normalizedValue * 2 * 10);
     } else {
-      // Fase 3: De nítida (0) para totalmente blur (20)
-      // value 0.75 → 1.0 = blur 0 → 20
-      const progress = (value - 0.75) / 0.25;  // 0 a 1
-      return progress * 20;                     // 0 a 20
+      return ((normalizedValue - 0.5) * 2) * 10;
     }
   };
 
