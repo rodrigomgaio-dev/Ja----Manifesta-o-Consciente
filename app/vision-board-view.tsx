@@ -245,19 +245,26 @@ export default function VisionBoardViewScreen() {
     }
 
     if (currentAnim === 'pulse') {
-      const pulseInputRange = [0, 0.1, 0.275, 0.45, 0.625, 0.8, 0.9, 1.0];
-      const pulseOutputRange = [0, 1, 1.3, 1, 1.3, 1, 0, 0];
+    const pulseInputRange = [
+      0.0, 0.1, 0.225, 0.35, 0.475, 0.6, 0.725, 0.85, 0.875, 0.9, 0.95, 1.0
+      ];
+      const scaleOutputRange = [
+        0.2, 1.0, 1.1, 1.0, 1.1, 1.0, 1.1, 1.0, 1.1, 1.0, 0.2, 0.2
+      ];
+      const opacityOutputRange = [
+        0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0
+      ];
 
       return {
         opacity: sequenceAnimationValue.interpolate({
           inputRange: pulseInputRange,
-          outputRange: pulseOutputRange,
+          outputRange: opacityOutputRange,
         }),
         transform: [
           {
             scale: sequenceAnimationValue.interpolate({
               inputRange: pulseInputRange,
-              outputRange: pulseOutputRange,
+              outputRange: scaleOutputRange,
             }),
           },
         ],
