@@ -63,15 +63,15 @@ export default function VisionBoardViewScreen() {
     };
   }, []);
 
-  // ✅ Corrigido: removido currentImageIndex das dependências
   useEffect(() => {
     if (isPlaying && !isPaused && imageItems.length > 0) {
+      startTimer();
       startAnimationCycle();
     } else {
       if (timerRef.current) clearInterval(timerRef.current);
       if (animationRef.current) animationRef.current.stop();
     }
-  }, [isPlaying, isPaused, imageItems.length]);
+  }, [isPlaying, isPaused, currentImageIndex, speed]);
 
   const startTimer = () => {
     if (timerRef.current) clearInterval(timerRef.current);
@@ -98,7 +98,6 @@ export default function VisionBoardViewScreen() {
     return animations[Math.floor(Math.random() * animations.length)];
   };
 
-  // ✅ Corrigido: agora reinicia a animação mesmo com 1 imagem
   const startAnimationCycle = () => {
     sequenceAnimationValue.setValue(0);
 
@@ -147,14 +146,8 @@ export default function VisionBoardViewScreen() {
     animationRef.current = sequence;
 
     animationRef.current.start(({ finished }) => {
-      if (finished && !isPaused && isPlaying) {
+      if (finished && !isPaused) {
         setCurrentImageIndex(prev => (prev + 1) % imageItems.length);
-        // ✅ Garante que o ciclo continue, mesmo com 1 imagem
-        requestAnimationFrame(() => {
-          if (isPlaying && !isPaused) {
-            startAnimationCycle();
-          }
-        });
       }
     });
   };
@@ -244,7 +237,7 @@ export default function VisionBoardViewScreen() {
 
     if (currentAnim === 'pulse') {
       const pulseInputRange = [0, 0.1, 0.275, 0.45, 0.625, 0.8, 0.9, 1.0];
-      const pulseOutputRange = [0, 1, 1.3, 1, 1.3, 1, 1.3, 1, 1.3, 1, 0, 0];
+      const pulseOutputRange = [0, 1, 1.3, 1, 1.3, 1, 0, 0];
 
       return {
         opacity: sequenceAnimationValue.interpolate({
@@ -273,7 +266,7 @@ export default function VisionBoardViewScreen() {
     const value = sequenceAnimationValue.__getValue();
     if (value < 0.1 || value > 0.8) return 0;
 
-    const normalizedValue = (value - 0.1) / (0.2 - 0.1);
+    const normalizedValue = (value - 0.1) / (0.8 - 0.1);
 
     if (normalizedValue <= 0.5) {
       return 10 - (normalizedValue * 2 * 10);
@@ -294,14 +287,13 @@ export default function VisionBoardViewScreen() {
     setTotalElapsed(0);
     setCurrentImageIndex(0);
     sequenceAnimationValue.setValue(0);
-    // O useEffect cuidará de iniciar a animação
   };
 
   const handlePause = () => {
     setIsPaused(!isPaused);
     if (!isPaused && animationRef.current) {
       animationRef.current.stop();
-    } else if (isPaused) {
+    } else {
       startAnimationCycle();
     }
   };
