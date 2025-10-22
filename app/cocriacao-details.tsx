@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
   Switch,
 } from 'react-native';
-import { router, useLocalSearchParams, useFocusEffect } from 'expo-router'; // Importando useFocusEffect
+import { router, useLocalSearchParams } from 'expo-router'; // useFocusEffect REMOVIDO
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -28,11 +28,9 @@ export default function CocriacaoDetailsScreen() {
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
-  // Importa funções do hook
   const { cocriations, deleteCocriation, loadSingle, updateCocriation } = useIndividualCocriations();
   const { getFutureLetter } = useFutureLetter();
 
-  // Estados locais
   const [cocriation, setCocriation] = useState<any>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
@@ -48,13 +46,6 @@ export default function CocriacaoDetailsScreen() {
   }>({ title: '', message: '', type: 'info' });
 
   // --- LÓGICA DE CARREGAMENTO SIMPLIFICADA E OTIMIZADA ---
-  /**
-   * Carrega os dados da cocriação.
-   * 1. Busca no cache local do hook (`cocriations`).
-   * 2. Se não encontrar, busca no banco (`loadSingle`).
-   * 3. Verifica carta futura se necessário.
-   * Esta função é memoizada para evitar re-criações desnecessárias.
-   */
   const loadCocriationData = useCallback(async (cocreationId: string) => {
     if (!cocreationId) return;
 
@@ -99,7 +90,6 @@ export default function CocriacaoDetailsScreen() {
       }
     } catch (error) {
       console.error('[CocriacaoDetails] Unexpected error loading ', error);
-      // Considerar mostrar um erro na UI aqui se necessário
       setCocriation(null);
     } finally {
       setIsLoading(false);
@@ -108,7 +98,6 @@ export default function CocriacaoDetailsScreen() {
   }, [cocriations, loadSingle, getFutureLetter]); // Dependências estáveis esperadas
 
   // --- CARREGAMENTO INICIAL (APENAS UMA VEZ NA MONTAGEM) ---
-  // useEffect para carregar os dados quando o componente é montado e o ID muda.
   useEffect(() => {
     console.log(`[CocriacaoDetails useEffect - Mount] Triggered. ID: ${id}`);
     if (id) {
@@ -120,24 +109,12 @@ export default function CocriacaoDetailsScreen() {
     }
   }, [id, loadCocriationData]); // Roda apenas quando 'id' ou 'loadCocriationData' mudarem
 
-  // --- useFocusEffect: FORÇAR RE-CRIAÇÃO AO GANHAR FOCO ---
-  // Esta é a parte crucial para resolver o problema de múltiplos re-renders
-  // ao voltar da tela de edição (Cancelar) ou da lista.
-  // Em vez de tentar recarregar dados na instância antiga, substituímos
-  // a instância por uma nova, garantindo um estado limpo.
-  useFocusEffect(
-    useCallback(() => {
-      console.log("[CocriacaoDetails useFocusEffect] Screen focused. Forcing recreation via replace.");
-      // Força uma "recriação" da tela ao ganhar foco.
-      // Isso substitui a instância atual (mesmo que seja a mesma tela) por uma nova,
-      // evitando qualquer estado residual ou problema de re-renderização da instância antiga.
-      // router.replace mantém os parâmetros da URL.
-      if (id) {
-          router.replace({ pathname: '/cocriacao-details', params: { id: id as string } });
-      }
-    }, [id]) // Dependência crítica: id
-  );
-  // --- FIM DO useFocusEffect ---
+  // --- REMOVIDO: QUALQUER useFocusEffect PARA CARREGAMENTO ---
+  // O carregamento inicial é feito pelo useEffect acima.
+  // A navegação da tela de edição (e outras) usa router.replace,
+  // garantindo um estado inicial limpo e forçando uma nova montagem.
+  // Isso elimina a necessidade de um useFocusEffect para carregamento.
+  // --- FIM DA REMOÇÃO ---
 
   // --- FUNÇÕES AUXILIARES/UI ---
   const showModal = (
@@ -217,7 +194,6 @@ export default function CocriacaoDetailsScreen() {
   // --- FIM DAS FUNÇÕES AUXILIARES/UI ---
 
   // --- RENDERIZAÇÃO CONDICIONAL ---
-  // Loading State (só enquanto carrega e não tem dados)
   if (isLoading && !cocriation) {
     return (
       <GradientBackground>
@@ -232,7 +208,6 @@ export default function CocriacaoDetailsScreen() {
     );
   }
 
-  // Error State (não está carregando, não tem cocriação e não está deletando)
   if (!isLoading && !cocriation && !isDeleting) {
     return (
       <GradientBackground>
@@ -253,12 +228,10 @@ export default function CocriacaoDetailsScreen() {
     );
   }
 
-  // Null State (está deletando ou cocriation é null por outro motivo)
   if (!cocriation) {
     return null;
   }
 
-  // Determinar status do Vision Board para exibição
   let visionBoardStatusText = "Em construção";
   let visionBoardStatusColor = colors.warning || colors.textMuted;
   if (cocriation?.vision_board_completed) {
@@ -280,7 +253,7 @@ export default function CocriacaoDetailsScreen() {
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => router.push('/(tabs)/individual')} // Volta direto para a lista
+            onPress={() => router.push('/(tabs)/individual')}
           >
             <MaterialIcons name="arrow-back" size={24} color={colors.primary} />
             <Text style={[styles.backText, { color: colors.primary }]}>
@@ -547,7 +520,11 @@ export default function CocriacaoDetailsScreen() {
           </Text>
           <SacredButton
             title="Concluir Cocriação"
-            onPress={() => showModal('Em Desenvolvimento', 'A funcionalidade de conclusão será implementada em breve.', 'info')}
+            onPress={() => showModal(
+              'Em Desenvolvimento',
+              'A funcionalidade de conclusão será implementada em breve.',
+              'info'
+            )}
             style={styles.celebrationButton}
             icon={<MaterialIcons name="check-circle" size={20} color="white" />}
           />
@@ -686,16 +663,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 1,
-  },
-  statusBadge: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-    borderRadius: 16,
-    height: 28,
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '600',
   },
   descriptionSection: {
     marginBottom: Spacing.lg,
