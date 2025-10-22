@@ -53,6 +53,7 @@ export default function CocriacaoDetailsScreen() {
    * 1. Busca no cache local do hook (`cocriations`).
    * 2. Se não encontrar, busca no banco (`loadSingle`).
    * 3. Verifica carta futura se necessário.
+   * Esta função é memoizada para evitar re-criações desnecessárias.
    */
   const loadCocriationData = useCallback(async (cocreationId: string) => {
     if (!cocreationId) return;
@@ -97,7 +98,7 @@ export default function CocriacaoDetailsScreen() {
         setCocriation(null);
       }
     } catch (error) {
-      console.error('[CocriacaoDetails] Unexpected error loading data:', error);
+      console.error('[CocriacaoDetails] Unexpected error loading ', error);
       // Considerar mostrar um erro na UI aqui se necessário
       setCocriation(null);
     } finally {
@@ -675,6 +676,16 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 1,
+  },
+  statusBadge: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderRadius: 16,
+    height: 28,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   descriptionSection: {
     marginBottom: Spacing.lg,
