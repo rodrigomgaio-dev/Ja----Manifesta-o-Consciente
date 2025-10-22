@@ -63,15 +63,15 @@ export default function VisionBoardViewScreen() {
     };
   }, []);
 
+  // ✅ Corrigido: removido currentImageIndex das dependências
   useEffect(() => {
     if (isPlaying && !isPaused && imageItems.length > 0) {
-      startTimer();
       startAnimationCycle();
     } else {
       if (timerRef.current) clearInterval(timerRef.current);
       if (animationRef.current) animationRef.current.stop();
     }
-  }, [isPlaying, isPaused, currentImageIndex, speed]);
+  }, [isPlaying, isPaused, imageItems.length]);
 
   const startTimer = () => {
     if (timerRef.current) clearInterval(timerRef.current);
@@ -98,6 +98,7 @@ export default function VisionBoardViewScreen() {
     return animations[Math.floor(Math.random() * animations.length)];
   };
 
+  // ✅ Corrigido: agora reinicia a animação mesmo com 1 imagem
   const startAnimationCycle = () => {
     sequenceAnimationValue.setValue(0);
 
@@ -146,8 +147,14 @@ export default function VisionBoardViewScreen() {
     animationRef.current = sequence;
 
     animationRef.current.start(({ finished }) => {
-      if (finished && !isPaused) {
+      if (finished && !isPaused && isPlaying) {
         setCurrentImageIndex(prev => (prev + 1) % imageItems.length);
+        // ✅ Garante que o ciclo continue, mesmo com 1 imagem
+        requestAnimationFrame(() => {
+          if (isPlaying && !isPaused) {
+            startAnimationCycle();
+          }
+        });
       }
     });
   };
@@ -287,13 +294,14 @@ export default function VisionBoardViewScreen() {
     setTotalElapsed(0);
     setCurrentImageIndex(0);
     sequenceAnimationValue.setValue(0);
+    // O useEffect cuidará de iniciar a animação
   };
 
   const handlePause = () => {
     setIsPaused(!isPaused);
     if (!isPaused && animationRef.current) {
       animationRef.current.stop();
-    } else {
+    } else if (isPaused) {
       startAnimationCycle();
     }
   };
