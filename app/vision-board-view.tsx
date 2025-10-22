@@ -245,23 +245,53 @@ export default function VisionBoardViewScreen() {
     }
 
     if (currentAnim === 'pulse') {
-    const pulseInputRange = [
-      0.0, 0.1, 0.225, 0.35, 0.475, 0.6, 0.725, 0.85, 0.875, 0.9, 0.95, 1.0
+      const pulseInputRange = [
+        0.0,   // início (fade in ainda não começou)
+        0.1,   // imagem aparece no tamanho normal
+        0.18,  // 1º pulso rápido (expande)
+        0.22,  // 1º retorno rápido (contrai)
+        0.32,  // 2º pulso rápido (expande)
+        0.36,  // 2º retorno rápido (contrai)
+        0.52,  // retorno lento até o normal
+        0.60,  // 3º pulso rápido
+        0.64,  // 3º retorno rápido
+        0.74,  // 4º pulso rápido
+        0.78,  // 4º retorno rápido
+        0.94,  // retorno lento final até o normal
+        0.97,
+        1.0,
       ];
+
       const scaleOutputRange = [
-        0.2, 1.0, 1.05, 1.0, 1.05, 1.0, 1.05, 1.0, 1.05, 1.0, 1.05, 1.0
+        0.2,   // invisível no início
+        1.0,   // tamanho normal (início da animação visível)
+        1.12,  // expande (1º pulso)
+        1.0,   // contrai rápido
+        1.12,  // expande (2º pulso)
+        1.0,   // contrai rápido
+        1.0,   // permanece normal durante o "descanso" lento
+        1.12,  // expande (3º pulso)
+        1.0,   // contrai rápido
+        1.12,  // expande (4º pulso)
+        1.0,   // contrai rápido
+        1.0,   // mantém normal até o fade out
+        0.2,   // fade out
+        0.2,
       ];
+
       const opacityOutputRange = [
-        0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0
+        0,     // invisível
+        1,     // visível
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0
       ];
 
       return {
         opacity: sequenceAnimationValue.interpolate({
           inputRange: pulseInputRange,
-          outputRange: opacityOutputRange,
-        }),
+        outputRange: opacityOutputRange,
+         }),
         transform: [
-          {
+              {
             scale: sequenceAnimationValue.interpolate({
               inputRange: pulseInputRange,
               outputRange: scaleOutputRange,
