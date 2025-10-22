@@ -263,7 +263,7 @@ export default function VisionBoardViewScreen() {
       ];
 
       const scaleOutputRange = [
-        0.2,   // invisível no início
+        1.0,   // invisível no início não
         1.0,   // tamanho normal (início da animação visível)
         1.12,  // expande (1º pulso)
         1.0,   // contrai rápido
@@ -275,14 +275,14 @@ export default function VisionBoardViewScreen() {
         1.12,  // expande (4º pulso)
         1.0,   // contrai rápido
         1.0,   // mantém normal até o fade out
-        0.2,   // fade out
-        0.2,
+        1.12,   // fade out
+        1.0,
       ];
 
       const opacityOutputRange = [
-        0,     // invisível
+        1,     // invisível não
         1,     // visível
-        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
       ];
 
       return {
