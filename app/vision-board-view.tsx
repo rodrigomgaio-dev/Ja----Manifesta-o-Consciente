@@ -271,7 +271,6 @@ export default function VisionBoardViewScreen() {
     if (currentAnim === 'slideDown') {
       const translateY = sequenceAnimationValue.interpolate({
         inputRange: [0, 0.1, 0.8, 0.9, 1.0],
-        {/*outputRange: [-SCREEN_HEIGHT * 0.3, 0, 0, SCREEN_HEIGHT * 0.1, SCREEN_HEIGHT * 0.1],*/}
         outputRange: [-SCREEN_HEIGHT * 0.5, 0, 0, SCREEN_HEIGHT * 0.3, SCREEN_HEIGHT * 0.3]
       });
 
@@ -284,9 +283,7 @@ export default function VisionBoardViewScreen() {
     if (currentAnim === 'slideUp') {
       const translateY = sequenceAnimationValue.interpolate({
         inputRange: [0, 0.1, 0.8, 0.9, 1.0],
-        {/*outputRange: [SCREEN_HEIGHT * 0.3, 0, 0, -SCREEN_HEIGHT * 0.1, -SCREEN_HEIGHT * 0.1],*/}
         outputRange: [SCREEN_HEIGHT * 0.3, 0, 0, -SCREEN_HEIGHT * 0.3, -SCREEN_HEIGHT * 0.3]
-
       });
 
       return {
