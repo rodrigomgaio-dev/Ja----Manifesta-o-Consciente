@@ -626,6 +626,280 @@ export default function CocriacaoDetailsScreen() {
   );
 }
 
+// --- ESTILOS (mantidos os mesmos) ---
 const styles = StyleSheet.create({
-  // ... (styles permanecem os mesmos) ...
+  container: {
+    flex: 1,
+    paddingHorizontal: Spacing.lg,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    marginTop: Spacing.md,
+    marginBottom: Spacing.lg,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: Spacing.lg,
+    marginBottom: Spacing.lg,
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  backText: {
+    fontSize: 16,
+    fontWeight: '500',
+    marginLeft: Spacing.xs,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  actionIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  coverCard: {
+    marginBottom: Spacing.lg,
+    padding: 0,
+  },
+  coverImage: {
+    width: '100%',
+    height: 200,
+    borderRadius: 16,
+  },
+  mainCard: {
+    marginBottom: Spacing.lg,
+  },
+  toggleSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: Spacing.lg,
+    marginBottom: Spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(139, 92, 246, 0.1)',
+  },
+  toggleInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: Spacing.md,
+  },
+  toggleTextContainer: {
+    marginLeft: Spacing.md,
+    flex: 1,
+  },
+  toggleTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  toggleDescription: {
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  compactHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  compactTitleSection: {
+    flex: 1,
+    marginRight: Spacing.md,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: '600',
+    marginBottom: Spacing.md,
+  },
+  mentalCodeBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderRadius: 16,
+    marginBottom: Spacing.sm,
+  },
+  mentalCodeText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 1,
+  },
+  descriptionSection: {
+    marginBottom: Spacing.lg,
+  },
+  whySection: {
+    marginBottom: Spacing.lg,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: Spacing.sm,
+  },
+  description: {
+    fontSize: 14,
+    lineHeight: 22,
+  },
+  whyText: {
+    fontSize: 14,
+    lineHeight: 22,
+    fontStyle: 'italic',
+  },
+  dateSection: {
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(139, 92, 246, 0.1)',
+    paddingTop: Spacing.md,
+  },
+  dateText: {
+    fontSize: 14,
+  },
+  actionsCard: {
+    marginBottom: Spacing.lg,
+  },
+  expandButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.md,
+    marginTop: Spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(139, 92, 246, 0.1)',
+  },
+  expandButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginRight: Spacing.xs,
+  },
+  expandedContent: {
+    marginTop: Spacing.lg,
+  },
+  actionsList: {
+    gap: Spacing.sm,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.sm,
+    borderRadius: 12,
+    backgroundColor: 'rgba(139, 92, 246, 0.05)',
+  },
+  actionButtonDisabled: {
+    opacity: 0.7,
+  },
+  actionTextContainer: {
+    flex: 1,
+    marginLeft: Spacing.md,
+  },
+  actionText: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  actionSubtext: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginTop: 2,
+  },
+  statsCard: {
+    marginBottom: Spacing.lg,
+  },
+  statsTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: Spacing.lg,
+  },
+  statsList: {
+    gap: Spacing.md,
+  },
+  statItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  statText: {
+    fontSize: 14,
+    marginLeft: Spacing.md,
+  },
+  celebrationCard: {
+    marginBottom: Spacing.xl,
+    alignItems: 'center',
+  },
+  celebrationHeader: {
+    alignItems: 'center',
+    marginBottom: Spacing.lg,
+  },
+  celebrationTitle: {
+    fontSize: 24,
+    fontWeight: '600',
+    marginTop: Spacing.md,
+  },
+  celebrationDescription: {
+    fontSize: 14,
+    lineHeight: 22,
+    textAlign: 'center',
+    marginBottom: Spacing.xl,
+  },
+  celebrationButton: {
+    minWidth: 200,
+  },
+  visionBoardViewButton: {
+    marginBottom: Spacing.lg,
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#8B5CF6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  visionBoardGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Spacing.lg,
+    borderRadius: 16,
+  },
+  visionBoardIconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.md,
+  },
+  visionBoardTextContainer: {
+    flex: 1,
+  },
+  visionBoardTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: 'white',
+    marginBottom: 4,
+    letterSpacing: 0.5,
+  },
+  visionBoardSubtitle: {
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontStyle: 'italic',
+  },
 });
