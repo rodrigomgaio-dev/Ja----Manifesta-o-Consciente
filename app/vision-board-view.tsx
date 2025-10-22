@@ -110,7 +110,7 @@ export default function VisionBoardViewScreen() {
     const baseFadeInDuration = 500;
     const baseEffectDuration = 2500;
     const baseFadeOutDuration = 500;
-    const basePauseDuration = 500;
+    const basePauseDuration = 10;
 
     const fadeInDuration = baseFadeInDuration / speed;
     const effectDuration = baseEffectDuration / speed;
