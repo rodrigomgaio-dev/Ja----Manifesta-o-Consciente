@@ -56,6 +56,11 @@ export default function VisionBoardViewScreen() {
     uri: (item as any).content || (item as any).uri
   }));
 
+  // Corrige para usar a mesma imagem se houver apenas uma
+  const effectiveImageItems = imageItems.length <= 1 
+    ? imageItems.length === 1 ? [imageItems[0], imageItems[0]] : [] 
+    : imageItems;
+
   useEffect(() => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
@@ -64,14 +69,14 @@ export default function VisionBoardViewScreen() {
   }, []);
 
   useEffect(() => {
-    if (isPlaying && !isPaused && imageItems.length > 0) {
+    if (isPlaying && !isPaused && effectiveImageItems.length > 0) {
       startTimer();
       startAnimationCycle();
     } else {
       if (timerRef.current) clearInterval(timerRef.current);
       if (animationRef.current) animationRef.current.stop();
     }
-  }, [isPlaying, isPaused, currentImageIndex, speed]);
+  }, [isPlaying, isPaused, currentImageIndex, speed, effectiveImageItems]);
 
   const startTimer = () => {
     if (timerRef.current) clearInterval(timerRef.current);
@@ -107,53 +112,85 @@ export default function VisionBoardViewScreen() {
 
     currentAnimationType.current = currentAnim;
 
-    const baseFadeInDuration = 500;
-    const baseEffectDuration = 2500;
-    const baseFadeOutDuration = 500;
-    const basePauseDuration = 500;
+    // Configurações específicas para a animação Blur
+    if (currentAnim === 'blur') {
+      const baseDuration = 5000; // Duração total mais longa para efeito mais sutil
+      const adjustedDuration = baseDuration / speed;
 
-    const fadeInDuration = baseFadeInDuration / speed;
-    const effectDuration = baseEffectDuration / speed;
-    const fadeOutDuration = baseFadeOutDuration / speed;
-    const pauseDuration = basePauseDuration / speed;
+      const sequence = Animated.sequence([
+        Animated.timing(sequenceAnimationValue, {
+          toValue: 1.0,
+          duration: adjustedDuration,
+          useNativeDriver: true,
+        }),
+      ]);
 
-    const sequence = Animated.sequence([
-      Animated.timing(sequenceAnimationValue, {
-        toValue: 0.1,
-        duration: fadeInDuration,
-        useNativeDriver: true,
-      }),
-      Animated.timing(sequenceAnimationValue, {
-        toValue: 0.8,
-        duration: effectDuration,
-        useNativeDriver: true,
-      }),
-      Animated.timing(sequenceAnimationValue, {
-        toValue: 0.9,
-        duration: fadeOutDuration,
-        useNativeDriver: true,
-      }),
-      Animated.timing(sequenceAnimationValue, {
-        toValue: 1.0,
-        duration: pauseDuration,
-        useNativeDriver: true,
-      }),
-    ]);
-
-    if (animationRef.current) {
-      animationRef.current.stop();
-    }
-    animationRef.current = sequence;
-
-    animationRef.current.start(({ finished }) => {
-      if (finished && !isPaused) {
-        setCurrentImageIndex(prev => (prev + 1) % imageItems.length);
+      if (animationRef.current) {
+        animationRef.current.stop();
       }
-    });
+      animationRef.current = sequence;
+
+      animationRef.current.start(({ finished }) => {
+        if (finished && !isPaused) {
+          setCurrentImageIndex(prev => (prev + 1) % effectiveImageItems.length);
+        }
+      });
+    } else {
+      // Lógica padrão para outras animações
+      const baseFadeInDuration = 500;
+      const baseEffectDuration = 2500;
+      const baseFadeOutDuration = 500;
+      const basePauseDuration = 500;
+
+      const fadeInDuration = baseFadeInDuration / speed;
+      const effectDuration = baseEffectDuration / speed;
+      const fadeOutDuration = baseFadeOutDuration / speed;
+      const pauseDuration = basePauseDuration / speed;
+
+      const sequence = Animated.sequence([
+        Animated.timing(sequenceAnimationValue, {
+          toValue: 0.1,
+          duration: fadeInDuration,
+          useNativeDriver: true,
+        }),
+        Animated.timing(sequenceAnimationValue, {
+          toValue: 0.8,
+          duration: effectDuration,
+          useNativeDriver: true,
+        }),
+        Animated.timing(sequenceAnimationValue, {
+          toValue: 0.9,
+          duration: fadeOutDuration,
+          useNativeDriver: true,
+        }),
+        Animated.timing(sequenceAnimationValue, {
+          toValue: 1.0,
+          duration: pauseDuration,
+          useNativeDriver: true,
+        }),
+      ]);
+
+      if (animationRef.current) {
+        animationRef.current.stop();
+      }
+      animationRef.current = sequence;
+
+      animationRef.current.start(({ finished }) => {
+        if (finished && !isPaused) {
+          setCurrentImageIndex(prev => (prev + 1) % effectiveImageItems.length);
+        }
+      });
+    }
   };
 
   const getAnimatedStyle = () => {
     const currentAnim = currentAnimationType.current;
+
+    if (currentAnim === 'blur') {
+      // Para blur, não aplicamos transformações ou opacidade
+      return {};
+    }
+
     const inputRange = [0, 0.1, 0.8, 0.9, 1.0];
 
     const opacity = sequenceAnimationValue.interpolate({
@@ -192,12 +229,6 @@ export default function VisionBoardViewScreen() {
             }),
           },
         ],
-      };
-    }
-
-    if (currentAnim === 'blur') {
-      return {
-        opacity: opacity,
       };
     }
 
@@ -260,51 +291,23 @@ export default function VisionBoardViewScreen() {
     };
   };
 
-  {/*
   const getBlurAmount = () => {
     if (currentAnimationType.current !== 'blur') return 0;
 
     const value = sequenceAnimationValue.__getValue();
-    if (value < 0.1 || value > 0.8) return 0;
-
-    const normalizedValue = (value - 0.1) / (0.8 - 0.1);
-
-    if (normalizedValue <= 0.5) {
-      return 10 - (normalizedValue * 2 * 10);
+    // Ciclo: Blur Máximo (10) -> Nítido (0) -> Blur Máximo (10)
+    // Dividimos o valor em 2 partes: 0-0.5 (embaçar) e 0.5-1.0 (desembaçar)
+    if (value <= 0.5) {
+      // De 0 a 0.5: Blur de 10 para 0
+      return 10 - (value / 0.5) * 10;
     } else {
-      return ((normalizedValue - 0.5) * 2) * 10;
+      // De 0.5 a 1.0: Blur de 0 para 10
+      return ((value - 0.5) / 0.5) * 10;
     }
-  };
-  */}
-  const getBlurAmount = () => {
-    if (currentAnimationType.current !== 'blur') return 0;
-
-    const value = sequenceAnimationValue.__getValue();
-      
-    if (value <= 0.1) {
-      return 10 - (value / 0.1) * 10;
-    }
-    
-    if (value > 0.1 && value <= 0.8) {
-      const normalizedValue = (value - 0.1) / (0.8 - 0.1); // Vai de 0 a 1      
-         const easeInOutQuad = (t: number) => t < 0.5 ? 2 * t * t : -1 + (2 - 2 * t) * (2 - 2 * t);
-            
-      const easedValue = easeInOutQuad(normalizedValue);
-     
-      if (easedValue <= 0.5) {
-        return easedValue * 2 * 10;
-      } else {
-        return (1 - easedValue) * 2 * 10;
-      }
-    }    
-    if (value > 0.8) {
-      return 10; // Blur máximo
-    }
-    return 0; // Valor padrão (nítida)
   };
 
   const handleStart = () => {
-    if (imageItems.length === 0) {
+    if (effectiveImageItems.length === 0) {
       setModalVisible(true);
       return;
     }
@@ -345,7 +348,7 @@ export default function VisionBoardViewScreen() {
     { type: 'fade', icon: 'opacity', label: 'Fade' },
     { type: 'slide', icon: 'swap-horiz', label: 'Deslizar' },
     { type: 'zoom', icon: 'zoom-in', label: 'Zoom' },
-    { type: 'blur', icon: 'blur-on', label: 'Desfocar' },
+    { type: 'blur', icon: 'blur-on', label: 'Blur' },
     { type: 'wave', icon: 'waves', label: 'Onda' },
     { type: 'pulse', icon: 'favorite', label: 'Pulsar' },
     { type: 'flip', icon: 'flip', label: 'Virar' },
@@ -505,15 +508,15 @@ export default function VisionBoardViewScreen() {
             <SacredCard style={styles.infoCard}>
               <MaterialIcons name="info-outline" size={24} color={colors.primary} />
               <Text style={[styles.infoText, { color: colors.textSecondary }]}>
-                {imageItems.length === 0
+                {effectiveImageItems.length === 0
                   ? 'Adicione imagens ao seu Vision Board para começar a visualização.'
-                  : `${imageItems.length} ${imageItems.length === 1 ? 'imagem' : 'imagens'} encontrada${imageItems.length === 1 ? '' : 's'} no seu Vision Board.`}
+                  : `${effectiveImageItems.length === 2 ? 1 : effectiveImageItems.length} ${effectiveImageItems.length === 1 ? 'imagem' : 'imagens'} encontrada${effectiveImageItems.length === 1 ? '' : 's'} no seu Vision Board.`}
               </Text>
             </SacredCard>
           </ScrollView>
         )}
 
-        {isPlaying && imageItems.length > 0 && (
+        {isPlaying && effectiveImageItems.length > 0 && (
           <View style={styles.visualizationContainer}>
             <View style={styles.topControls}>
               {duration !== -1 && (
@@ -565,9 +568,9 @@ export default function VisionBoardViewScreen() {
                 getAnimatedStyle(),
               ]}
             >
-              {imageItems[currentImageIndex]?.uri ? (
+              {effectiveImageItems[currentImageIndex]?.uri ? (
                 <Image
-                  source={{ uri: imageItems[currentImageIndex].uri }}
+                  source={{ uri: effectiveImageItems[currentImageIndex].uri }}
                   style={styles.fullImage}
                   contentFit="contain"
                   cachePolicy="memory-disk"
@@ -603,7 +606,9 @@ export default function VisionBoardViewScreen() {
 
               <View style={[styles.progressContainer, { backgroundColor: colors.surface + 'CC' }]}>
                 <Text style={[styles.progressText, { color: colors.textSecondary }]}>
-                  {currentImageIndex + 1} / {imageItems.length}
+                  {effectiveImageItems.length > 2 
+                    ? `${currentImageIndex + 1} / ${effectiveImageItems.length}` 
+                    : '1 / 1'}
                 </Text>
               </View>
 
