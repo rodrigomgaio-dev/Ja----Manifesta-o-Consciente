@@ -221,6 +221,26 @@ export default function VisionBoardViewScreen() {
       };
     }
 
+    {/*if (currentAnim === 'pulse') {
+      const pulseInputRange = [ 0.0, 0.1, 0.18, 0.22, 0.32, 0.36, 0.52, 0.60, 0.64, 0.74, 0.78, 0.94, 0.97, 1.0, ];
+
+      const scaleOutputRange = [1.0, 1.0, 1.12, 1.0, 1.12, 1.0, 1.0, 1.12, 1.0, 1.12, 1.0, 1.0, 1.12, 1.0, ];
+
+      return {
+        opacity: sequenceAnimationValue.interpolate({
+          inputRange: pulseInputRange,
+          outputRange: new Array(pulseInputRange.length).fill(1),
+        }),
+        transform: [
+          {
+            scale: sequenceAnimationValue.interpolate({
+              inputRange: pulseInputRange,
+              outputRange: scaleOutputRange,
+            }),
+          },
+        ],
+      };
+    } */}
     if (currentAnim === 'pulse') {
       const pulseInputRange = [
         0.0,
@@ -252,15 +272,12 @@ export default function VisionBoardViewScreen() {
         1.12,
         1.0,
         1.0,
-        1.12,
+        1.0,
         1.0,
       ];
 
       return {
-        opacity: sequenceAnimationValue.interpolate({
-          inputRange: pulseInputRange,
-          outputRange: new Array(pulseInputRange.length).fill(1),
-        }),
+        opacity: opacity,
         transform: [
           {
             scale: sequenceAnimationValue.interpolate({
