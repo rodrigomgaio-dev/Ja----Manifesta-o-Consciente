@@ -21,7 +21,7 @@ import { Spacing } from '@/constants/Colors';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-type AnimationType = 'fade' | 'slide' | 'zoom' | 'pulse' | 'flip' | 'random';
+type AnimationType = 'fade' | 'slide' | 'zoom' | 'pulse' | 'flip' | 'breathe' | 'slideUp' | 'random';
 type DurationType = 30 | 60 | 300 | -1;
 type SpeedType = 0.5 | 1 | 1.5 | 2;
 
@@ -94,7 +94,7 @@ export default function VisionBoardViewScreen() {
   };
 
   const getRandomAnimation = (): Exclude<AnimationType, 'random'> => {
-    const animations: Exclude<AnimationType, 'random'>[] = ['fade', 'slide', 'zoom', 'pulse', 'flip'];
+    const animations: Exclude<AnimationType, 'random'>[] = ['fade', 'slide', 'zoom', 'pulse', 'flip', 'breathe', 'slideUp'];
     return animations[Math.floor(Math.random() * animations.length)];
   };
 
@@ -223,52 +223,46 @@ export default function VisionBoardViewScreen() {
 
     if (currentAnim === 'pulse') {
       const pulseInputRange = [
-        0.0,   // início (fade in ainda não começou)
-        0.1,   // imagem aparece no tamanho normal
-        0.18,  // 1º pulso rápido (expande)
-        0.22,  // 1º retorno rápido (contrai)
-        0.32,  // 2º pulso rápido (expande)
-        0.36,  // 2º retorno rápido (contrai)
-        0.52,  // retorno lento até o normal
-        0.60,  // 3º pulso rápido
-        0.64,  // 3º retorno rápido
-        0.74,  // 4º pulso rápido
-        0.78,  // 4º retorno rápido
-        0.94,  // retorno lento final até o normal
+        0.0,
+        0.1,
+        0.18,
+        0.22,
+        0.32,
+        0.36,
+        0.52,
+        0.60,
+        0.64,
+        0.74,
+        0.78,
+        0.94,
         0.97,
         1.0,
       ];
 
       const scaleOutputRange = [
-        1.0,   // invisível no início não
-        1.0,   // tamanho normal (início da animação visível)
-        1.12,  // expande (1º pulso)
-        1.0,   // contrai rápido
-        1.12,  // expande (2º pulso)
-        1.0,   // contrai rápido
-        1.0,   // permanece normal durante o "descanso" lento
-        1.12,  // expande (3º pulso)
-        1.0,   // contrai rápido
-        1.12,  // expande (4º pulso)
-        1.0,   // contrai rápido
-        1.0,   // mantém normal até o fade out
-        1.12,   // fade out
         1.0,
-      ];
-
-      const opacityOutputRange = [
-        1,     // invisível não
-        1,     // visível
-        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
+        1.0,
+        1.12,
+        1.0,
+        1.12,
+        1.0,
+        1.0,
+        1.12,
+        1.0,
+        1.12,
+        1.0,
+        1.0,
+        1.12,
+        1.0,
       ];
 
       return {
         opacity: sequenceAnimationValue.interpolate({
           inputRange: pulseInputRange,
-        outputRange: opacityOutputRange,
-         }),
+          outputRange: new Array(pulseInputRange.length).fill(1),
+        }),
         transform: [
-              {
+          {
             scale: sequenceAnimationValue.interpolate({
               inputRange: pulseInputRange,
               outputRange: scaleOutputRange,
@@ -278,14 +272,44 @@ export default function VisionBoardViewScreen() {
       };
     }
 
+    if (currentAnim === 'breathe') {
+      // Suave "respiração": leve expansão e contração
+      const breatheInputRange = [0, 0.1, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0];
+      const scaleOutputRange = [0.9, 1.0, 1.02, 1.0, 1.02, 1.0, 0.95, 0.9];
+
+      return {
+        opacity: opacity,
+        transform: [
+          {
+            scale: sequenceAnimationValue.interpolate({
+              inputRange: breatheInputRange,
+              outputRange: scaleOutputRange,
+            }),
+          },
+        ],
+      };
+    }
+
+    if (currentAnim === 'slideUp') {
+      // Desliza de baixo para cima
+      const translateY = sequenceAnimationValue.interpolate({
+        inputRange: [0, 0.1, 0.8, 0.9, 1.0],
+        outputRange: [SCREEN_HEIGHT * 0.3, 0, 0, -SCREEN_HEIGHT * 0.1, -SCREEN_HEIGHT * 0.1],
+      });
+
+      return {
+        opacity: opacity,
+        transform: [{ translateY }],
+      };
+    }
+
     return {
       opacity: opacity,
     };
   };
 
   const getBlurAmount = () => {
-    // Esta função não é mais usada, mas mantida para evitar erros de referência.
-    // Como 'blur' foi removido, ela nunca será chamada.
+    // Não usado, mas mantido para compatibilidade
     return 0;
   };
 
@@ -333,6 +357,8 @@ export default function VisionBoardViewScreen() {
     { type: 'zoom', icon: 'zoom-in', label: 'Zoom' },
     { type: 'pulse', icon: 'favorite', label: 'Pulsar' },
     { type: 'flip', icon: 'flip', label: 'Virar' },
+    { type: 'breathe', icon: 'air', label: 'Respirar' },
+    { type: 'slideUp', icon: 'arrow-upward', label: 'Subir' },
     { type: 'random', icon: 'shuffle', label: 'Aleatório' },
   ];
 
@@ -556,7 +582,7 @@ export default function VisionBoardViewScreen() {
                   contentFit="contain"
                   cachePolicy="memory-disk"
                   transition={0}
-                  blurRadius={currentAnimationType.current === 'blur' ? getBlurAmount() : 0}
+                  blurRadius={0} // blur removido, fixado em 0
                 />
               ) : (
                 <View style={[styles.placeholderContainer, { backgroundColor: colors.surface + '60' }]}>
