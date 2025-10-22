@@ -280,23 +280,27 @@ export default function VisionBoardViewScreen() {
     if (currentAnimationType.current !== 'blur') return 0;
 
     const value = sequenceAnimationValue.__getValue();
-    // O efeito de blur ocorre durante a parte do efeito (0.1 -> 0.8)
-    if (value < 0.1 || value > 0.8) return 10; // Máximo de blur fora do intervalo do efeito (antes e depois)
-
-    // Normalizar o valor para a parte específica do blur (0.1 -> 0.8)
-    const normalizedValue = (value - 0.1) / (0.8 - 0.1); // Vai de 0 a 1
-
-    // Aplicar a interpolação para o ciclo completo de blur: Máximo -> Zero -> Máximo
-    // 0 (início do efeito) -> 10 (máximo)
-    // 0.5 (meio do efeito) -> 0 (zero/nítido)
-    // 1 (fim do efeito) -> 10 (máximo)
-    if (normalizedValue <= 0.5) {
-      // Primeira metade do efeito: 10 (embaçado) -> 0 (nítido)
-      return 10 - (normalizedValue * 2 * 10); // De 10 para 0
-    } else {
-      // Segunda metade do efeito: 0 (nítido) -> 10 (embaçado)
-      return ((normalizedValue - 0.5) * 2) * 10; // De 0 para 10
+      
+    if (value <= 0.1) {
+      return 10 - (value / 0.1) * 10;
     }
+    
+    if (value > 0.1 && value <= 0.8) {
+      const normalizedValue = (value - 0.1) / (0.8 - 0.1); // Vai de 0 a 1      
+         const easeInOutQuad = (t: number) => t < 0.5 ? 2 * t * t : -1 + (2 - 2 * t) * (2 - 2 * t);
+            
+      const easedValue = easeInOutQuad(normalizedValue);
+     
+      if (easedValue <= 0.5) {
+        return easedValue * 2 * 10;
+      } else {
+        return (1 - easedValue) * 2 * 10;
+      }
+    }    
+    if (value > 0.8) {
+      return 10; // Blur máximo
+    }
+    return 0; // Valor padrão (nítida)
   };
 
   const handleStart = () => {
