@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
   Switch,
 } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router'; // useFocusEffect REMOVIDO
+import { router, useLocalSearchParams, useFocusEffect } from 'expo-router'; // Importando useFocusEffect
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -110,24 +110,34 @@ export default function CocriacaoDetailsScreen() {
   // --- CARREGAMENTO INICIAL (APENAS UMA VEZ NA MONTAGEM) ---
   // useEffect para carregar os dados quando o componente é montado e o ID muda.
   useEffect(() => {
-    console.log(`[CocriacaoDetails useEffect] Triggered. ID: ${id}`);
+    console.log(`[CocriacaoDetails useEffect - Mount] Triggered. ID: ${id}`);
     if (id) {
       loadCocriationData(id);
     } else {
-      console.warn(`[CocriacaoDetails useEffect] No ID provided.`);
+      console.warn(`[CocriacaoDetails useEffect - Mount] No ID provided.`);
       setIsLoading(false);
       setCocriation(null);
     }
   }, [id, loadCocriationData]); // Roda apenas quando 'id' ou 'loadCocriationData' mudarem
 
-  // --- REMOVIDO: useFocusEffect para evitar re-renders/carregamentos desnecessários ---
-  // O carregamento inicial é feito pelo useEffect acima.
-  // A navegação da tela de edição (e outras) usa router.replace,
-  // garantindo um estado inicial limpo e forçando uma nova montagem.
-  // Isso elimina a necessidade de um useFocusEffect para carregamento.
-  // Se for necessário reagir a eventos de foco para ações específicas (não carregamento),
-  // um useFocusEffect pode ser adicionado com uma lógica diferente e mais restrita.
-  // --- FIM DA REMOÇÃO ---
+  // --- useFocusEffect: FORÇAR RE-CRIAÇÃO AO GANHAR FOCO ---
+  // Esta é a parte crucial para resolver o problema de múltiplos re-renders
+  // ao voltar da tela de edição (Cancelar) ou da lista.
+  // Em vez de tentar recarregar dados na instância antiga, substituímos
+  // a instância por uma nova, garantindo um estado limpo.
+  useFocusEffect(
+    useCallback(() => {
+      console.log("[CocriacaoDetails useFocusEffect] Screen focused. Forcing recreation via replace.");
+      // Força uma "recriação" da tela ao ganhar foco.
+      // Isso substitui a instância atual (mesmo que seja a mesma tela) por uma nova,
+      // evitando qualquer estado residual ou problema de re-renderização da instância antiga.
+      // router.replace mantém os parâmetros da URL.
+      if (id) {
+          router.replace({ pathname: '/cocriacao-details', params: { id: id as string } });
+      }
+    }, [id]) // Dependência crítica: id
+  );
+  // --- FIM DO useFocusEffect ---
 
   // --- FUNÇÕES AUXILIARES/UI ---
   const showModal = (
