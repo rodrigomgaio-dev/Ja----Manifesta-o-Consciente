@@ -21,7 +21,7 @@ import { Spacing } from '@/constants/Colors';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-type AnimationType = 'fade' | 'slide' | 'zoom' | 'blur' | 'wave' | 'pulse' | 'flip' | 'random';
+type AnimationType = 'fade' | 'slide' | 'zoom' | 'pulse' | 'flip' | 'random';
 type DurationType = 30 | 60 | 300 | -1;
 type SpeedType = 0.5 | 1 | 1.5 | 2;
 
@@ -94,7 +94,7 @@ export default function VisionBoardViewScreen() {
   };
 
   const getRandomAnimation = (): Exclude<AnimationType, 'random'> => {
-    const animations: Exclude<AnimationType, 'random'>[] = ['fade', 'slide', 'zoom', 'blur', 'wave', 'pulse', 'flip'];
+    const animations: Exclude<AnimationType, 'random'>[] = ['fade', 'slide', 'zoom', 'pulse', 'flip'];
     return animations[Math.floor(Math.random() * animations.length)];
   };
 
@@ -204,12 +204,6 @@ export default function VisionBoardViewScreen() {
       };
     }
 
-    if (currentAnim === 'blur') {
-      return {
-        opacity: opacity,
-      };
-    }
-
     if (currentAnim === 'zoom') {
       const zoomInputRange = [0, 0.1, 0.45, 0.8, 0.9, 1.0];
       const zoomOutputRange = [0.2, 0.2, 2.0, 0.2, 0.2, 0.2];
@@ -221,23 +215,6 @@ export default function VisionBoardViewScreen() {
             scale: sequenceAnimationValue.interpolate({
               inputRange: zoomInputRange,
               outputRange: zoomOutputRange,
-            }),
-          },
-        ],
-      };
-    }
-
-    if (currentAnim === 'wave') {
-      const waveInputRange = [0, 0.1, 0.35, 0.6, 0.8, 0.9, 1.0];
-      const waveOutputRange = [0, 0, -100, 100, 0, 0, 0];
-
-      return {
-        opacity: opacity,
-        transform: [
-          {
-            translateY: sequenceAnimationValue.interpolate({
-              inputRange: waveInputRange,
-              outputRange: waveOutputRange,
             }),
           },
         ],
@@ -307,18 +284,9 @@ export default function VisionBoardViewScreen() {
   };
 
   const getBlurAmount = () => {
-    if (currentAnimationType.current !== 'blur') return 0;
-
-    const value = sequenceAnimationValue.__getValue();
-    if (value < 0.1 || value > 0.8) return 0;
-
-    const normalizedValue = (value - 0.1) / (0.8 - 0.1);
-
-    if (normalizedValue <= 0.5) {
-      return 10 - (normalizedValue * 2 * 10);
-    } else {
-      return ((normalizedValue - 0.5) * 2) * 10;
-    }
+    // Esta função não é mais usada, mas mantida para evitar erros de referência.
+    // Como 'blur' foi removido, ela nunca será chamada.
+    return 0;
   };
 
   const handleStart = () => {
@@ -363,8 +331,6 @@ export default function VisionBoardViewScreen() {
     { type: 'fade', icon: 'opacity', label: 'Fade' },
     { type: 'slide', icon: 'swap-horiz', label: 'Deslizar' },
     { type: 'zoom', icon: 'zoom-in', label: 'Zoom' },
-    { type: 'blur', icon: 'blur-on', label: 'Blur' },
-    { type: 'wave', icon: 'waves', label: 'Onda' },
     { type: 'pulse', icon: 'favorite', label: 'Pulsar' },
     { type: 'flip', icon: 'flip', label: 'Virar' },
     { type: 'random', icon: 'shuffle', label: 'Aleatório' },
