@@ -19,7 +19,7 @@ import SacredButton from '@/components/ui/SacredButton';
 import SacredModal from '@/components/ui/SacredModal';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { useIndividualCocriations } from '@/hooks/useIndividualCocriations'; // Certifique-se que o caminho está correto
+import { useIndividualCocriations } from '@/hooks/useIndividualCocriations';
 import { useFutureLetter } from '@/hooks/useFutureLetter';
 import { Spacing } from '@/constants/Colors';
 
@@ -28,8 +28,6 @@ export default function CocriacaoDetailsScreen() {
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
-
-  // Importa o hook e o método loadSingle
   const { cocriations, deleteCocriation, loadSingle, updateCocriation } = useIndividualCocriations();
   const { getFutureLetter } = useFutureLetter();
 
@@ -47,104 +45,70 @@ export default function CocriacaoDetailsScreen() {
     buttons?: any[];
   }>({ title: '', message: '', type: 'info' });
 
-  // --- FUNÇÃO PARA CARREGAR COCRIAÇÃO ESPECÍFICA ---
-  // Tenta primeiro do cache do hook, depois do banco
-  const loadSpecificCocriation = useCallback(async () => {
-    if (!id) return;
+  // --- LÓGICA DE CARREGAMENTO SIMPLIFICADA ---
+  // Função para carregar dados da cocriação específica
+  const loadCocriationById = useCallback(async (cocreationId: string | string[]) => {
+    if (!cocreationId) return;
 
-    console.log('Attempting to load cocriation with ID:', id);
-
-    // 1. Primeiro, tenta encontrar no cache do hook (cocriations)
-    // Este array foi atualizado pelo refresh() na tela de edição.
-    const cachedCocriation = cocriations.find(c => c.id === id);
-    if (cachedCocriation) {
-      console.log('Cocriation found in hook cache:', cachedCocriation);
-      setCocriation(cachedCocriation);
-
-      // Verificar carta futura se necessário
-      if (cachedCocriation.future_letter_completed) {
-        const letterResult = await getFutureLetter(id);
-        setHasLetterSent(!!letterResult.data);
-      }
-      return; // Encontrou no cache, fim.
-    }
-
-    // 2. Se não estiver no cache do hook, carrega do banco (fallback)
-    console.log('Cocriation not in hook cache, loading from database:', id);
+    console.log("Tentando carregar cocriação com ID:", cocreationId);
     setIsLoading(true);
-    const result = await loadSingle(id);
-    if (result.data) {
-      console.log('Cocriation loaded from database:', result.data);
-      setCocriation(result.data);
 
-      // Verificar carta futura se necessário
-      if (result.data.future_letter_completed) {
-        const letterResult = await getFutureLetter(id);
-        setHasLetterSent(!!letterResult.data);
-      }
-    } else {
-      console.warn('Cocriation not found in database either.');
-      setCocriation(null); // Ou tratar erro
-    }
-    setIsLoading(false);
-  }, [id, cocriations, loadSingle, getFutureLetter]); // Dependências críticas
-  
+    try {
+      // 1. Tenta primeiro do cache do hook (cocriations)
+      // Este cache foi atualizado pela função updateCocriation do hook na tela de edição.
+      const cached = cocriations.find(c => c.id === cocreationId);
+      if (cached) {
+        console.log("Cocriation encontrada no cache do hook:", cached);
+        setCocriation(cached);
 
-  {/* Esta solução não funcionou, deixou o app lento e instável
-    const loadSpecificCocriation = useCallback(async () => {
-  if (!id) return;
-
-    console.log('Attempting to load cocriation with ID:', id);
-
-    // 1. First, try to find in cache (FAST!)
-    const cachedCocriation = cocriations.find(c => c.id === id);
-    if (cachedCocriation) {
-      console.log('Cocriation found in cache:', cachedCocriation);
-      setCocriation(cachedCocriation);
-
-      // Check future letter if needed
-      if (cachedCocriation.future_letter_completed) {
-        const letterResult = await getFutureLetter(id);
-        setHasLetterSent(!!letterResult.data);
+        // Verificar carta futura se necessário
+        if (cached.future_letter_completed) {
+           const letterResult = await getFutureLetter(cocreationId);
+           setHasLetterSent(!!letterResult.data);
+        }
+        return; // Encontrou no cache, fim.
       }
 
-      // Don't return yet - we'll refresh in background
-    }
+      // 2. Se não estiver no cache do hook, carrega do banco (fallback)
+      console.log("Cocriation não encontrada no cache, carregando do banco:", cocreationId);
+      const dbResult = await loadSingle(cocreationId);
+      if (dbResult.data) {
+        console.log("Cocriation carregada do banco:", dbResult.data);
+        setCocriation(dbResult.data);
 
-    // 2. Always refresh from database in the background
-    // This ensures we have the latest data, but doesn't block the UI
-    console.log('Refreshing from database in background:', id);
-    const result = await loadSingle(id);
-    if (result.data) {
-      console.log('Background refresh completed:', result.data);
-      setCocriation(result.data);
-
-      if (result.data.future_letter_completed) {
-        const letterResult = await getFutureLetter(id);
-        setHasLetterSent(!!letterResult.data);
+        // Verificar carta futura se necessário
+        if (dbResult.data.future_letter_completed) {
+           const letterResult = await getFutureLetter(cocreationId);
+           setHasLetterSent(!!letterResult.data);
+        }
+      } else {
+        console.warn("Cocriation não encontrada no banco.");
+        setCocriation(null); // Ou tratar erro
       }
+    } catch (error) {
+      console.error("Erro em loadCocriationById:", error);
+      // Tratar erro
+    } finally {
+      setIsLoading(false);
     }
-  }, [id, cocriations, loadSingle, getFutureLetter]); */}
-  // --- FIM DA FUNÇÃO DE CARREGAMENTO ---
+  }, [cocriations, loadSingle, getFutureLetter]); // Dependências críticas
 
-  // --- CARREGAMENTO INICIAL ---
+  // Carregar dados ao montar o componente
   useEffect(() => {
-    loadSpecificCocriation();
-  }, [loadSpecificCocriation]);
-  // --- FIM DO CARREGAMENTO INICIAL ---
+    loadCocriationById(id); // Carregamento inicial
+  }, [id, loadCocriationById]); // id e a função que depende do cache
 
-  // --- useFocusEffect: AO VOLTAR PARA ESTA TELA ---
-  // Esta é a parte crucial para atualização automática após a edição.
+  // --- useFocusEffect PRINCIPAL: Ao voltar da edição, recarrega do CACHE ATUALIZADO ---
   useFocusEffect(
     useCallback(() => {
-      console.log('Screen focused. Reloading specific cocriation from hook cache/database.');
-      // Ao voltar da tela de edição, esta função é chamada.
-      // Ela tentará primeiro carregar do cache do hook (cocriations),
-      // que foi atualizado pelo refresh() da tela de edição.
-      loadSpecificCocriation();
-    }, [loadSpecificCocriation]) // loadSpecificCocriation já tem as dependências corretas
+      console.log("Tela ganhou foco. Recarregando dados da cocriação do cache ATUALIZADO.");
+      // Esta função é chamada TODA VEZ que a tela ganha foco.
+      // Como a tela de edição atualizou o cache do hook,
+      // esta chamada encontrará os dados novos.
+      loadCocriationById(id);
+    }, [id, loadCocriationById]) // loadCocriationById já tem cocriations como dependência
   );
-  // --- FIM useFocusEffect ---
+  // --- FIM DA LÓGICA DE CARREGAMENTO ---
 
   const showModal = (
     title: string,
@@ -251,9 +215,10 @@ export default function CocriacaoDetailsScreen() {
         'error'
       );
     } else {
-      // Atualiza o estado local com o novo status
-      // O useFocusEffect cuidará da sincronização ao voltar de outras telas.
+      // Atualiza o estado LOCAL imediatamente.
+      // O hook já atualizou o cache.
       setCocriation(prev => ({ ...prev, status: newStatus }));
+      // O useFocusEffect também garantirá a sincronização ao voltar de outras telas.
     }
 
     setIsTogglingStatus(false);

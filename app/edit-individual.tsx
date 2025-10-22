@@ -1,3 +1,4 @@
+// app/edit-individual.tsx
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -128,15 +129,21 @@ export default function EditIndividualScreen() {
 
       console.log('Saving cocriation updates:', updateData);
 
+      // --- CHAMADA PARA ATUALIZAR NO BANCO E NO CACHE LOCAL DO HOOK ---
       const result = await updateCocriation(cocriation.id, updateData);
+      // --- FIM DA CHAMADA ---
 
       if (result.error) {
         console.error('Error updating cocriation:', result.error);
         showModal('Erro', 'Não foi possível salvar as alterações. Tente novamente.', 'error');
       } else {
         console.log('Cocriation updated successfully');
-        // Force a refresh to ensure cache is updated
-        await refresh();
+        // --- MUDANÇA AQUI: REMOVER A LINHA ABAIXO ---
+        // await refresh(); // <-- LINHA REMOVIDA. NÃO FAÇA ISSO MAIS.
+        // O hook useIndividualCocriations já atualizou o item específico
+        // dentro do seu estado 'cocriations' local. Isso é suficiente e rápido.
+        // --- FIM DA MUDANÇA ---
+
         showModal(
           'Sucesso',
           'Cocriação editada com sucesso.',
@@ -144,20 +151,10 @@ export default function EditIndividualScreen() {
           () => {
             // Small delay to ensure state is updated before navigation
             setTimeout(() => {
-            router.back(); // Volta para a tela de detalhes
-            }, 200);          
+              router.back(); // Volta para a tela de detalhes
+            }, 200);
           }
         );
-
-        {/* Esta alteração não funcionou 
-        await refresh(); // Wait for cache to update
-        await new Promise(resolve => setTimeout(resolve, 100)); // Small delay
-        router.back(); // Now navigate
-        // Show success message after navigation
-        setTimeout(() => {
-          // Success handled by details screen
-        }, 300); */}
-        
       }
     } catch (error) {
       console.error('Unexpected error updating cocriation:', error);
@@ -236,10 +233,10 @@ export default function EditIndividualScreen() {
           {/* Form */}
           <SacredCard glowing style={styles.formCard}>
             <View style={styles.formSection}>
-              <MaterialIcons 
-                name="edit" 
-                size={32} 
-                color={colors.primary} 
+              <MaterialIcons
+                name="edit"
+                size={32}
+                color={colors.primary}
                 style={styles.sectionIcon}
               />
               <Text style={[styles.sectionTitle, { color: colors.text }]}>
@@ -349,10 +346,10 @@ export default function EditIndividualScreen() {
                   </View>
                 ) : (
                   <View style={styles.imagePlaceholder}>
-                    <MaterialIcons 
-                      name="add-photo-alternate" 
-                      size={48} 
-                      color={colors.primary} 
+                    <MaterialIcons
+                      name="add-photo-alternate"
+                      size={48}
+                      color={colors.primary}
                     />
                     <Text style={[styles.imagePlaceholderText, { color: colors.textSecondary }]}>
                       Escolher Imagem de Capa
@@ -379,7 +376,7 @@ export default function EditIndividualScreen() {
           {/* Sacred Quote */}
           <SacredCard style={styles.quoteCard}>
             <Text style={[styles.quote, { color: colors.textSecondary }]}>
-              "A manifestação é um processo vivo que pode ser refinado e aprimorado 
+              "A manifestação é um processo vivo que pode ser refinado e aprimorado
               conforme nossa consciência se expande."
             </Text>
           </SacredCard>
