@@ -108,7 +108,7 @@ export default function VisionBoardViewScreen() {
     currentAnimationType.current = currentAnim;
 
     // Timings ajustados para transição mais suave do blur
-    const baseFadeInDuration = 1500;  // Aumentado para transição mais suave
+    const baseFadeInDuration = 500;  // Aumentado para transição mais suave
     const baseEffectDuration = 3000;   // Aumentado para mais tempo na imagem nítida
     const baseFadeOutDuration = 1500;  // Aumentado para transição mais suave
     const basePauseDuration = 100;     // Pequena pausa antes da próxima imagem
