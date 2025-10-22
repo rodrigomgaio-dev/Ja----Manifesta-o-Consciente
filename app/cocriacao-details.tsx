@@ -1,5 +1,5 @@
 // app/cocriacao-details.tsx
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
   Switch,
 } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router'; // useFocusEffect REMOVIDO
+import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -19,28 +19,24 @@ import SacredButton from '@/components/ui/SacredButton';
 import SacredModal from '@/components/ui/SacredModal';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { useIndividualCocriations } from '@/hooks/useIndividualCocriations';
+import { useIndividualCocriations } from '@/hooks/useIndividualCocriations'; // Certifique-se que o caminho está correto
 import { useFutureLetter } from '@/hooks/useFutureLetter';
 import { Spacing } from '@/constants/Colors';
-
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-
-type AnimationType = 'fade' | 'slide' | 'zoom' | 'blur' | 'wave' | 'pulse' | 'flip' | 'random';
-type DurationType = 30 | 60 | 300 | -1; // -1 para sem parar
-type SpeedType = 0.5 | 1 | 1.5 | 2; // Multiplicadores de velocidade
 
 export default function CocriacaoDetailsScreen() {
   const { colors } = useTheme();
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
+
+  // Importa o hook e o método loadSingle
   const { cocriations, deleteCocriation, loadSingle, updateCocriation } = useIndividualCocriations();
   const { getFutureLetter } = useFutureLetter();
 
   const [cocriation, setCocriation] = useState<any>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
-  const [isLoading, setIsLoading] = useState(true); // Começa como true
+  const [isLoading, setIsLoading] = useState(false);
   const [hasLetterSent, setHasLetterSent] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [isTogglingStatus, setIsTogglingStatus] = useState(false);
@@ -51,80 +47,69 @@ export default function CocriacaoDetailsScreen() {
     buttons?: any[];
   }>({ title: '', message: '', type: 'info' });
 
-  // --- LÓGICA DE CARREGAMENTO SIMPLIFICADA E OTIMIZADA ---
-  const loadCocriationData = useCallback(async () => {
-    if (!id) {
-      console.warn("[CocriacaoDetails] No ID provided.");
-      setIsLoading(false);
-      setCocriation(null);
-      return;
+  // --- FUNÇÃO PARA CARREGAR COCRIAÇÃO ESPECÍFICA ---
+  // Tenta primeiro do cache do hook, depois do banco
+  const loadSpecificCocriation = useCallback(async () => {
+    if (!id) return;
+
+    console.log('Attempting to load cocriation with ID:', id);
+
+    // 1. Primeiro, tenta encontrar no cache do hook (cocriations)
+    // Este array foi atualizado pelo refresh() na tela de edição.
+    const cachedCocriation = cocriations.find(c => c.id === id);
+    if (cachedCocriation) {
+      console.log('Cocriation found in hook cache:', cachedCocriation);
+      setCocriation(cachedCocriation);
+
+      // Verificar carta futura se necessário
+      if (cachedCocriation.future_letter_completed) {
+        const letterResult = await getFutureLetter(id);
+        setHasLetterSent(!!letterResult.data);
+      }
+      return; // Encontrou no cache, fim.
     }
 
-    console.log(`[CocriacaoDetails] Attempting to load cocreation ID: ${id}`);
+    // 2. Se não estiver no cache do hook, carrega do banco (fallback)
+    console.log('Cocriation not in hook cache, loading from database:', id);
     setIsLoading(true);
-    setHasLetterSent(false); // Resetar estado da carta
+    const result = await loadSingle(id);
+    if (result.data) {
+      console.log('Cocriation loaded from database:', result.data);
+      setCocriation(result.data);
 
-    try {
-      // 1. TENTATIVA NO CACHE DO HOOK (cocriations)
-      // Este array foi atualizado pelo refresh() na tela de edição.
-      const cached = cocriations.find(c => c.id === id);
-      if (cached) {
-        console.log('[CocriacaoDetails] Found in hook cache:', cached);
-        setCocriation(cached);
-
-        // Verificar carta futura se necessário
-        if (cached.future_letter_completed) {
-          console.log('[CocriacaoDetails] Future letter marked complete, checking status...');
-          const letterResult = await getFutureLetter(id);
-          setHasLetterSent(!!letterResult.data);
-          console.log('[CocriacaoDetails] Future letter status checked:', !!letterResult.data);
-        }
-        return; // Encontrou no cache, fim.
+      // Verificar carta futura se necessário
+      if (result.data.future_letter_completed) {
+        const letterResult = await getFutureLetter(id);
+        setHasLetterSent(!!letterResult.data);
       }
-
-      // 2. FALLBACK PARA BANCO DE DADOS (para o caso de primeira visita ou item não cacheado)
-      console.log('[CocriacaoDetails] Not in hook cache, loading from database...');
-      const dbResult = await loadSingle(id);
-      if (dbResult.data) {
-        console.log('[CocriacaoDetails] Loaded from database:', dbResult.data);
-        setCocriation(dbResult.data);
-
-        // Verificar carta futura se necessário
-        if (dbResult.data.future_letter_completed) {
-          console.log('[CocriacaoDetails] DB: Future letter marked complete, checking status...');
-          const letterResult = await getFutureLetter(id);
-          setHasLetterSent(!!letterResult.data);
-          console.log('[CocriacaoDetails] DB: Future letter status checked:', !!letterResult.data);
-        }
-      } else {
-        console.warn('[CocriacaoDetails] Cocreation not found in database.');
-        setCocriation(null); // Ou tratar erro
-      }
-    } catch (error) {
-      console.error('[CocriacaoDetails] Unexpected error loading ', error);
-      // Considerar mostrar um erro na UI aqui se necessário
-      setCocriation(null);
-    } finally {
-      setIsLoading(false);
-      console.log('[CocriacaoDetails] Finished loading attempt.');
+    } else {
+      console.warn('Cocriation not found in database either.');
+      setCocriation(null); // Ou tratar erro
     }
-  }, [id, cocriations, loadSingle, getFutureLetter]); // Dependências estáveis esperadas
+    setIsLoading(false);
+  }, [id, cocriations, loadSingle, getFutureLetter]); // Dependências críticas
+  // --- FIM DA FUNÇÃO DE CARREGAMENTO ---
 
-  // --- CARREGAMENTO INICIAL (APENAS UMA VEZ NA MONTAGEM) ---
+  // --- CARREGAMENTO INICIAL ---
   useEffect(() => {
-    console.log('[CocriacaoDetails useEffect - Mount] Triggered.');
-    loadCocriationData();
-  }, [loadCocriationData]); // Roda apenas uma vez na montagem, pois loadCocriationData é memoizado
+    loadSpecificCocriation();
+  }, [loadSpecificCocriation]);
+  // --- FIM DO CARREGAMENTO INICIAL ---
 
-  // --- REMOVIDO: useFocusEffect para evitar re-renders/carregamentos desnecessários ---
-  // O carregamento inicial é feito pelo useEffect acima.
-  // A navegação da tela de edição (e outras) usa router.replace,
-  // garantindo um estado inicial limpo e forçando uma nova montagem.
-  // Isso elimina a necessidade de um useFocusEffect para carregamento.
-  // --- FIM DA REMOÇÃO ---
+  // --- useFocusEffect: AO VOLTAR PARA ESTA TELA ---
+  // Esta é a parte crucial para atualização automática após a edição.
+  useFocusEffect(
+    useCallback(() => {
+      console.log('Screen focused. Reloading specific cocriation from hook cache/database.');
+      // Ao voltar da tela de edição, esta função é chamada.
+      // Ela tentará primeiro carregar do cache do hook (cocriations),
+      // que foi atualizado pelo refresh() da tela de edição.
+      loadSpecificCocriation();
+    }, [loadSpecificCocriation]) // loadSpecificCocriation já tem as dependências corretas
+  );
+  // --- FIM useFocusEffect ---
 
-  // --- FUNÇÕES AUXILIARES/UI (OTIMIZADAS COM useCallback/useMemo ONDE APROPRIADO) ---
-  const showModal = useCallback((
+  const showModal = (
     title: string,
     message: string,
     type: 'info' | 'success' | 'warning' | 'error' = 'info',
@@ -132,13 +117,13 @@ export default function CocriacaoDetailsScreen() {
   ) => {
     setModalConfig({ title, message, type, buttons });
     setModalVisible(true);
-  }, []);
+  };
 
-  const handleEdit = useCallback(() => {
-    router.push(`/edit-individual?id=${cocriation?.id}`);
-  }, [cocriation?.id]);
+  const handleEdit = () => {
+    router.push(`/edit-individual?id=${cocriation.id}`);
+  };
 
-  const handleDelete = useCallback(() => {
+  const handleDelete = () => {
     showModal(
       'Confirmar Exclusão',
       'Tem certeza que deseja excluir esta cocriação? Esta ação não pode ser desfeita.',
@@ -156,9 +141,9 @@ export default function CocriacaoDetailsScreen() {
         },
       ]
     );
-  }, [showModal]); // confirmDelete não precisa ser dependência aqui
+  };
 
-  const confirmDelete = useCallback(async () => {
+  const confirmDelete = async () => {
     if (!cocriation) return;
 
     setIsDeleting(true);
@@ -168,7 +153,7 @@ export default function CocriacaoDetailsScreen() {
       const result = await deleteCocriation(cocriation.id);
 
       if (result.error) {
-        console.error('[CocriacaoDetails] Error deleting cocriation:', result.error);
+        console.error('Error deleting cocriation:', result.error);
         showModal(
           'Erro',
           'Não foi possível excluir a cocriação. Tente novamente.',
@@ -188,7 +173,7 @@ export default function CocriacaoDetailsScreen() {
         }, 300);
       }
     } catch (error) {
-      console.error('[CocriacaoDetails] Unexpected error deleting cocriation:', error);
+      console.error('Unexpected error deleting cocriation:', error);
       showModal(
         'Erro Inesperado',
         'Algo deu errado. Tente novamente.',
@@ -196,85 +181,49 @@ export default function CocriacaoDetailsScreen() {
       );
       setIsDeleting(false);
     }
-  }, [cocriation, deleteCocriation, showModal]);
+  };
 
-  const handleVisionBoard = useCallback(() => {
-    router.push(`/vision-board?cocreationId=${cocriation?.id}`);
-  }, [cocriation?.id]);
+  const handleVisionBoard = () => {
+    router.push(`/vision-board?cocreationId=${cocriation.id}`);
+  };
 
-  const handleFutureLetter = useCallback(() => {
-    router.push(`/future-letter?cocreationId=${cocriation?.id}&from=details`);
-  }, [cocriation?.id]);
+  const handleFutureLetter = () => {
+    router.push(`/future-letter?cocreationId=${cocriation.id}&from=details`);
+  };
 
-  const canToggleStatus = useCallback((c: any) => {
-    const visionBoardDone = c?.vision_board_completed;
-    const scheduleDone = c?.practice_schedule_completed;
-    const letterStatus = c?.future_letter_completed;
+  const canToggleStatus = (cocriation: any) => {
+    const visionBoardDone = cocriation.vision_board_completed;
+    const scheduleDone = cocriation.practice_schedule_completed;
+    const letterStatus = cocriation.future_letter_completed;
 
     return visionBoardDone && scheduleDone && (letterStatus === true || letterStatus === false);
-  }, []);
+  };
 
-  const handleToggleStatus = useCallback(async () => {
+  const handleToggleStatus = async () => {
     if (!cocriation || isTogglingStatus) return;
 
     setIsTogglingStatus(true);
     const newStatus = cocriation.status === 'active' ? 'inactive' : 'active';
 
-    try {
-      const result = await updateCocriation(cocriation.id, { status: newStatus });
+    const result = await updateCocriation(cocriation.id, { status: newStatus });
 
-      if (result.error) {
-        showModal(
-          'Erro',
-          'Não foi possível alterar o status da cocriação. Tente novamente.',
-          'error'
-        );
-      } else {
-        // Atualiza o estado LOCAL imediatamente.
-        // O hook já atualizou o cache.
-        setCocriation(prev => ({ ...prev, status: newStatus }));
-      }
-    } catch (error) {
-      console.error('[CocriacaoDetails] Unexpected error toggling status:', error);
+    if (result.error) {
       showModal(
-        'Erro Inesperado',
-        'Algo deu errado. Tente novamente.',
+        'Erro',
+        'Não foi possível alterar o status da cocriação. Tente novamente.',
         'error'
       );
-    } finally {
-      setIsTogglingStatus(false);
+    } else {
+      // Atualiza o estado local com o novo status
+      // O useFocusEffect cuidará da sincronização ao voltar de outras telas.
+      setCocriation(prev => ({ ...prev, status: newStatus }));
     }
-  }, [cocriation, isTogglingStatus, updateCocriation, showModal]);
 
-  // Memoizar estilos que dependem de props/estado
-  const visionBoardStatus = useMemo(() => {
-    if (!cocriation) return { text: "Em construção", color: colors.warning || colors.textMuted };
+    setIsTogglingStatus(false);
+  };
 
-    if (cocriation.vision_board_completed) {
-      return { text: "✓ Finalizado", color: colors.success };
-    } else if (cocriation.vision_board_items_count && cocriation.vision_board_items_count > 0) {
-      return { text: "Iniciado", color: colors.primary };
-    }
-    return { text: "Em construção", color: colors.warning || colors.textMuted };
-  }, [cocriation, colors.success, colors.primary, colors.warning, colors.textMuted]);
 
-  const formattedDate = useMemo(() => {
-    if (!cocriation?.created_at) return '';
-    return new Date(cocriation.created_at).toLocaleDateString('pt-BR', {
-      day: '2-digit',
-      month: 'long',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  }, [cocriation?.created_at]);
-
-  const daysActive = useMemo(() => {
-    if (!cocriation?.created_at) return 0;
-    return Math.ceil((new Date().getTime() - new Date(cocriation.created_at).getTime()) / (1000 * 60 * 60 * 24));
-  }, [cocriation?.created_at]);
-
-  // --- RENDERIZAÇÃO CONDICIONAL ---
+  // Mostrar loading apenas enquanto carrega
   if (isLoading && !cocriation) {
     return (
       <GradientBackground>
@@ -289,6 +238,7 @@ export default function CocriacaoDetailsScreen() {
     );
   }
 
+  // Mostrar erro apenas se não houver cocriação e não estiver deletando
   if (!isLoading && !cocriation && !isDeleting) {
     return (
       <GradientBackground>
@@ -309,11 +259,23 @@ export default function CocriacaoDetailsScreen() {
     );
   }
 
+  // Se estiver deletando ou não houver cocriação, não renderiza nada
   if (!cocriation) {
     return null;
   }
 
-  // --- RENDERIZAÇÃO PRINCIPAL ---
+  // Determinar o texto do subtitulo do botão VisionBoard
+  let visionBoardStatusText = "Em construção";
+  let visionBoardStatusColor = colors.warning || colors.textMuted;
+
+  if (cocriation?.vision_board_completed) {
+    visionBoardStatusText = "✓ Finalizado";
+    visionBoardStatusColor = colors.success;
+  } else if (cocriation?.vision_board_items_count && cocriation.vision_board_items_count > 0) {
+     visionBoardStatusText = "Iniciado";
+     visionBoardStatusColor = colors.primary;
+  }
+
   return (
     <GradientBackground>
       <ScrollView
@@ -324,7 +286,7 @@ export default function CocriacaoDetailsScreen() {
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => router.push('/(tabs)/individual')} // Volta direto para a lista
+            onPress={() => router.push('/(tabs)/individual')}
           >
             <MaterialIcons name="arrow-back" size={24} color={colors.primary} />
             <Text style={[styles.backText, { color: colors.primary }]}>
@@ -389,7 +351,7 @@ export default function CocriacaoDetailsScreen() {
           </TouchableOpacity>
         )}
 
-        {/* Main Info Card */}
+        {/* Main Info */}
         <SacredCard glowing style={styles.mainCard}>
           {/* Toggle Status */}
           {canToggleStatus(cocriation) && (
@@ -484,28 +446,34 @@ export default function CocriacaoDetailsScreen() {
                   Criada em
                 </Text>
                 <Text style={[styles.dateText, { color: colors.textSecondary }]}>
-                  {formattedDate}
+                  {new Date(cocriation.created_at).toLocaleDateString('pt-BR', {
+                    day: '2-digit',
+                    month: 'long',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
                 </Text>
               </View>
             </View>
           )}
         </SacredCard>
 
-        {/* Quick Actions Card */}
+        {/* Quick Actions */}
         <SacredCard style={styles.actionsCard}>
           <View style={styles.actionsList}>
             {/* --- BOTÃO VISION BOARD ALTERADO --- */}
             <TouchableOpacity
               style={styles.actionButton}
-              onPress={handleVisionBoard}
+              onPress={handleVisionBoard} // Chama a função atualizada
             >
               <MaterialIcons name="dashboard" size={24} color={colors.primary} />
               <View style={styles.actionTextContainer}>
                 <Text style={[styles.actionText, { color: colors.primary }]}>
                   Vision Board
                 </Text>
-                <Text style={[styles.actionSubtext, { color: visionBoardStatus.color }]}>
-                  {visionBoardStatus.text}
+                <Text style={[styles.actionSubtext, { color: visionBoardStatusColor }]}>
+                  {visionBoardStatusText}
                 </Text>
               </View>
               <MaterialIcons name="chevron-right" size={20} color={colors.textMuted} />
@@ -565,7 +533,7 @@ export default function CocriacaoDetailsScreen() {
           </View>
         </SacredCard>
 
-        {/* Statistics Card */}
+        {/* Statistics */}
         <SacredCard style={styles.statsCard}>
           <Text style={[styles.statsTitle, { color: colors.text }]}>
             Estatísticas
@@ -575,7 +543,7 @@ export default function CocriacaoDetailsScreen() {
             <View style={styles.statItem}>
               <MaterialIcons name="calendar-today" size={20} color={colors.primary} />
               <Text style={[styles.statText, { color: colors.textSecondary }]}>
-                {daysActive} dias ativa
+                {Math.ceil((new Date().getTime() - new Date(cocriation.created_at).getTime()) / (1000 * 60 * 60 * 24))} dias ativa
               </Text>
             </View>
 
@@ -588,7 +556,7 @@ export default function CocriacaoDetailsScreen() {
           </View>
         </SacredCard>
 
-        {/* Celebration Card */}
+        {/* Celebration */}
         <SacredCard glowing style={styles.celebrationCard}>
           <View style={styles.celebrationHeader}>
             <MaterialIcons name="celebration" size={48} color={colors.primary} />
@@ -626,7 +594,6 @@ export default function CocriacaoDetailsScreen() {
   );
 }
 
-// --- ESTILOS (mantidos os mesmos) ---
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -745,6 +712,16 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 1,
+  },
+  statusBadge: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderRadius: 16,
+    height: 28,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   descriptionSection: {
     marginBottom: Spacing.lg,
