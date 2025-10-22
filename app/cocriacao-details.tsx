@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
   Switch,
 } from 'react-native';
-import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router'; // Removido useFocusEffect
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -98,17 +98,12 @@ export default function CocriacaoDetailsScreen() {
     loadCocriationById(id); // Carregamento inicial
   }, [id, loadCocriationById]); // id e a função que depende do cache
 
-  // --- useFocusEffect PRINCIPAL: Ao voltar da edição, recarrega do CACHE ATUALIZADO ---
-  useFocusEffect(
-    useCallback(() => {
-      console.log("Tela ganhou foco. Recarregando dados da cocriação do cache ATUALIZADO.");
-      // Esta função é chamada TODA VEZ que a tela ganha foco.
-      // Como a tela de edição atualizou o cache do hook,
-      // esta chamada encontrará os dados novos.
-      loadCocriationById(id);
-    }, [id, loadCocriationById]) // loadCocriationById já tem cocriations como dependência
-  );
-  // --- FIM DA LÓGICA DE CARREGAMENTO ---
+  // --- REMOVIDO: useFocusEffect para evitar re-renders/carregamentos desnecessários ---
+  // O carregamento inicial é feito pelo useEffect acima.
+  // A navegação da tela de edição (e outras) usa router.replace, garantindo um estado inicial limpo.
+  // Se for necessário reagir a eventos de foco para ações específicas (não carregamento),
+  // um useFocusEffect pode ser adicionado, mas não para o carregamento principal.
+  // --- FIM DA REMOÇÃO E DAS EXPLICAÇÕES ---
 
   const showModal = (
     title: string,
@@ -218,7 +213,8 @@ export default function CocriacaoDetailsScreen() {
       // Atualiza o estado LOCAL imediatamente.
       // O hook já atualizou o cache.
       setCocriation(prev => ({ ...prev, status: newStatus }));
-      // O useFocusEffect também garantirá a sincronização ao voltar de outras telas.
+      // Se outras telas precisarem saber disso imediatamente, essa atualização local é suficiente.
+      // O router.replace nas outras telas garantirá o estado correto ao voltar.
     }
 
     setIsTogglingStatus(false);
@@ -288,7 +284,7 @@ export default function CocriacaoDetailsScreen() {
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => router.push('/(tabs)/individual')}
+            onPress={() => router.push('/(tabs)/individual')} // Volta direto para a lista
           >
             <MaterialIcons name="arrow-back" size={24} color={colors.primary} />
             <Text style={[styles.backText, { color: colors.primary }]}>
