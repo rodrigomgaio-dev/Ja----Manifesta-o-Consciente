@@ -138,23 +138,26 @@ export default function EditIndividualScreen() {
         showModal('Erro', 'Não foi possível salvar as alterações. Tente novamente.', 'error');
       } else {
         console.log('Cocriation updated successfully');
-        // --- MUDANÇA AQUI: REMOVER A LINHA ABAIXO ---
-        // await refresh(); // <-- LINHA REMOVIDA. NÃO FAÇA ISSO MAIS.
+        // --- MUDANÇA AQUI: USAR router.replace AO INVÉS DE refresh() + router.back() ---
         // O hook useIndividualCocriations já atualizou o item específico
         // dentro do seu estado 'cocriations' local. Isso é suficiente e rápido.
-        // --- FIM DA MUDANÇA ---
-
+        // Em vez de voltar para uma tela potencialmente desatualizada ou
+        // forçar um refresh lento, substituímos esta tela pela tela de detalhes.
+        // Isso garante que a tela de detalhes seja carregada "do zero" com os dados atualizados.
         showModal(
           'Sucesso',
           'Cocriação editada com sucesso.',
           'success',
           () => {
-            // Small delay to ensure state is updated before navigation
-            setTimeout(() => {
-              router.back(); // Volta para a tela de detalhes
-            }, 200);
+            // router.replace substitui a tela atual (edição) pela tela de detalhes
+            router.replace(`/cocriacao-details?id=${cocriation.id}`);
+            // A tela cocriacao-details?id=XYZ será montada novamente.
+            // Seu useEffect inicial carregará os dados.
+            // Como o hook useIndividualCocriations já foi atualizado por updateCocriation,
+            // a função de carregamento da tela de detalhes encontrará o item atualizado no cache.
           }
         );
+        // --- FIM DA MUDANÇA ---
       }
     } catch (error) {
       console.error('Unexpected error updating cocriation:', error);
