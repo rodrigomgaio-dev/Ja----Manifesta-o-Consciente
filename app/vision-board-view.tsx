@@ -43,6 +43,7 @@ export default function VisionBoardViewScreen() {
   const [modalVisible, setModalVisible] = useState(false);
 
   const sequenceAnimationValue = useRef(new Animated.Value(0)).current;
+  const blurAnimationValue = useRef(new Animated.Value(0)).current; // ✅ Nova ref para blur
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const animationRef = useRef<Animated.CompositeAnimation | null>(null);
   const currentAnimationType = useRef<Exclude<AnimationType, 'random'>>('fade');
@@ -65,13 +66,12 @@ export default function VisionBoardViewScreen() {
 
   useEffect(() => {
     if (isPlaying && !isPaused && imageItems.length > 0) {
-      startTimer();
       startAnimationCycle();
     } else {
       if (timerRef.current) clearInterval(timerRef.current);
       if (animationRef.current) animationRef.current.stop();
     }
-  }, [isPlaying, isPaused, currentImageIndex, speed]);
+  }, [isPlaying, isPaused, imageItems.length]);
 
   const startTimer = () => {
     if (timerRef.current) clearInterval(timerRef.current);
@@ -100,6 +100,7 @@ export default function VisionBoardViewScreen() {
 
   const startAnimationCycle = () => {
     sequenceAnimationValue.setValue(0);
+    blurAnimationValue.setValue(0);
 
     const currentAnim = selectedAnimation === 'random' 
       ? getRandomAnimation() 
@@ -110,14 +111,14 @@ export default function VisionBoardViewScreen() {
     const baseFadeInDuration = 500;
     const baseEffectDuration = 2500;
     const baseFadeOutDuration = 500;
-    const basePauseDuration = 10;
+    const basePauseDuration = 500;
 
     const fadeInDuration = baseFadeInDuration / speed;
     const effectDuration = baseEffectDuration / speed;
     const fadeOutDuration = baseFadeOutDuration / speed;
     const pauseDuration = basePauseDuration / speed;
 
-    const sequence = Animated.sequence([
+    const mainSequence = Animated.sequence([
       Animated.timing(sequenceAnimationValue, {
         toValue: 0.1,
         duration: fadeInDuration,
@@ -140,23 +141,49 @@ export default function VisionBoardViewScreen() {
       }),
     ]);
 
+    let blurSequence: Animated.CompositeAnimation | null = null;
+    if (currentAnim === 'blur') {
+      // Blur: aumenta suavemente até 5px nos primeiros 40% do efeito, depois diminui
+      blurSequence = Animated.sequence([
+        Animated.timing(blurAnimationValue, {
+          toValue: 0,
+          duration: fadeInDuration,
+          useNativeDriver: false,
+        }),
+        Animated.timing(blurAnimationValue, {
+          toValue: 5,
+          duration: effectDuration * 0.4,
+          useNativeDriver: false,
+        }),
+        Animated.timing(blurAnimationValue, {
+          toValue: 0,
+          duration: effectDuration * 0.6,
+          useNativeDriver: false,
+        }),
+        Animated.timing(blurAnimationValue, {
+          toValue: 0,
+          duration: fadeOutDuration + pauseDuration,
+          useNativeDriver: false,
+        }),
+      ]);
+    }
+
     if (animationRef.current) {
       animationRef.current.stop();
     }
-    animationRef.current = sequence;
+
+    animationRef.current = blurSequence
+      ? Animated.parallel([mainSequence, blurSequence])
+      : mainSequence;
 
     animationRef.current.start(({ finished }) => {
-      if (finished && !isPaused) {
-        const nextIndex = (currentImageIndex + 1) % imageItems.length;
-        setCurrentImageIndex(nextIndex);
-        // Force restart animation even for single image
-        if (imageItems.length === 1) {
-          setTimeout(() => {
-            if (isPlaying && !isPaused) {
-              startAnimationCycle();
-            }
-          }, 10);
-        }
+      if (finished && !isPaused && isPlaying) {
+        setCurrentImageIndex(prev => (prev + 1) % imageItems.length);
+        requestAnimationFrame(() => {
+          if (isPlaying && !isPaused) {
+            startAnimationCycle();
+          }
+        });
       }
     });
   };
@@ -205,6 +232,7 @@ export default function VisionBoardViewScreen() {
     }
 
     if (currentAnim === 'blur') {
+      // Apenas opacidade — blur é controlado diretamente no Image
       return {
         opacity: opacity,
       };
@@ -246,52 +274,22 @@ export default function VisionBoardViewScreen() {
 
     if (currentAnim === 'pulse') {
       const pulseInputRange = [
-        0.0,   // início (fade in ainda não começou)
-        0.1,   // imagem aparece no tamanho normal
-        0.18,  // 1º pulso rápido (expande)
-        0.22,  // 1º retorno rápido (contrai)
-        0.32,  // 2º pulso rápido (expande)
-        0.36,  // 2º retorno rápido (contrai)
-        0.52,  // retorno lento até o normal
-        0.60,  // 3º pulso rápido
-        0.64,  // 3º retorno rápido
-        0.74,  // 4º pulso rápido
-        0.78,  // 4º retorno rápido
-        0.94,  // retorno lento final até o normal
-        0.97,
-        1.0,
+        0.0, 0.1, 0.18, 0.22, 0.32, 0.36, 0.52, 0.60, 0.64, 0.74, 0.78, 0.94, 0.97, 1.0
       ];
-
       const scaleOutputRange = [
-        1.0,   // invisível no início não
-        1.0,   // tamanho normal (início da animação visível)
-        1.12,  // expande (1º pulso)
-        1.0,   // contrai rápido
-        1.12,  // expande (2º pulso)
-        1.0,   // contrai rápido
-        1.0,   // permanece normal durante o "descanso" lento
-        1.12,  // expande (3º pulso)
-        1.0,   // contrai rápido
-        1.12,  // expande (4º pulso)
-        1.0,   // contrai rápido
-        1.0,   // mantém normal até o fade out
-        1.12,   // fade out
-        1.0,
+        0.2, 1.0, 1.12, 1.0, 1.12, 1.0, 1.0, 1.12, 1.0, 1.12, 1.0, 1.0, 0.2, 0.2
       ];
-
       const opacityOutputRange = [
-        1,     // invisível não
-        1,     // visível
-        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
+        0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0
       ];
 
       return {
         opacity: sequenceAnimationValue.interpolate({
           inputRange: pulseInputRange,
-        outputRange: opacityOutputRange,
-         }),
+          outputRange: opacityOutputRange,
+        }),
         transform: [
-              {
+          {
             scale: sequenceAnimationValue.interpolate({
               inputRange: pulseInputRange,
               outputRange: scaleOutputRange,
@@ -306,21 +304,6 @@ export default function VisionBoardViewScreen() {
     };
   };
 
-  const getBlurAmount = () => {
-    if (currentAnimationType.current !== 'blur') return 0;
-
-    const value = sequenceAnimationValue.__getValue();
-    if (value < 0.1 || value > 0.8) return 0;
-
-    const normalizedValue = (value - 0.1) / (0.8 - 0.1);
-
-    if (normalizedValue <= 0.5) {
-      return 10 - (normalizedValue * 2 * 10);
-    } else {
-      return ((normalizedValue - 0.5) * 2) * 10;
-    }
-  };
-
   const handleStart = () => {
     if (imageItems.length === 0) {
       setModalVisible(true);
@@ -333,13 +316,14 @@ export default function VisionBoardViewScreen() {
     setTotalElapsed(0);
     setCurrentImageIndex(0);
     sequenceAnimationValue.setValue(0);
+    blurAnimationValue.setValue(0);
   };
 
   const handlePause = () => {
     setIsPaused(!isPaused);
     if (!isPaused && animationRef.current) {
       animationRef.current.stop();
-    } else {
+    } else if (isPaused) {
       startAnimationCycle();
     }
   };
@@ -351,6 +335,7 @@ export default function VisionBoardViewScreen() {
     if (timerRef.current) clearInterval(timerRef.current);
     if (animationRef.current) animationRef.current.stop();
     sequenceAnimationValue.setValue(0);
+    blurAnimationValue.setValue(0);
   };
 
   const formatTime = (seconds: number) => {
@@ -590,7 +575,11 @@ export default function VisionBoardViewScreen() {
                   contentFit="contain"
                   cachePolicy="memory-disk"
                   transition={0}
-                  blurRadius={currentAnimationType.current === 'blur' ? getBlurAmount() : 0}
+                  blurRadius={
+                    currentAnimationType.current === 'blur'
+                      ? blurAnimationValue
+                      : 0
+                  }
                 />
               ) : (
                 <View style={[styles.placeholderContainer, { backgroundColor: colors.surface + '60' }]}>
