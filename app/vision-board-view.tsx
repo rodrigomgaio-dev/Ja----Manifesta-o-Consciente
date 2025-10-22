@@ -244,7 +244,7 @@ export default function VisionBoardViewScreen() {
 
     if (currentAnim === 'pulse') {
       const pulseInputRange = [0, 0.1, 0.275, 0.45, 0.625, 0.8, 0.9, 1.0];
-      const pulseOutputRange = [0, 1, 1.3, 1, 1.3, 1, 0, 0];
+      const pulseOutputRange = [0, 1, 1.3, 1, 1.3, 1, 1.3, 1, 1.3, 1, 0, 0];
 
       return {
         opacity: sequenceAnimationValue.interpolate({
@@ -273,7 +273,7 @@ export default function VisionBoardViewScreen() {
     const value = sequenceAnimationValue.__getValue();
     if (value < 0.1 || value > 0.8) return 0;
 
-    const normalizedValue = (value - 0.1) / (0.8 - 0.1);
+    const normalizedValue = (value - 0.1) / (0.2 - 0.1);
 
     if (normalizedValue <= 0.5) {
       return 10 - (normalizedValue * 2 * 10);
