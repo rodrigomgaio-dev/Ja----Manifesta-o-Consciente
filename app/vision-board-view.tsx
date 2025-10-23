@@ -16,7 +16,7 @@ import GradientBackground from '@/components/ui/GradientBackground';
 import SacredCard from '@/components/ui/SacredCard';
 import SacredModal from '@/components/ui/SacredModal';
 import { useTheme } from '@/contexts/ThemeContext';
-import { useVisionBoardItems, BoardElement } from '@/hooks/useVisionBoardItems';
+import { useVisionBoardItems } from '@/hooks/useVisionBoardItems';
 import { Spacing } from '@/constants/Colors';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -26,14 +26,13 @@ type DurationType = 30 | 60 | 300 | -1;
 type SpeedType = 0.5 | 1 | 1.5 | 2;
 
 export default function VisionBoardViewScreen() {
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { cocreationId } = useLocalSearchParams<{ cocreationId: string }>();
   const { items, loading } = useVisionBoardItems(cocreationId || '');
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
-  const [showSettings, setShowSettings] = useState(true);
   const [selectedAnimation, setSelectedAnimation] = useState<AnimationType>('fade');
   const [duration, setDuration] = useState<DurationType>(60);
   const [speed, setSpeed] = useState<SpeedType>(1);
@@ -75,11 +74,9 @@ export default function VisionBoardViewScreen() {
 
   const startTimer = () => {
     if (timerRef.current) clearInterval(timerRef.current);
-    
     timerRef.current = setInterval(() => {
       if (!isPaused) {
         setTotalElapsed(prev => prev + 1);
-        
         if (duration !== -1) {
           setTimeRemaining(prev => {
             if (prev <= 1) {
@@ -100,11 +97,9 @@ export default function VisionBoardViewScreen() {
 
   const startAnimationCycle = () => {
     sequenceAnimationValue.setValue(0);
-
     const currentAnim = selectedAnimation === 'random' 
       ? getRandomAnimation() 
       : selectedAnimation;
-
     currentAnimationType.current = currentAnim;
 
     const baseFadeInDuration = 500;
@@ -140,9 +135,7 @@ export default function VisionBoardViewScreen() {
       }),
     ]);
 
-    if (animationRef.current) {
-      animationRef.current.stop();
-    }
+    if (animationRef.current) animationRef.current.stop();
     animationRef.current = sequence;
 
     animationRef.current.start(({ finished }) => {
@@ -151,9 +144,7 @@ export default function VisionBoardViewScreen() {
         setCurrentImageIndex(nextIndex);
         if (imageItems.length === 1) {
           setTimeout(() => {
-            if (isPlaying && !isPaused) {
-              startAnimationCycle();
-            }
+            if (isPlaying && !isPaused) startAnimationCycle();
           }, 10);
         }
       }
@@ -163,9 +154,8 @@ export default function VisionBoardViewScreen() {
   const getAnimatedStyle = () => {
     const currentAnim = currentAnimationType.current;
     const inputRange = [0, 0.1, 0.8, 0.9, 1.0];
-
     const opacity = sequenceAnimationValue.interpolate({
-      inputRange: inputRange,
+      inputRange,
       outputRange: [0, 1, 1, 0, 0],
     });
 
@@ -173,17 +163,9 @@ export default function VisionBoardViewScreen() {
       const isEvenIndex = currentImageIndex % 2 === 0;
       const startX = isEvenIndex ? -SCREEN_WIDTH : SCREEN_WIDTH;
       const endX = isEvenIndex ? SCREEN_WIDTH : -SCREEN_WIDTH;
-
       return {
-        opacity: opacity,
-        transform: [
-          {
-            translateX: sequenceAnimationValue.interpolate({
-              inputRange: [0, 0.1, 0.8, 0.9, 1.0],
-              outputRange: [startX, 0, endX, endX, endX],
-            }),
-          },
-        ],
+        opacity,
+        transform: [{ translateX: sequenceAnimationValue.interpolate({ inputRange: [0, 0.1, 0.8, 0.9, 1.0], outputRange: [startX, 0, endX, endX, endX] }) }],
       };
     }
 
@@ -191,114 +173,46 @@ export default function VisionBoardViewScreen() {
       const flipInputRange = [0, 0.1, 0.45, 0.8, 0.9, 1.0];
       const flipOutputRange = ['0deg', '0deg', '180deg', '0deg', '0deg', '0deg'];
       return {
-        opacity: opacity,
-        transform: [
-          {
-            rotateY: sequenceAnimationValue.interpolate({
-              inputRange: flipInputRange,
-              outputRange: flipOutputRange,
-            }),
-          },
-        ],
+        opacity,
+        transform: [{ rotateY: sequenceAnimationValue.interpolate({ inputRange: flipInputRange, outputRange: flipOutputRange }) }],
       };
     }
 
     if (currentAnim === 'zoom') {
       const zoomInputRange = [0, 0.1, 0.45, 0.8, 0.9, 1.0];
       const zoomOutputRange = [0.2, 0.2, 2.0, 0.2, 0.2, 0.2];
-
       return {
-        opacity: opacity,
-        transform: [
-          {
-            scale: sequenceAnimationValue.interpolate({
-              inputRange: zoomInputRange,
-              outputRange: zoomOutputRange,
-            }),
-          },
-        ],
+        opacity,
+        transform: [{ scale: sequenceAnimationValue.interpolate({ inputRange: zoomInputRange, outputRange: zoomOutputRange }) }],
       };
     }
 
     if (currentAnim === 'pulse') {
-      const pulseInputRange = [
-        0.0,
-        0.1,
-        0.18,
-        0.22,
-        0.32,
-        0.36,
-        0.52,
-        0.60,
-        0.64,
-        0.74,
-        0.78,
-        0.94,
-        0.97,
-        1.0,
-      ];
-
-      const scaleOutputRange = [
-        1.0,
-        1.0,
-        1.12,
-        1.0,
-        1.12,
-        1.0,
-        1.0,
-        1.12,
-        1.0,
-        1.12,
-        1.0,
-        1.0,
-        1.0,
-        1.0,
-      ];
-
+      const pulseInputRange = [0.0, 0.1, 0.18, 0.22, 0.32, 0.36, 0.52, 0.60, 0.64, 0.74, 0.78, 0.94, 0.97, 1.0];
+      const scaleOutputRange = [1.0, 1.0, 1.12, 1.0, 1.12, 1.0, 1.0, 1.12, 1.0, 1.12, 1.0, 1.0, 1.0, 1.0];
       return {
-        opacity: opacity,
-        transform: [
-          {
-            scale: sequenceAnimationValue.interpolate({
-              inputRange: pulseInputRange,
-              outputRange: scaleOutputRange,
-            }),
-          },
-        ],
+        opacity,
+        transform: [{ scale: sequenceAnimationValue.interpolate({ inputRange: pulseInputRange, outputRange: scaleOutputRange }) }],
       };
     }
 
     if (currentAnim === 'slideDown') {
       const translateY = sequenceAnimationValue.interpolate({
         inputRange: [0, 0.1, 0.8, 0.9, 1.0],
-        outputRange: [-SCREEN_HEIGHT * 0.5, 0, 0, SCREEN_HEIGHT * 0.3, SCREEN_HEIGHT * 0.3]
+        outputRange: [-SCREEN_HEIGHT * 0.5, 0, 0, SCREEN_HEIGHT * 0.3, SCREEN_HEIGHT * 0.3],
       });
-
-      return {
-        opacity: opacity,
-        transform: [{ translateY }],
-      };
+      return { opacity, transform: [{ translateY }] };
     }
 
     if (currentAnim === 'slideUp') {
       const translateY = sequenceAnimationValue.interpolate({
         inputRange: [0, 0.1, 0.8, 0.9, 1.0],
-        outputRange: [SCREEN_HEIGHT * 0.3, 0, 0, -SCREEN_HEIGHT * 0.3, -SCREEN_HEIGHT * 0.3]
+        outputRange: [SCREEN_HEIGHT * 0.3, 0, 0, -SCREEN_HEIGHT * 0.3, -SCREEN_HEIGHT * 0.3],
       });
-
-      return {
-        opacity: opacity,
-        transform: [{ translateY }],
-      };
+      return { opacity, transform: [{ translateY }] };
     }
 
-    return {
-      opacity: opacity,
-    };
-  };
-
-  const getBlurAmount = () => {
-    return 0;
+    return { opacity };
   };
 
   const handleStart = () => {
@@ -308,7 +222,6 @@ export default function VisionBoardViewScreen() {
     }
     setIsPlaying(true);
     setIsPaused(false);
-    setShowSettings(false);
     setTimeRemaining(duration === -1 ? 0 : duration);
     setTotalElapsed(0);
     setCurrentImageIndex(0);
@@ -317,17 +230,13 @@ export default function VisionBoardViewScreen() {
 
   const handlePause = () => {
     setIsPaused(!isPaused);
-    if (!isPaused && animationRef.current) {
-      animationRef.current.stop();
-    } else {
-      startAnimationCycle();
-    }
+    if (!isPaused && animationRef.current) animationRef.current.stop();
+    else startAnimationCycle();
   };
 
   const handleStop = () => {
     setIsPlaying(false);
     setIsPaused(false);
-    setShowSettings(true);
     if (timerRef.current) clearInterval(timerRef.current);
     if (animationRef.current) animationRef.current.stop();
     sequenceAnimationValue.setValue(0);
@@ -339,7 +248,7 @@ export default function VisionBoardViewScreen() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const animationOptions: { type: AnimationType; icon: string; label: string }[] = [
+  const animationOptions = [
     { type: 'fade', icon: 'opacity', label: 'Fade' },
     { type: 'slide', icon: 'swap-horiz', label: 'Deslizar' },
     { type: 'zoom', icon: 'zoom-in', label: 'Zoom' },
@@ -350,14 +259,14 @@ export default function VisionBoardViewScreen() {
     { type: 'random', icon: 'shuffle', label: 'Aleatório' },
   ];
 
-  const durationOptions: { value: DurationType; label: string }[] = [
+  const durationOptions = [
     { value: 30, label: '30 segundos' },
     { value: 60, label: '1 minuto' },
     { value: 300, label: '5 minutos' },
     { value: -1, label: 'Sem parar' },
   ];
 
-  const speedOptions: { value: SpeedType; label: string }[] = [
+  const speedOptions = [
     { value: 0.5, label: '0.5x' },
     { value: 1, label: '1x' },
     { value: 1.5, label: '1.5x' },
@@ -386,183 +295,46 @@ export default function VisionBoardViewScreen() {
     <GradientBackground>
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.header}>
-          <TouchableOpacity 
-            style={styles.backButton}
-            onPress={() => router.back()}
-          >
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
             <MaterialIcons name="arrow-back" size={24} color={colors.primary} />
-            <Text style={[styles.backText, { color: colors.primary }]}>
-              Voltar
-            </Text>
+            <Text style={[styles.backText, { color: colors.primary }]}>Voltar</Text>
           </TouchableOpacity>
         </View>
 
-        {showSettings && (
-          <ScrollView 
-            style={styles.settingsContainer}
-            showsVerticalScrollIndicator={false}
-          >
-            <SacredCard style={styles.settingsCard}>
-              <Text style={[styles.settingsTitle, { color: colors.text }]}>
-                Visualização do Vision Board
-              </Text>
-              <Text style={[styles.settingsDescription, { color: colors.textSecondary }]}>
-                Escolha uma animação e duração para meditar com suas imagens
-              </Text>
-
-              <View style={styles.section}>
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                  Tipo de Animação
+        {/* Modo estático: mostra todas as imagens */}
+        {!isPlaying && (
+          <ScrollView contentContainerStyle={styles.staticBoardContainer} showsVerticalScrollIndicator={false}>
+            {imageItems.length === 0 ? (
+              <View style={styles.emptyState}>
+                <MaterialIcons name="dashboard" size={64} color={colors.textMuted} />
+                <Text style={[styles.emptyStateText, { color: colors.textSecondary }]}>
+                  Seu Vision Board está vazio
                 </Text>
-                <View style={styles.optionsGrid}>
-                  {animationOptions.map((option) => (
-                    <TouchableOpacity
-                      key={option.type}
-                      style={[
-                        styles.optionButton,
-                        {
-                          backgroundColor: selectedAnimation === option.type
-                            ? colors.primary + '30'
-                            : colors.surface,
-                          borderColor: selectedAnimation === option.type
-                            ? colors.primary
-                            : colors.border,
-                        },
-                      ]}
-                      onPress={() => setSelectedAnimation(option.type)}
-                    >
-                      <MaterialIcons
-                        name={option.icon as any}
-                        size={24}
-                        color={selectedAnimation === option.type ? colors.primary : colors.textMuted}
-                      />
-                      <Text
-                        style={[
-                          styles.optionLabel,
-                          {
-                            color: selectedAnimation === option.type
-                              ? colors.primary
-                              : colors.textSecondary,
-                          },
-                        ]}
-                      >
-                        {option.label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-
-              <View style={styles.section}>
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                  Duração
+                <Text style={[styles.emptyStateSubtext, { color: colors.textMuted }]}>
+                  Adicione imagens para visualizar.
                 </Text>
-                <View style={styles.durationOptions}>
-                  {durationOptions.map((option) => (
-                    <TouchableOpacity
-                      key={option.value}
-                      style={[
-                        styles.durationButton,
-                        {
-                          backgroundColor: duration === option.value
-                            ? colors.accent + '30'
-                            : colors.surface,
-                          borderColor: duration === option.value
-                            ? colors.accent
-                            : colors.border,
-                        },
-                      ]}
-                      onPress={() => setDuration(option.value)}
-                    >
-                      <Text
-                        style={[
-                          styles.durationLabel,
-                          {
-                            color: duration === option.value
-                              ? colors.accent
-                              : colors.textSecondary,
-                          },
-                        ]}
-                      >
-                        {option.label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
               </View>
-
-              <TouchableOpacity
-                style={[styles.startButton, { backgroundColor: colors.primary }]}
-                onPress={handleStart}
-              >
-                <MaterialIcons name="play-arrow" size={24} color="white" />
-                <Text style={styles.startButtonText}>Iniciar Visualização</Text>
-              </TouchableOpacity>
-            </SacredCard>
-
-            <SacredCard style={styles.infoCard}>
-              <MaterialIcons name="info-outline" size={24} color={colors.primary} />
-              <Text style={[styles.infoText, { color: colors.textSecondary }]}>
-                {imageItems.length === 0
-                  ? 'Adicione imagens ao seu Vision Board para começar a visualização.'
-                  : `${imageItems.length} ${imageItems.length === 1 ? 'imagem' : 'imagens'} encontrada${imageItems.length === 1 ? '' : 's'} no seu Vision Board.`}
-              </Text>
-            </SacredCard>
+            ) : (
+              <View style={styles.imageGrid}>
+                {imageItems.map((item, index) => (
+                  <View key={index} style={styles.staticImageWrapper}>
+                    <Image
+                      source={{ uri: item.uri }}
+                      style={styles.staticImage}
+                      contentFit="cover"
+                      cachePolicy="memory-disk"
+                    />
+                  </View>
+                ))}
+              </View>
+            )}
           </ScrollView>
         )}
 
+        {/* Modo animação: uma imagem por vez */}
         {isPlaying && imageItems.length > 0 && (
           <View style={styles.visualizationContainer}>
-            <View style={styles.topControls}>
-              {duration !== -1 && (
-                <View style={[styles.timerContainer, { backgroundColor: colors.surface + 'CC' }]}>
-                  <MaterialIcons name="timer" size={20} color={colors.primary} />
-                  <Text style={[styles.timerText, { color: colors.text }]}>
-                    {formatTime(timeRemaining)}
-                  </Text>
-                </View>
-              )}
-
-              <View style={[styles.speedContainer, { backgroundColor: colors.surface + 'CC' }]}>
-                <Text style={[styles.speedLabel, { color: colors.textSecondary }]}>
-                  Velocidade:
-                </Text>
-                {speedOptions.map((option) => (
-                  <TouchableOpacity
-                    key={option.value}
-                    style={[
-                      styles.speedButton,
-                      {
-                        backgroundColor: speed === option.value
-                          ? colors.primary
-                          : 'transparent',
-                      },
-                    ]}
-                    onPress={() => setSpeed(option.value)}
-                  >
-                    <Text
-                      style={[
-                        styles.speedButtonText,
-                        {
-                          color: speed === option.value
-                            ? 'white'
-                            : colors.textSecondary,
-                        },
-                      ]}
-                    >
-                      {option.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            <Animated.View 
-              style={[
-                styles.imageContainer, 
-                getAnimatedStyle(),
-              ]}
-            >
+            <Animated.View style={[styles.animatedImageContainer, getAnimatedStyle()]}>
               {imageItems[currentImageIndex]?.uri ? (
                 <Image
                   source={{ uri: imageItems[currentImageIndex].uri }}
@@ -582,24 +354,18 @@ export default function VisionBoardViewScreen() {
               )}
             </Animated.View>
 
-            <View style={styles.bottomControls}>
+            {/* Controles de reprodução */}
+            <View style={styles.playbackControls}>
               {duration !== -1 && (
-                <View style={styles.progressBarContainer}>
-                  <View style={[styles.progressBarBackground, { backgroundColor: colors.surface + '60' }]}>
-                    <View 
-                      style={[
-                        styles.progressBarFill, 
-                        { 
-                          backgroundColor: colors.primary,
-                          width: `${progressPercentage}%`
-                        }
-                      ]} 
-                    />
-                  </View>
+                <View style={[styles.timerContainer, { backgroundColor: colors.surface + 'CC' }]}>
+                  <MaterialIcons name="timer" size={20} color={colors.primary} />
+                  <Text style={[styles.timerText, { color: colors.text }]}>
+                    {formatTime(timeRemaining)}
+                  </Text>
                 </View>
               )}
 
-              <View style={[styles.progressContainer, { backgroundColor: colors.surface + 'CC' }]}>
+              <View style={styles.progressContainer}>
                 <Text style={[styles.progressText, { color: colors.textSecondary }]}>
                   {currentImageIndex + 1} / {imageItems.length}
                 </Text>
@@ -610,11 +376,7 @@ export default function VisionBoardViewScreen() {
                   style={[styles.controlButton, { backgroundColor: colors.surface + 'CC' }]}
                   onPress={handlePause}
                 >
-                  <MaterialIcons 
-                    name={isPaused ? "play-arrow" : "pause"} 
-                    size={28} 
-                    color={colors.primary} 
-                  />
+                  <MaterialIcons name={isPaused ? "play-arrow" : "pause"} size={28} color={colors.primary} />
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -628,6 +390,93 @@ export default function VisionBoardViewScreen() {
           </View>
         )}
 
+        {/* Controles de configuração (sempre visíveis) */}
+        <View style={[styles.controlsPanel, { backgroundColor: colors.surface + 'E0' }]}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.controlsScroll}>
+            <View style={styles.controlsRow}>
+              {/* Animação */}
+              <View style={styles.controlGroup}>
+                <Text style={[styles.controlLabel, { color: colors.text }]}>Animação</Text>
+                <View style={styles.optionsRow}>
+                  {animationOptions.map((option) => (
+                    <TouchableOpacity
+                      key={option.type}
+                      style={[
+                        styles.optionChip,
+                        {
+                          backgroundColor: selectedAnimation === option.type ? colors.primary + '30' : colors.surface,
+                          borderColor: selectedAnimation === option.type ? colors.primary : colors.border,
+                        },
+                      ]}
+                      onPress={() => setSelectedAnimation(option.type)}
+                    >
+                      <Text style={[styles.optionChipText, { color: selectedAnimation === option.type ? colors.primary : colors.textSecondary }]}>
+                        {option.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              {/* Duração */}
+              <View style={styles.controlGroup}>
+                <Text style={[styles.controlLabel, { color: colors.text }]}>Duração</Text>
+                <View style={styles.optionsRow}>
+                  {durationOptions.map((option) => (
+                    <TouchableOpacity
+                      key={option.value}
+                      style={[
+                        styles.optionChip,
+                        {
+                          backgroundColor: duration === option.value ? colors.accent + '30' : colors.surface,
+                          borderColor: duration === option.value ? colors.accent : colors.border,
+                        },
+                      ]}
+                      onPress={() => setDuration(option.value)}
+                    >
+                      <Text style={[styles.optionChipText, { color: duration === option.value ? colors.accent : colors.textSecondary }]}>
+                        {option.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              {/* Velocidade */}
+              <View style={styles.controlGroup}>
+                <Text style={[styles.controlLabel, { color: colors.text }]}>Velocidade</Text>
+                <View style={styles.optionsRow}>
+                  {speedOptions.map((option) => (
+                    <TouchableOpacity
+                      key={option.value}
+                      style={[
+                        styles.optionChip,
+                        {
+                          backgroundColor: speed === option.value ? colors.primary : 'transparent',
+                        },
+                      ]}
+                      onPress={() => setSpeed(option.value)}
+                    >
+                      <Text style={[styles.optionChipText, { color: speed === option.value ? 'white' : colors.textSecondary }]}>
+                        {option.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            </View>
+          </ScrollView>
+
+          <TouchableOpacity
+            style={[styles.playButton, { backgroundColor: colors.primary }]}
+            onPress={handleStart}
+            disabled={imageItems.length === 0}
+          >
+            <MaterialIcons name="play-arrow" size={24} color="white" />
+            <Text style={styles.playButtonText}>Iniciar Visualização</Text>
+          </TouchableOpacity>
+        </View>
+
         <SacredModal
           visible={modalVisible}
           title="Vision Board Vazio"
@@ -640,26 +489,17 @@ export default function VisionBoardViewScreen() {
   );
 }
 
+const ITEM_SIZE = (SCREEN_WIDTH - Spacing.lg * 2 - Spacing.sm * 2) / 3;
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    fontSize: 16,
-    fontWeight: '500',
-  },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: Spacing.lg,
-    marginTop: Spacing.lg,
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.md,
   },
   backButton: {
     flexDirection: 'row',
@@ -670,141 +510,52 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginLeft: Spacing.xs,
   },
-  settingsContainer: {
-    flex: 1,
+  staticBoardContainer: {
+    flexGrow: 1,
     paddingHorizontal: Spacing.lg,
+    paddingBottom: 220, // espaço para o painel de controles
   },
-  settingsCard: {
-    marginBottom: Spacing.lg,
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: Spacing.xl,
   },
-  settingsTitle: {
-    fontSize: 24,
-    fontWeight: '600',
+  emptyStateText: {
+    fontSize: 18,
+    fontWeight: '500',
+    marginTop: Spacing.md,
     marginBottom: Spacing.sm,
   },
-  settingsDescription: {
+  emptyStateSubtext: {
     fontSize: 14,
+    textAlign: 'center',
     lineHeight: 20,
-    marginBottom: Spacing.xl,
   },
-  section: {
-    marginBottom: Spacing.xl,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: Spacing.md,
-  },
-  optionsGrid: {
+  imageGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    justifyContent: 'space-between',
     gap: Spacing.sm,
   },
-  optionButton: {
-    width: (SCREEN_WIDTH - Spacing.lg * 2 - 80 - Spacing.sm * 3) / 4,
-    aspectRatio: 1,
+  staticImageWrapper: {
+    width: ITEM_SIZE,
+    height: ITEM_SIZE,
     borderRadius: 12,
-    borderWidth: 2,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: Spacing.sm,
+    overflow: 'hidden',
   },
-  optionLabel: {
-    fontSize: 11,
-    fontWeight: '500',
-    marginTop: Spacing.xs,
-    textAlign: 'center',
-  },
-  durationOptions: {
-    gap: Spacing.sm,
-  },
-  durationButton: {
-    padding: Spacing.md,
-    borderRadius: 12,
-    borderWidth: 2,
-    alignItems: 'center',
-  },
-  durationLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  startButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: Spacing.md,
-    borderRadius: 12,
-    marginTop: Spacing.md,
-  },
-  startButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: Spacing.sm,
-  },
-  infoCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-    marginBottom: Spacing.xl,
-  },
-  infoText: {
-    flex: 1,
-    fontSize: 14,
-    lineHeight: 20,
+  staticImage: {
+    width: '100%',
+    height: '100%',
   },
   visualizationContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  topControls: {
-    position: 'absolute',
-    top: Spacing.lg,
-    left: Spacing.lg,
-    right: Spacing.lg,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    zIndex: 10,
-  },
-  timerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: 20,
-    gap: Spacing.xs,
-  },
-  timerText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  speedContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.xs,
-    borderRadius: 20,
-    gap: Spacing.xs,
-  },
-  speedLabel: {
-    fontSize: 12,
-    fontWeight: '500',
-    marginRight: Spacing.xs,
-  },
-  speedButton: {
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  speedButtonText: {
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  imageContainer: {
+  animatedImageContainer: {
     width: SCREEN_WIDTH,
-    height: SCREEN_HEIGHT * 0.65,
+    height: SCREEN_HEIGHT * 0.6,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -824,32 +575,30 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginTop: Spacing.md,
   },
-  bottomControls: {
+  playbackControls: {
     position: 'absolute',
-    bottom: Spacing.xl,
+    bottom: 180,
     left: Spacing.lg,
     right: Spacing.lg,
     alignItems: 'center',
-    gap: Spacing.md,
+    gap: Spacing.sm,
   },
-  progressBarContainer: {
-    width: '100%',
-    marginBottom: Spacing.sm,
+  timerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: 20,
+    gap: Spacing.xs,
   },
-  progressBarBackground: {
-    height: 4,
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    height: '100%',
-    borderRadius: 2,
+  timerText: {
+    fontSize: 16,
+    fontWeight: '600',
   },
   progressContainer: {
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     borderRadius: 20,
-    marginBottom: Spacing.sm,
   },
   progressText: {
     fontSize: 14,
@@ -858,7 +607,6 @@ const styles = StyleSheet.create({
   controlButtons: {
     flexDirection: 'row',
     gap: Spacing.md,
-    alignItems: 'center',
   },
   controlButton: {
     width: 56,
@@ -866,5 +614,74 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  controlsPanel: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: Spacing.md,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  controlsScroll: {
+    marginBottom: Spacing.md,
+  },
+  controlsRow: {
+    flexDirection: 'row',
+    gap: Spacing.lg,
+    paddingRight: Spacing.lg,
+  },
+  controlGroup: {
+    minWidth: 200,
+  },
+  controlLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: Spacing.sm,
+  },
+  optionsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.xs,
+  },
+  optionChip: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    borderRadius: 12,
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  optionChipText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  playButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.md,
+    borderRadius: 12,
+  },
+  playButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: Spacing.sm,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 16,
+    fontWeight: '500',
   },
 });
