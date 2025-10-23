@@ -260,17 +260,17 @@ export default function VisionBoardViewScreen() {
   ];
 
   const durationOptions = [
-    { value: 30, label: '30 segundos' },
-    { value: 60, label: '1 minuto' },
-    { value: 300, label: '5 minutos' },
-    { value: -1, label: 'Sem parar' },
+    { value: 30, label: '30s', icon: 'timer' },
+    { value: 60, label: '1min', icon: 'timer' },
+    { value: 300, label: '5min', icon: 'timer' },
+    { value: -1, label: 'Infinito', icon: 'hourglass-empty' },
   ];
 
   const speedOptions = [
-    { value: 0.5, label: '0.5x' },
-    { value: 1, label: '1x' },
-    { value: 1.5, label: '1.5x' },
-    { value: 2, label: '2x' },
+    { value: 0.5, label: '0.5x', icon: 'slow-motion-video' },
+    { value: 1, label: '1x', icon: 'play-speed' },
+    { value: 1.5, label: '1.5x', icon: 'fast-forward' },
+    { value: 2, label: '2x', icon: 'fast-forward' },
   ];
 
   const progressPercentage = duration !== -1 && duration > 0
@@ -301,7 +301,6 @@ export default function VisionBoardViewScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Modo estático: mostra todas as imagens */}
         {!isPlaying && (
           <ScrollView contentContainerStyle={styles.staticBoardContainer} showsVerticalScrollIndicator={false}>
             {imageItems.length === 0 ? (
@@ -331,7 +330,6 @@ export default function VisionBoardViewScreen() {
           </ScrollView>
         )}
 
-        {/* Modo animação: uma imagem por vez */}
         {isPlaying && imageItems.length > 0 && (
           <View style={styles.visualizationContainer}>
             <Animated.View style={[styles.animatedImageContainer, getAnimatedStyle()]}>
@@ -354,7 +352,6 @@ export default function VisionBoardViewScreen() {
               )}
             </Animated.View>
 
-            {/* Controles de reprodução */}
             <View style={styles.playbackControls}>
               {duration !== -1 && (
                 <View style={[styles.timerContainer, { backgroundColor: colors.surface + 'CC' }]}>
@@ -390,79 +387,114 @@ export default function VisionBoardViewScreen() {
           </View>
         )}
 
-        {/* Controles de configuração (sempre visíveis) */}
         <View style={[styles.controlsPanel, { backgroundColor: colors.surface + 'E0' }]}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.controlsScroll}>
-            <View style={styles.controlsRow}>
-              {/* Animação */}
-              <View style={styles.controlGroup}>
-                <Text style={[styles.controlLabel, { color: colors.text }]}>Animação</Text>
-                <View style={styles.optionsRow}>
-                  {animationOptions.map((option) => (
-                    <TouchableOpacity
-                      key={option.type}
+          <ScrollView showsVerticalScrollIndicator={false} style={styles.controlsScroll}>
+            {/* Animação */}
+            <View style={styles.section}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Tipo de Animação</Text>
+              <View style={styles.optionsGrid}>
+                {animationOptions.map((option) => (
+                  <TouchableOpacity
+                    key={option.type}
+                    style={[
+                      styles.optionButton,
+                      {
+                        backgroundColor: selectedAnimation === option.type ? colors.primary + '30' : colors.surface,
+                        borderColor: selectedAnimation === option.type ? colors.primary : colors.border,
+                      },
+                    ]}
+                    onPress={() => setSelectedAnimation(option.type)}
+                  >
+                    <MaterialIcons
+                      name={option.icon as any}
+                      size={24}
+                      color={selectedAnimation === option.type ? colors.primary : colors.textMuted}
+                    />
+                    <Text
                       style={[
-                        styles.optionChip,
+                        styles.optionLabel,
                         {
-                          backgroundColor: selectedAnimation === option.type ? colors.primary + '30' : colors.surface,
-                          borderColor: selectedAnimation === option.type ? colors.primary : colors.border,
+                          color: selectedAnimation === option.type ? colors.primary : colors.textSecondary,
                         },
                       ]}
-                      onPress={() => setSelectedAnimation(option.type)}
                     >
-                      <Text style={[styles.optionChipText, { color: selectedAnimation === option.type ? colors.primary : colors.textSecondary }]}>
-                        {option.label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
               </View>
+            </View>
 
-              {/* Duração */}
-              <View style={styles.controlGroup}>
-                <Text style={[styles.controlLabel, { color: colors.text }]}>Duração</Text>
-                <View style={styles.optionsRow}>
-                  {durationOptions.map((option) => (
-                    <TouchableOpacity
-                      key={option.value}
+            {/* Duração */}
+            <View style={styles.section}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Duração</Text>
+              <View style={styles.durationOptions}>
+                {durationOptions.map((option) => (
+                  <TouchableOpacity
+                    key={option.value}
+                    style={[
+                      styles.durationButton,
+                      {
+                        backgroundColor: duration === option.value ? colors.accent + '30' : colors.surface,
+                        borderColor: duration === option.value ? colors.accent : colors.border,
+                      },
+                    ]}
+                    onPress={() => setDuration(option.value)}
+                  >
+                    <MaterialIcons
+                      name={option.icon as any}
+                      size={20}
+                      color={duration === option.value ? colors.accent : colors.textSecondary}
+                    />
+                    <Text
                       style={[
-                        styles.optionChip,
+                        styles.durationLabel,
                         {
-                          backgroundColor: duration === option.value ? colors.accent + '30' : colors.surface,
-                          borderColor: duration === option.value ? colors.accent : colors.border,
+                          color: duration === option.value ? colors.accent : colors.textSecondary,
                         },
                       ]}
-                      onPress={() => setDuration(option.value)}
                     >
-                      <Text style={[styles.optionChipText, { color: duration === option.value ? colors.accent : colors.textSecondary }]}>
-                        {option.label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
               </View>
+            </View>
 
-              {/* Velocidade */}
-              <View style={styles.controlGroup}>
-                <Text style={[styles.controlLabel, { color: colors.text }]}>Velocidade</Text>
-                <View style={styles.optionsRow}>
-                  {speedOptions.map((option) => (
-                    <TouchableOpacity
-                      key={option.value}
+            {/* Velocidade */}
+            <View style={styles.section}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Velocidade</Text>
+              <View style={styles.speedOptions}>
+                {speedOptions.map((option) => (
+                  <TouchableOpacity
+                    key={option.value}
+                    style={[
+                      styles.speedButton,
+                      {
+                        backgroundColor: speed === option.value ? colors.primary : 'transparent',
+                        borderColor: speed === option.value ? 'white' : colors.border,
+                        borderWidth: speed === option.value ? 2 : 1,
+                      },
+                    ]}
+                    onPress={() => setSpeed(option.value)}
+                  >
+                    <MaterialIcons
+                      name={option.icon as any}
+                      size={20}
+                      color={speed === option.value ? 'white' : colors.textSecondary}
+                    />
+                    <Text
                       style={[
-                        styles.optionChip,
+                        styles.speedLabel,
                         {
-                          backgroundColor: speed === option.value ? colors.primary : 'transparent',
+                          color: speed === option.value ? 'white' : colors.textSecondary,
                         },
                       ]}
-                      onPress={() => setSpeed(option.value)}
                     >
-                      <Text style={[styles.optionChipText, { color: speed === option.value ? 'white' : colors.textSecondary }]}>
-                        {option.label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
               </View>
             </View>
           </ScrollView>
@@ -513,7 +545,7 @@ const styles = StyleSheet.create({
   staticBoardContainer: {
     flexGrow: 1,
     paddingHorizontal: Spacing.lg,
-    paddingBottom: 220, // espaço para o painel de controles
+    paddingBottom: 400, // espaço para painel de controles
   },
   emptyState: {
     flex: 1,
@@ -577,7 +609,7 @@ const styles = StyleSheet.create({
   },
   playbackControls: {
     position: 'absolute',
-    bottom: 180,
+    bottom: 320,
     left: Spacing.lg,
     right: Spacing.lg,
     alignItems: 'center',
@@ -622,52 +654,89 @@ const styles = StyleSheet.create({
     right: 0,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    padding: Spacing.md,
+    padding: Spacing.lg,
+    paddingTop: Spacing.md,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
   },
   controlsScroll: {
+    maxHeight: 300,
+  },
+  section: {
+    marginBottom: Spacing.xl,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
     marginBottom: Spacing.md,
   },
-  controlsRow: {
-    flexDirection: 'row',
-    gap: Spacing.lg,
-    paddingRight: Spacing.lg,
-  },
-  controlGroup: {
-    minWidth: 200,
-  },
-  controlLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: Spacing.sm,
-  },
-  optionsRow: {
+  optionsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: Spacing.xs,
+    gap: Spacing.sm,
   },
-  optionChip: {
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.xs,
-    borderRadius: 12,
-    borderWidth: 1,
+  optionButton: {
+    width: (SCREEN_WIDTH - Spacing.lg * 2 - Spacing.sm * 3) / 4,
+    aspectRatio: 1,
+    borderRadius: 14,
+    borderWidth: 2,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: Spacing.sm,
   },
-  optionChipText: {
-    fontSize: 12,
+  optionLabel: {
+    fontSize: 11,
     fontWeight: '500',
+    marginTop: Spacing.xs,
+    textAlign: 'center',
+  },
+  durationOptions: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  durationButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Spacing.md,
+    borderRadius: 14,
+    borderWidth: 2,
+    gap: Spacing.xs,
+  },
+  durationLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  speedOptions: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  speedButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Spacing.md,
+    borderRadius: 14,
+    gap: Spacing.xs,
+  },
+  speedLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   playButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: Spacing.md,
-    borderRadius: 12,
+    borderRadius: 14,
+    marginTop: Spacing.md,
   },
   playButtonText: {
     color: 'white',
