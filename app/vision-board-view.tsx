@@ -13,7 +13,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import GradientBackground from '@/components/ui/GradientBackground';
-import SacredCard from '@/components/ui/SacredCard';
 import SacredModal from '@/components/ui/SacredModal';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useVisionBoardItems } from '@/hooks/useVisionBoardItems';
@@ -273,10 +272,6 @@ export default function VisionBoardViewScreen() {
     { value: 2, label: '2x', icon: 'fast-forward' },
   ];
 
-  const progressPercentage = duration !== -1 && duration > 0
-    ? ((duration - timeRemaining) / duration) * 100
-    : 0;
-
   if (loading) {
     return (
       <GradientBackground>
@@ -294,23 +289,88 @@ export default function VisionBoardViewScreen() {
   return (
     <GradientBackground>
       <View style={[styles.container, { paddingTop: insets.top }]}>
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-            <MaterialIcons name="arrow-back" size={24} color={colors.primary} />
-            <Text style={[styles.backText, { color: colors.primary }]}>Voltar</Text>
-          </TouchableOpacity>
+        {/* Topo: Duração e Velocidade */}
+        <View style={styles.topControls}>
+          <View style={styles.topRow}>
+            <View style={styles.topSection}>
+              <Text style={[styles.topLabel, { color: colors.textSecondary }]}>Duração</Text>
+              <View style={styles.durationList}>
+                {durationOptions.map((option) => (
+                  <TouchableOpacity
+                    key={option.value}
+                    style={[
+                      styles.topButton,
+                      {
+                        backgroundColor: duration === option.value ? colors.accent + '20' : 'transparent',
+                        borderColor: duration === option.value ? colors.accent : colors.border,
+                      },
+                    ]}
+                    onPress={() => setDuration(option.value)}
+                  >
+                    <MaterialIcons
+                      name={option.icon as any}
+                      size={16}
+                      color={duration === option.value ? colors.accent : colors.textMuted}
+                    />
+                    <Text
+                      style={[
+                        styles.topButtonText,
+                        { color: duration === option.value ? colors.accent : colors.textSecondary },
+                      ]}
+                    >
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.topSection}>
+              <Text style={[styles.topLabel, { color: colors.textSecondary }]}>Velocidade</Text>
+              <View style={styles.speedList}>
+                {speedOptions.map((option) => (
+                  <TouchableOpacity
+                    key={option.value}
+                    style={[
+                      styles.topButton,
+                      {
+                        backgroundColor: speed === option.value ? colors.primary + '20' : 'transparent',
+                        borderColor: speed === option.value ? colors.primary : colors.border,
+                      },
+                    ]}
+                    onPress={() => setSpeed(option.value)}
+                  >
+                    <MaterialIcons
+                      name={option.icon as any}
+                      size={16}
+                      color={speed === option.value ? colors.primary : colors.textMuted}
+                    />
+                    <Text
+                      style={[
+                        styles.topButtonText,
+                        { color: speed === option.value ? colors.primary : colors.textSecondary },
+                      ]}
+                    >
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          </View>
         </View>
 
-        {!isPlaying && (
-          <ScrollView contentContainerStyle={styles.staticBoardContainer} showsVerticalScrollIndicator={false}>
+        {/* Centro: Grid ou Animação */}
+        {!isPlaying ? (
+          <ScrollView
+            contentContainerStyle={styles.centerContent}
+            showsVerticalScrollIndicator={false}
+          >
             {imageItems.length === 0 ? (
               <View style={styles.emptyState}>
-                <MaterialIcons name="dashboard" size={64} color={colors.textMuted} />
+                <MaterialIcons name="dashboard" size={48} color={colors.textMuted} />
                 <Text style={[styles.emptyStateText, { color: colors.textSecondary }]}>
                   Seu Vision Board está vazio
-                </Text>
-                <Text style={[styles.emptyStateSubtext, { color: colors.textMuted }]}>
-                  Adicione imagens para visualizar.
                 </Text>
               </View>
             ) : (
@@ -328,10 +388,8 @@ export default function VisionBoardViewScreen() {
               </View>
             )}
           </ScrollView>
-        )}
-
-        {isPlaying && imageItems.length > 0 && (
-          <View style={styles.visualizationContainer}>
+        ) : (
+          <View style={styles.centerContent}>
             <Animated.View style={[styles.animatedImageContainer, getAnimatedStyle()]}>
               {imageItems[currentImageIndex]?.uri ? (
                 <Image
@@ -340,173 +398,88 @@ export default function VisionBoardViewScreen() {
                   contentFit="contain"
                   cachePolicy="memory-disk"
                   transition={0}
-                  blurRadius={0}
                 />
               ) : (
                 <View style={[styles.placeholderContainer, { backgroundColor: colors.surface + '60' }]}>
-                  <MaterialIcons name="broken-image" size={64} color={colors.textMuted} />
-                  <Text style={[styles.placeholderText, { color: colors.textMuted }]}>
-                    Imagem não disponível
-                  </Text>
+                  <MaterialIcons name="broken-image" size={48} color={colors.textMuted} />
                 </View>
               )}
             </Animated.View>
-
-            <View style={styles.playbackControls}>
-              {duration !== -1 && (
-                <View style={[styles.timerContainer, { backgroundColor: colors.surface + 'CC' }]}>
-                  <MaterialIcons name="timer" size={20} color={colors.primary} />
-                  <Text style={[styles.timerText, { color: colors.text }]}>
-                    {formatTime(timeRemaining)}
-                  </Text>
-                </View>
-              )}
-
-              <View style={styles.progressContainer}>
-                <Text style={[styles.progressText, { color: colors.textSecondary }]}>
-                  {currentImageIndex + 1} / {imageItems.length}
-                </Text>
-              </View>
-
-              <View style={styles.controlButtons}>
-                <TouchableOpacity
-                  style={[styles.controlButton, { backgroundColor: colors.surface + 'CC' }]}
-                  onPress={handlePause}
-                >
-                  <MaterialIcons name={isPaused ? "play-arrow" : "pause"} size={28} color={colors.primary} />
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.controlButton, { backgroundColor: colors.error + 'CC' }]}
-                  onPress={handleStop}
-                >
-                  <MaterialIcons name="stop" size={28} color="white" />
-                </TouchableOpacity>
-              </View>
-            </View>
           </View>
         )}
 
-        <View style={[styles.controlsPanel, { backgroundColor: colors.surface + 'E0' }]}>
-          <ScrollView showsVerticalScrollIndicator={false} style={styles.controlsScroll}>
-            {/* Animação */}
-            <View style={styles.section}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>Tipo de Animação</Text>
-              <View style={styles.optionsGrid}>
-                {animationOptions.map((option) => (
-                  <TouchableOpacity
-                    key={option.type}
+        {/* Efeitos (logo acima dos controles) */}
+        <View style={[styles.effectsPanel, { backgroundColor: colors.surface + 'C0' }]}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.effectsScroll}>
+            <View style={styles.effectsRow}>
+              {animationOptions.map((option) => (
+                <TouchableOpacity
+                  key={option.type}
+                  style={[
+                    styles.effectButton,
+                    {
+                      backgroundColor: selectedAnimation === option.type ? colors.primary + '30' : colors.surface,
+                      borderColor: selectedAnimation === option.type ? colors.primary : colors.border,
+                    },
+                  ]}
+                  onPress={() => setSelectedAnimation(option.type)}
+                >
+                  <MaterialIcons
+                    name={option.icon as any}
+                    size={18}
+                    color={selectedAnimation === option.type ? colors.primary : colors.textMuted}
+                  />
+                  <Text
                     style={[
-                      styles.optionButton,
+                      styles.effectLabel,
                       {
-                        backgroundColor: selectedAnimation === option.type ? colors.primary + '30' : colors.surface,
-                        borderColor: selectedAnimation === option.type ? colors.primary : colors.border,
+                        color: selectedAnimation === option.type ? colors.primary : colors.textSecondary,
                       },
                     ]}
-                    onPress={() => setSelectedAnimation(option.type)}
                   >
-                    <MaterialIcons
-                      name={option.icon as any}
-                      size={24}
-                      color={selectedAnimation === option.type ? colors.primary : colors.textMuted}
-                    />
-                    <Text
-                      style={[
-                        styles.optionLabel,
-                        {
-                          color: selectedAnimation === option.type ? colors.primary : colors.textSecondary,
-                        },
-                      ]}
-                    >
-                      {option.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            {/* Duração */}
-            <View style={styles.section}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>Duração</Text>
-              <View style={styles.durationOptions}>
-                {durationOptions.map((option) => (
-                  <TouchableOpacity
-                    key={option.value}
-                    style={[
-                      styles.durationButton,
-                      {
-                        backgroundColor: duration === option.value ? colors.accent + '30' : colors.surface,
-                        borderColor: duration === option.value ? colors.accent : colors.border,
-                      },
-                    ]}
-                    onPress={() => setDuration(option.value)}
-                  >
-                    <MaterialIcons
-                      name={option.icon as any}
-                      size={20}
-                      color={duration === option.value ? colors.accent : colors.textSecondary}
-                    />
-                    <Text
-                      style={[
-                        styles.durationLabel,
-                        {
-                          color: duration === option.value ? colors.accent : colors.textSecondary,
-                        },
-                      ]}
-                    >
-                      {option.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            {/* Velocidade */}
-            <View style={styles.section}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>Velocidade</Text>
-              <View style={styles.speedOptions}>
-                {speedOptions.map((option) => (
-                  <TouchableOpacity
-                    key={option.value}
-                    style={[
-                      styles.speedButton,
-                      {
-                        backgroundColor: speed === option.value ? colors.primary : 'transparent',
-                        borderColor: speed === option.value ? 'white' : colors.border,
-                        borderWidth: speed === option.value ? 2 : 1,
-                      },
-                    ]}
-                    onPress={() => setSpeed(option.value)}
-                  >
-                    <MaterialIcons
-                      name={option.icon as any}
-                      size={20}
-                      color={speed === option.value ? 'white' : colors.textSecondary}
-                    />
-                    <Text
-                      style={[
-                        styles.speedLabel,
-                        {
-                          color: speed === option.value ? 'white' : colors.textSecondary,
-                        },
-                      ]}
-                    >
-                      {option.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+                    {option.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
             </View>
           </ScrollView>
+        </View>
 
-          <TouchableOpacity
-            style={[styles.playButton, { backgroundColor: colors.primary }]}
-            onPress={handleStart}
-            disabled={imageItems.length === 0}
-          >
-            <MaterialIcons name="play-arrow" size={24} color="white" />
-            <Text style={styles.playButtonText}>Iniciar Visualização</Text>
-          </TouchableOpacity>
+        {/* Controles de reprodução (parte inferior) */}
+        <View style={styles.bottomControls}>
+          {isPlaying && (
+            <View style={styles.timerRow}>
+              <MaterialIcons name="timer" size={16} color={colors.primary} />
+              <Text style={[styles.timerText, { color: colors.text }]}>
+                {formatTime(timeRemaining)}
+              </Text>
+              <Text style={[styles.progressText, { color: colors.textSecondary }]}>
+                • {currentImageIndex + 1} / {imageItems.length}
+              </Text>
+            </View>
+          )}
+
+          <View style={styles.playbackButtons}>
+            <TouchableOpacity
+              style={[styles.playButton, { backgroundColor: colors.primary }]}
+              onPress={isPlaying ? handlePause : handleStart}
+            >
+              <MaterialIcons
+                name={isPlaying && !isPaused ? "pause" : "play-arrow"}
+                size={28}
+                color="white"
+              />
+            </TouchableOpacity>
+
+            {isPlaying && (
+              <TouchableOpacity
+                style={[styles.stopButton, { backgroundColor: colors.error }]}
+                onPress={handleStop}
+              >
+                <MaterialIcons name="stop" size={24} color="white" />
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
 
         <SacredModal
@@ -516,6 +489,13 @@ export default function VisionBoardViewScreen() {
           type="info"
           onClose={() => setModalVisible(false)}
         />
+
+        {/* Botão Voltar */}
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+            <MaterialIcons name="arrow-back" size={24} color={colors.primary} />
+          </TouchableOpacity>
+        </View>
       </View>
     </GradientBackground>
   );
@@ -528,41 +508,72 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.lg,
-    marginBottom: Spacing.md,
+    position: 'absolute',
+    top: Spacing.lg,
+    left: Spacing.lg,
+    zIndex: 10,
   },
   backButton: {
-    flexDirection: 'row',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  backText: {
-    fontSize: 16,
-    fontWeight: '500',
-    marginLeft: Spacing.xs,
-  },
-  staticBoardContainer: {
-    flexGrow: 1,
+  topControls: {
     paddingHorizontal: Spacing.lg,
-    paddingBottom: 400, // espaço para painel de controles
+    paddingTop: Spacing.sm,
+    paddingBottom: Spacing.md,
+  },
+  topRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: Spacing.lg,
+  },
+  topSection: {
+    flex: 1,
+  },
+  topLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: Spacing.xs,
+    textTransform: 'uppercase',
+  },
+  durationList: {
+    gap: Spacing.xs,
+  },
+  speedList: {
+    gap: Spacing.xs,
+  },
+  topButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: Spacing.xs,
+    paddingHorizontal: Spacing.sm,
+    borderRadius: 10,
+    borderWidth: 1,
+    gap: Spacing.xs,
+  },
+  topButtonText: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  centerContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.lg,
   },
   emptyState: {
-    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: Spacing.xl,
   },
   emptyStateText: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '500',
-    marginTop: Spacing.md,
-    marginBottom: Spacing.sm,
-  },
-  emptyStateSubtext: {
-    fontSize: 14,
-    textAlign: 'center',
-    lineHeight: 20,
+    marginTop: Spacing.sm,
   },
   imageGrid: {
     flexDirection: 'row',
@@ -573,21 +584,16 @@ const styles = StyleSheet.create({
   staticImageWrapper: {
     width: ITEM_SIZE,
     height: ITEM_SIZE,
-    borderRadius: 12,
+    borderRadius: 10,
     overflow: 'hidden',
   },
   staticImage: {
     width: '100%',
     height: '100%',
   },
-  visualizationContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   animatedImageContainer: {
-    width: SCREEN_WIDTH,
-    height: SCREEN_HEIGHT * 0.6,
+    width: '100%',
+    height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -598,151 +604,77 @@ const styles = StyleSheet.create({
   placeholderContainer: {
     width: '90%',
     height: '90%',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 16,
-  },
-  placeholderText: {
-    fontSize: 16,
-    fontWeight: '500',
-    marginTop: Spacing.md,
-  },
-  playbackControls: {
-    position: 'absolute',
-    bottom: 320,
-    left: Spacing.lg,
-    right: Spacing.lg,
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  timerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: 20,
-    gap: Spacing.xs,
-  },
-  timerText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  progressContainer: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: 20,
-  },
-  progressText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  controlButtons: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-  },
-  controlButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  controlsPanel: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: Spacing.lg,
-    paddingTop: Spacing.md,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
+  effectsPanel: {
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.05)',
   },
-  controlsScroll: {
-    maxHeight: 300,
+  effectsScroll: {
+    flexGrow: 0,
   },
-  section: {
-    marginBottom: Spacing.xl,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: Spacing.md,
-  },
-  optionsGrid: {
+  effectsRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'center',
     gap: Spacing.sm,
   },
-  optionButton: {
-    width: (SCREEN_WIDTH - Spacing.lg * 2 - Spacing.sm * 3) / 4,
-    aspectRatio: 1,
+  effectButton: {
+    width: 72,
+    height: 72,
     borderRadius: 14,
     borderWidth: 2,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: Spacing.sm,
+    padding: Spacing.xs,
   },
-  optionLabel: {
-    fontSize: 11,
+  effectLabel: {
+    fontSize: 10,
     fontWeight: '500',
     marginTop: Spacing.xs,
     textAlign: 'center',
   },
-  durationOptions: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
+  bottomControls: {
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.lg + 20,
+    paddingTop: Spacing.md,
+    alignItems: 'center',
   },
-  durationButton: {
-    flex: 1,
+  timerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    padding: Spacing.md,
-    borderRadius: 14,
-    borderWidth: 2,
     gap: Spacing.xs,
+    marginBottom: Spacing.md,
   },
-  durationLabel: {
-    fontSize: 13,
+  timerText: {
+    fontSize: 14,
     fontWeight: '600',
-    textAlign: 'center',
   },
-  speedOptions: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
+  progressText: {
+    fontSize: 13,
+    fontWeight: '500',
   },
-  speedButton: {
-    flex: 1,
+  playbackButtons: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    padding: Spacing.md,
-    borderRadius: 14,
-    gap: Spacing.xs,
-  },
-  speedLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    textAlign: 'center',
+    gap: Spacing.lg,
   },
   playButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     justifyContent: 'center',
-    paddingVertical: Spacing.md,
-    borderRadius: 14,
-    marginTop: Spacing.md,
+    alignItems: 'center',
   },
-  playButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: Spacing.sm,
+  stopButton: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   loadingContainer: {
     flex: 1,
