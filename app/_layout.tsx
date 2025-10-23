@@ -37,6 +37,9 @@ function RootNavigator() {
       <Stack.Screen name="circle-invite" />
       <Stack.Screen name="invitation-details" />
       <Stack.Screen name="alignment-ritual" />
+      <Stack.Screen name="completion-ritual" />
+      <Stack.Screen name="symbolic-nft" />
+      <Stack.Screen name="completed-cocreations" />
     </Stack>
   );
 }

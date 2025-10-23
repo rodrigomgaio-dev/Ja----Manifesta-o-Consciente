@@ -191,6 +191,32 @@ export default function CocriacaoDetailsScreen() {
     router.push(`/future-letter?cocreationId=${cocriation.id}&from=details`);
   };
 
+  const handleCompleteCocriation = () => {
+    showModal(
+      'Você sente que isso já é real?',
+      'Ao confirmar, sua jornada de cocriação será concluída e você receberá seu NFT Simbólico.',
+      'info',
+      [
+        {
+          text: 'Ainda não',
+          variant: 'outline',
+          onPress: () => {},
+        },
+        {
+          text: 'Sim, já é!',
+          variant: 'primary',
+          onPress: confirmCompletion,
+        },
+      ]
+    );
+  };
+
+  const confirmCompletion = () => {
+    setModalVisible(false);
+    // Navegar para o ritual de conclusão
+    router.push(`/completion-ritual?id=${cocriation.id}`);
+  };
+
   const canToggleStatus = (cocriation: any) => {
     const visionBoardDone = cocriation.vision_board_completed;
     const scheduleDone = cocriation.practice_schedule_completed;
@@ -556,29 +582,27 @@ export default function CocriacaoDetailsScreen() {
           </View>
         </SacredCard>
 
-        {/* Celebration */}
-        <SacredCard glowing style={styles.celebrationCard}>
-          <View style={styles.celebrationHeader}>
-            <MaterialIcons name="celebration" size={48} color={colors.primary} />
-            <Text style={[styles.celebrationTitle, { color: colors.text }]}>
-              Celebração
+        {/* Celebration - Apenas para cocriações ativas */}
+        {cocriation.status === 'active' && (
+          <SacredCard glowing style={styles.celebrationCard}>
+            <View style={styles.celebrationHeader}>
+              <MaterialIcons name="celebration" size={48} color={colors.primary} />
+              <Text style={[styles.celebrationTitle, { color: colors.text }]}>
+                Celebração
+              </Text>
+            </View>
+            <Text style={[styles.celebrationDescription, { color: colors.textSecondary }]}>
+              Quando sentir que sua cocriação já é real e todos os seus objetivos foram alcançados,
+              você pode concluir esta jornada e receber seu NFT simbólico de conquista.
             </Text>
-          </View>
-          <Text style={[styles.celebrationDescription, { color: colors.textSecondary }]}>
-            Quando sentir que sua cocriação já é real e todos os seus objetivos foram alcançados,
-            você pode concluir esta jornada e receber seu NFT simbólico de conquista.
-          </Text>
-          <SacredButton
-            title="Concluir Cocriação"
-            onPress={() => showModal(
-              'Em Desenvolvimento',
-              'A funcionalidade de conclusão será implementada em breve.',
-              'info'
-            )}
-            style={styles.celebrationButton}
-            icon={<MaterialIcons name="check-circle" size={20} color="white" />}
-          />
-        </SacredCard>
+            <SacredButton
+              title="Concluir Cocriação"
+              onPress={handleCompleteCocriation}
+              style={styles.celebrationButton}
+              icon={<MaterialIcons name="check-circle" size={20} color="white" />}
+            />
+          </SacredCard>
+        )}
 
         {/* Modal */}
         <SacredModal

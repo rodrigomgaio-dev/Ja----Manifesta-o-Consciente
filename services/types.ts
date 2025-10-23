@@ -250,10 +250,12 @@ export interface IndividualCocriation {
   description?: string;
   mental_code?: string;
   why_reason?: string;
-  status: 'active' | 'completed' | 'paused';
+  status: 'active' | 'completed' | 'paused' | 'defining' | 'inactive';
   completion_date?: string;
   nft_generated: boolean;
   vision_board_completed: boolean;
+  practice_schedule_completed?: boolean;
+  future_letter_completed?: boolean | null;
   created_at: string;
   updated_at: string;
   cover_image_url?: string;

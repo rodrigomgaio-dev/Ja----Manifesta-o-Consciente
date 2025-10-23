@@ -197,6 +197,27 @@ export default function PerfilScreen() {
           </View>
         </SacredCard>
 
+        {/* Cocriações Concluídas */}
+        <SacredCard style={styles.settingsCard}>
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => router.push('/completed-cocreations')}
+          >
+            <View style={styles.menuItemLeft}>
+              <MaterialIcons name="verified" size={24} color={colors.accent} />
+              <View style={styles.menuItemText}>
+                <Text style={[styles.menuItemTitle, { color: colors.text }]}>
+                  Minhas Cocriações Concluídas
+                </Text>
+                <Text style={[styles.menuItemDescription, { color: colors.textSecondary }]}>
+                  Visualize seus NFTs Simbólicos
+                </Text>
+              </View>
+            </View>
+            <MaterialIcons name="chevron-right" size={24} color={colors.textMuted} />
+          </TouchableOpacity>
+        </SacredCard>
+
         {/* App Info */}
         <SacredCard style={styles.infoCard}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>
@@ -437,5 +458,27 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     textAlign: 'center',
     lineHeight: 22,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  menuItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: Spacing.md,
+  },
+  menuItemText: {
+    flex: 1,
+  },
+  menuItemTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  menuItemDescription: {
+    fontSize: 12,
   },
 });
