@@ -106,7 +106,7 @@ export default function CirculosScreen() {
             Círculos de Cocriação
           </Text>
           <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-            Manifestação coletiva em silêncio sagrado
+            Cocriação coletiva em silêncio sagrado
           </Text>
         </View>
 
@@ -122,7 +122,7 @@ export default function CirculosScreen() {
               Criar Círculo
             </Text>
             <Text style={[styles.createDescription, { color: colors.textSecondary }]}>
-              Forme um grupo íntimo de até 13 pessoas para manifestar um propósito comum
+              Forme um grupo íntimo de até 13 pessoas para cocriarem um propósito comum
             </Text>            <SacredButton
               title="Criar Agora"
               onPress={handleCreateNew}
@@ -181,7 +181,7 @@ export default function CirculosScreen() {
                 Seu primeiro círculo te aguarda
               </Text>
               <Text style={[styles.emptyDescription, { color: colors.textMuted }]}>
-                Crie ou participe de um círculo para manifestar em comunhão
+                Crie ou participe de um Círculo de Cocriação
               </Text>
             </View>
           )}

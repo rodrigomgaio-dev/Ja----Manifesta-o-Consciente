@@ -103,7 +103,7 @@ export default function PraticasScreen() {
             Intenção do Dia
           </Text>
           <Text style={[styles.intentionText, { color: colors.textSecondary }]}>
-            "Hoje me conecto com minha essência divina e manifesto a partir do amor"
+            "Hoje me conecto com minha essência divina e cocrio minha nova realidade"
           </Text>
           <SacredButton
             title="Definir Nova Intenção"

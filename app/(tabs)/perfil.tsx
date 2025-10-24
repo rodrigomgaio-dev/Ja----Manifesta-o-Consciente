@@ -122,7 +122,7 @@ export default function PerfilScreen() {
             Meu Perfil
           </Text>
           <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-            Sua jornada de manifestação consciente
+            Sua jornada de cocriação consciente
           </Text>
         </View>
 
@@ -228,7 +228,7 @@ export default function PerfilScreen() {
             <View style={styles.infoItem}>
               <MaterialIcons name="auto-awesome" size={20} color={colors.primary} />
               <Text style={[styles.infoText, { color: colors.textSecondary }]}>
-                Manifestação através da presença consciente
+                Cocriação consciente através da presença
               </Text>
             </View>
             
@@ -286,8 +286,8 @@ export default function PerfilScreen() {
         {/* Sacred Quote */}
         <SacredCard style={styles.quoteCard}>
           <Text style={[styles.quote, { color: colors.textSecondary }]}>
-            "A transformação acontece quando nos conectamos com nossa essência 
-            e manifestamos a partir do amor incondicional."
+            "A transformação acontece quando nos conectamos com nossa essência, 
+            e - nesta alta frequência - cocriamos uma nova realidade."
           </Text>
         </SacredCard>
       </ScrollView>

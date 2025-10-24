@@ -65,7 +65,7 @@ export default function HomeScreen() {
             Jaé
           </Text>
           <Text style={[styles.tagline, { color: colors.textSecondary }]}>
-            Transforme a manifestação em um ritual de{'\n'}presença, silêncio e emoção
+            Transforme sua cocriação em um ritual de{'\n'}presença, silêncio e clara intenção.
           </Text>
         </View>
 
@@ -109,7 +109,7 @@ export default function HomeScreen() {
         {/* Quote */}
         <View style={styles.quoteContainer}>
           <Text style={[styles.quote, { color: colors.textSecondary }]}>
-            "A manifestação acontece no silêncio da presença, onde{'\n'}intenção e emoção se encontram."
+            "A sua cocriação consciente acontece no silêncio da presença, onde{'\n'}intenção e emoção se encontram."
           </Text>
         </View>
       </ScrollView>

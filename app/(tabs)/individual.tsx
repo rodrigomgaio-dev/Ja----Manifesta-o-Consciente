@@ -182,7 +182,7 @@ export default function IndividualScreen() {
                     Momentos de Cocriação
                   </Text>
                   <Text style={[styles.mysticSubtitle, { color: colors.textSecondary }]}>
-                    Pratique e manifeste sua realidade
+                    Pratique e cocrie sua nova realidade
                   </Text>
                 </View>
               </LinearGradient>
@@ -235,7 +235,7 @@ export default function IndividualScreen() {
                 Nova Cocriação
               </Text>
               <Text style={[styles.createDescription, { color: colors.textSecondary }]}>
-                Inicie uma nova jornada de manifestação com seu Vision Board personalizado
+                Inicie uma nova jornada de cocriação consciente com seu Vision Board personalizado
               </Text>
               <SacredButton
                 title="Começar Agora"
@@ -306,7 +306,7 @@ export default function IndividualScreen() {
                 Sua primeira jornada te espera
               </Text>
               <Text style={[styles.emptyDescription, { color: colors.textMuted }]}>
-                Crie sua primeira cocriação e comece a manifestar seus sonhos
+                Crie sua primeira cocriação e transforme sua realidade
               </Text>
             </View>
           )}
