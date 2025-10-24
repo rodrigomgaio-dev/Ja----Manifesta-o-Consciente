@@ -66,23 +66,35 @@ export default function SymbolicNFTScreen() {
     Alert.alert(
       'Salvar seu Certificado',
       'Para guardar este momento sagrado, tire um print da tela:\n\n• Android: pressione os botões **Volume + Liga/Desliga** ao mesmo tempo.\n• iOS: pressione **Lateral + Volume +**.',
-      [
-        { text: 'OK', style: 'default' },
-        {
-          text: 'Compartilhar',
-          onPress: handleShare,
-        },
-      ]
+      [{ text: 'OK', style: 'default' }]
     );
   };
 
   const handleShare = async () => {
-    try {
-      const message = `Meu NFT Simbólico de Cocriação: "${cocriation?.title}"\n\nJá é!\n\nGerado no Jaé App — cocriação consciente.`;
-      await Sharing.shareAsync('', { dialogTitle: 'Compartilhar NFT Simbólico', mimeType: 'text/plain', ...Platform.OS === 'ios' ? { subject: 'Meu NFT Simbólico' } : {} });
-    } catch (error) {
-      console.error('Erro ao compartilhar:', error);
-      Alert.alert('Erro', 'Não foi possível compartilhar.');
+    if (!cocriation) return;
+
+    const message = `Meu NFT Simbólico de Cocriação: "${cocriation.title}"\n\nJá é!\n\nGerado no Jaé App — cocriação consciente.`;
+
+    if (Platform.OS === 'web') {
+      try {
+        await navigator.clipboard.writeText(message);
+        Alert.alert(
+          'Copiado!',
+          'O texto foi copiado para a área de transferência. Cole em qualquer app para compartilhar.'
+        );
+      } catch (err) {
+        Alert.alert('Erro', 'Não foi possível copiar o texto.');
+      }
+    } else {
+      try {
+        await Sharing.shareAsync(message, {
+          dialogTitle: 'Compartilhar NFT Simbólico',
+          ...Platform.OS === 'ios' ? { subject: 'Meu NFT Simbólico' } : {},
+        });
+      } catch (error) {
+        console.error('Erro ao compartilhar:', error);
+        Alert.alert('Erro', 'Não foi possível compartilhar. Tente copiar o texto manualmente.');
+      }
     }
   };
 
