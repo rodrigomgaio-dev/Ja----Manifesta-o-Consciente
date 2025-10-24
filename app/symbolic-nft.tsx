@@ -1,26 +1,25 @@
-// app/symbolic-nft.tsx
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  Platform,
   Alert,
-  Share,
+  Platform,
   ScrollView,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import * as MediaLibrary from 'expo-media-library';
-import ViewShot, { captureRef } from 'react-native-view-shot';
+import { Image } from 'expo-image';
+import * as Sharing from 'expo-sharing';
 import GradientBackground from '@/components/ui/GradientBackground';
 import SacredCard from '@/components/ui/SacredCard';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useIndividualCocriations } from '@/hooks/useIndividualCocriations';
 import { useAuth } from '@/contexts/AuthContext';
+import { useVisionBoardItems } from '@/hooks/useVisionBoardItems';
 import { Spacing } from '@/constants/Colors';
 
 export default function SymbolicNFTScreen() {
@@ -29,34 +28,29 @@ export default function SymbolicNFTScreen() {
   const insets = useSafeAreaInsets();
   const { cocreationId } = useLocalSearchParams<{ cocreationId: string }>();
   const { cocriations } = useIndividualCocriations();
+  const { items: visionBoardItems } = useVisionBoardItems(cocreationId || '');
   
   const [cocriation, setCocriation] = useState<any>(null);
   const [symbolicHash, setSymbolicHash] = useState('');
-  const [isDownloading, setIsDownloading] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
-  
-  const nftCardRef = useRef<View>(null);
 
   useEffect(() => {
     if (cocreationId) {
       const found = cocriations.find(c => c.id === cocreationId);
       if (found) {
         setCocriation(found);
-        // Gerar hash simbólico
         generateSymbolicHash(found);
       }
     }
   }, [cocreationId, cocriations]);
 
   const generateSymbolicHash = (cocriation: any) => {
-    // Gerar um hash simbólico baseado nos dados da cocriação
     const data = `${cocriation.id}${cocriation.title}${cocriation.created_at}${user?.id}`;
     const hash = Array.from(data)
       .reduce((acc, char) => acc + char.charCodeAt(0), 0)
       .toString(16)
       .padStart(64, '0')
       .substring(0, 64);
-    
     setSymbolicHash(`0x${hash.substring(0, 8)}...${hash.substring(56, 64)}`);
   };
 
@@ -68,69 +62,27 @@ export default function SymbolicNFTScreen() {
     });
   };
 
-  const handleDownload = async () => {
-    try {
-      setIsDownloading(true);
-
-      // Solicitar permissão
-      const { status } = await MediaLibrary.requestPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert(
-          'Permissão Negada',
-          'É necessário permitir o acesso à galeria para salvar a imagem.'
-        );
-        setIsDownloading(false);
-        return;
-      }
-
-      // Capturar a view como imagem
-      if (nftCardRef.current) {
-        const uri = await captureRef(nftCardRef, {
-          format: 'png',
-          quality: 1,
-        });
-
-        // Salvar na galeria
-        await MediaLibrary.createAssetAsync(uri);
-
-        if (Platform.OS === 'web') {
-          alert('NFT Simbólico salvo com sucesso!');
-        } else {
-          Alert.alert(
-            'Sucesso!',
-            'Seu NFT Simbólico foi salvo na galeria.',
-            [{ text: 'OK' }]
-          );
-        }
-      }
-    } catch (error) {
-      console.error('Error downloading NFT:', error);
-      Alert.alert('Erro', 'Não foi possível salvar a imagem. Tente novamente.');
-    } finally {
-      setIsDownloading(false);
-    }
+  const handleDownload = () => {
+    Alert.alert(
+      'Salvar seu Certificado',
+      'Para guardar este momento sagrado, tire um print da tela:\n\n• Android: pressione os botões **Volume + Liga/Desliga** ao mesmo tempo.\n• iOS: pressione **Lateral + Volume +**.',
+      [
+        { text: 'OK', style: 'default' },
+        {
+          text: 'Compartilhar',
+          onPress: handleShare,
+        },
+      ]
+    );
   };
 
   const handleShare = async () => {
     try {
-      if (nftCardRef.current) {
-        const uri = await captureRef(nftCardRef, {
-          format: 'png',
-          quality: 1,
-        });
-
-        if (Platform.OS === 'web') {
-          // No web, apenas mostrar mensagem
-          alert('Compartilhamento disponível apenas em dispositivos móveis.');
-        } else {
-          await Share.share({
-            message: `Meu NFT Simbólico de Cocriação: ${cocriation?.title}`,
-            url: uri,
-          });
-        }
-      }
+      const message = `Meu NFT Simbólico de Cocriação: "${cocriation?.title}"\n\nJá é!\n\nGerado no Jaé App — cocriação consciente.`;
+      await Sharing.shareAsync('', { dialogTitle: 'Compartilhar NFT Simbólico', mimeType: 'text/plain', ...Platform.OS === 'ios' ? { subject: 'Meu NFT Simbólico' } : {} });
     } catch (error) {
-      console.error('Error sharing NFT:', error);
+      console.error('Erro ao compartilhar:', error);
+      Alert.alert('Erro', 'Não foi possível compartilhar.');
     }
   };
 
@@ -152,6 +104,10 @@ export default function SymbolicNFTScreen() {
     );
   }
 
+  // Filtrar apenas imagens do Vision Board
+  const imageItems = visionBoardItems.filter(item => item.type === 'image' && item.content);
+  const previewImages = imageItems.slice(0, 4); // Máximo de 4
+
   return (
     <GradientBackground>
       <ScrollView
@@ -168,90 +124,86 @@ export default function SymbolicNFTScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* NFT Card */}
-        <View style={styles.nftContainer}>
-          <View ref={nftCardRef} collapsable={false}>
-            <LinearGradient
-              colors={['#1a0b2e', '#2d1b4e', '#4a2c6e', '#6B46C1']}
-              style={styles.nftCard}
-            >
-              {/* Background Pattern */}
-              <View style={styles.backgroundPattern}>
-                <MaterialIcons name="auto-awesome" size={200} color="rgba(139, 92, 246, 0.1)" />
-              </View>
+        {/* Certificado */}
+        <View style={styles.certificateContainer}>
+          <LinearGradient
+            colors={['#1a0b2e', '#2d1b4e', '#4a2c6e', '#6B46C1']}
+            style={styles.certificateCard}
+          >
+            {/* Badge */}
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>CERTIFICADO DE COCRIAÇÃO</Text>
+            </View>
 
-              {/* Header Badge */}
-              <View style={styles.nftBadge}>
-                <Text style={styles.nftBadgeText}>COCRIAÇÃO</Text>
-              </View>
+            {/* Frase Central */}
+            <View style={styles.mainContent}>
+              <Text style={styles.mainText}>Já é.</Text>
+              <Text style={styles.subtitle}>Gratidão pela cocriação.</Text>
+            </View>
 
-              {/* Main Content */}
-              <View style={styles.nftMainContent}>
-                <View style={styles.nftIconContainer}>
-                  <MaterialIcons name="verified" size={60} color="#FBBF24" />
+            {/* Título e Código Mental */}
+            <View style={styles.titleSection}>
+              <Text style={styles.cocriationTitle}>{cocriation.title}</Text>
+              {cocriation.mental_code && (
+                <View style={[styles.mentalCodeBadge, { backgroundColor: colors.primary }]}>
+                  <Text style={styles.mentalCodeText}>{cocriation.mental_code}</Text>
                 </View>
+              )}
+            </View>
 
-                <Text style={styles.nftTitle}>{cocriation.title}</Text>
-                
-                {cocriation.mental_code && (
-                  <Text style={styles.nftMentalCode}>{cocriation.mental_code}</Text>
-                )}
+            {/* Preview das Imagens */}
+            {previewImages.length > 0 && (
+              <View style={styles.imageGrid}>
+                {previewImages.map((item, index) => (
+                  <View key={index} style={styles.imageItem}>
+                    <Image
+                      source={{ uri: item.content }}
+                      style={styles.previewImage}
+                      contentFit="cover"
+                    />
+                  </View>
+                ))}
+                {previewImages.length < 4 &&
+                  Array.from({ length: 4 - previewImages.length }).map((_, i) => (
+                    <View key={`empty-${i}`} style={[styles.imageItem, styles.emptyImageItem]}>
+                      <MaterialIcons name="image" size={24} color="rgba(255,255,255,0.2)" />
+                    </View>
+                  ))}
               </View>
+            )}
 
-              {/* Completion Info */}
-              <View style={styles.nftInfo}>
-                <View style={styles.nftInfoRow}>
-                  <MaterialIcons name="person" size={16} color="rgba(255,255,255,0.7)" />
-                  <Text style={styles.nftInfoText}>
-                    {user?.full_name || user?.email?.split('@')[0] || 'Cocriador'}
-                  </Text>
-                </View>
+            {/* Informações */}
+            <View style={styles.infoSection}>
+              <Text style={styles.userText}>
+                Por: {user?.full_name || 'Cocriador'}
+              </Text>
+              <Text style={styles.dateText}>
+                Concluída em {formatDate(cocriation.completion_date || new Date().toISOString())}
+              </Text>
+            </View>
 
-                <View style={styles.nftInfoRow}>
-                  <MaterialIcons name="calendar-today" size={16} color="rgba(255,255,255,0.7)" />
-                  <Text style={styles.nftInfoText}>
-                    {formatDate(cocriation.completion_date || new Date().toISOString())}
-                  </Text>
-                </View>
-              </View>
+            {/* Hash Simbólico */}
+            <View style={styles.hashSection}>
+              <Text style={styles.hashLabel}>Hash Simbólico:</Text>
+              <Text style={styles.hashValue}>{symbolicHash}</Text>
+            </View>
 
-              {/* Quote */}
-              <View style={styles.nftQuote}>
-                <Text style={styles.nftQuoteText}>
-                  "Cocriado com intenção, emoção e presença."
-                </Text>
-              </View>
-
-              {/* Hash */}
-              <View style={styles.nftHash}>
-                <Text style={styles.nftHashLabel}>Hash Simbólico:</Text>
-                <Text style={styles.nftHashValue}>{symbolicHash}</Text>
-              </View>
-
-              {/* Footer */}
-              <View style={styles.nftFooter}>
-                <MaterialIcons name="auto-awesome" size={16} color="rgba(251, 191, 36, 0.8)" />
-                <Text style={styles.nftFooterText}>Jaé App</Text>
-              </View>
-            </LinearGradient>
-          </View>
+            {/* Footer */}
+            <View style={styles.footer}>
+              <MaterialIcons name="auto-awesome" size={16} color="rgba(251, 191, 36, 0.8)" />
+              <Text style={styles.footerText}>Jaé App</Text>
+            </View>
+          </LinearGradient>
         </View>
 
-        {/* Action Buttons */}
+        {/* Ações */}
         <View style={styles.actionsContainer}>
           <TouchableOpacity
             style={[styles.actionButton, { backgroundColor: colors.primary }]}
             onPress={handleDownload}
-            disabled={isDownloading}
           >
-            <MaterialIcons 
-              name={isDownloading ? 'hourglass-empty' : 'download'} 
-              size={24} 
-              color="white" 
-            />
-            <Text style={styles.actionButtonText}>
-              {isDownloading ? 'Salvando...' : 'Baixar'}
-            </Text>
+            <MaterialIcons name="download" size={24} color="white" />
+            <Text style={styles.actionButtonText}>Salvar (Print)</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -283,38 +235,16 @@ export default function SymbolicNFTScreen() {
           {showInfo && (
             <View style={styles.infoContent}>
               <Text style={[styles.infoText, { color: colors.textSecondary }]}>
-                Este NFT Simbólico é um certificado emocional da sua conquista. 
-                Ele representa sua jornada de cocriação e pode ser guardado como 
-                uma lembrança significativa.
+                Este é um certificado emocional da sua conquista. Representa sua jornada de cocriação e pode ser guardado como lembrança sagrada.
               </Text>
-              
-              <View style={styles.infoSection}>
-                <Text style={[styles.infoSectionTitle, { color: colors.text }]}>
-                  Como criar um NFT real?
-                </Text>
-                <Text style={[styles.infoText, { color: colors.textSecondary }]}>
-                  Você pode usar esta imagem para criar um NFT real em plataformas 
-                  blockchain como OpenSea, Rarible ou outras. Basta fazer upload da 
-                  imagem salva e seguir o processo de criação (minting) da plataforma.
-                </Text>
-              </View>
-
-              <View style={styles.infoSection}>
-                <Text style={[styles.infoSectionTitle, { color: colors.text }]}>
-                  Principais plataformas:
-                </Text>
-                <Text style={[styles.infoText, { color: colors.textSecondary }]}>
-                  • OpenSea (opensea.io){'\n'}
-                  • Rarible (rarible.com){'\n'}
-                  • Mintable (mintable.app){'\n'}
-                  • Foundation (foundation.app)
-                </Text>
-              </View>
+              <Text style={[styles.infoText, { color: colors.textSecondary, marginTop: Spacing.md }]}>
+                Para criar um NFT real, você pode usar esta imagem como base em plataformas como OpenSea ou Rarible.
+              </Text>
             </View>
           )}
         </SacredCard>
 
-        {/* Navigation Button */}
+        {/* Botão Final */}
         <TouchableOpacity
           style={[styles.completeButton, { backgroundColor: colors.success }]}
           onPress={handleClose}
@@ -339,6 +269,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
+    color: '#fff',
   },
   header: {
     flexDirection: 'row',
@@ -350,118 +281,139 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 28,
     fontWeight: '600',
+    color: '#fff',
   },
-  nftContainer: {
-    marginBottom: Spacing.xl,
+  certificateContainer: {
     alignItems: 'center',
+    marginBottom: Spacing.xl,
   },
-  nftCard: {
-    width: 340,
-    minHeight: 480,
+  certificateCard: {
+    width: '100%',
+    maxWidth: 360,
+    minHeight: 520,
     borderRadius: 24,
     padding: Spacing.xl,
-    shadowColor: '#8B5CF6',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 16,
-    elevation: 10,
     position: 'relative',
     overflow: 'hidden',
   },
-  backgroundPattern: {
-    position: 'absolute',
-    top: -50,
-    right: -50,
-    opacity: 0.3,
-  },
-  nftBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(251, 191, 36, 0.3)',
+  badge: {
+    alignSelf: 'center',
+    backgroundColor: 'rgba(251, 191, 36, 0.2)',
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.xs,
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(251, 191, 36, 0.5)',
     marginBottom: Spacing.xl,
+    borderWidth: 1,
+    borderColor: 'rgba(251, 191, 36, 0.4)',
   },
-  nftBadgeText: {
+  badgeText: {
     color: '#FBBF24',
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '700',
     letterSpacing: 2,
+    textTransform: 'uppercase',
   },
-  nftMainContent: {
+  mainContent: {
     alignItems: 'center',
     marginBottom: Spacing.xl,
   },
-  nftIconContainer: {
+  mainText: {
+    fontSize: 64,
+    fontWeight: '300',
+    color: 'white',
+    textAlign: 'center',
+    letterSpacing: 6,
+    marginBottom: Spacing.md,
+  },
+  subtitle: {
+    fontSize: 18,
+    fontStyle: 'italic',
+    color: 'rgba(255,255,255,0.9)',
+    textAlign: 'center',
+  },
+  titleSection: {
+    alignItems: 'center',
     marginBottom: Spacing.lg,
   },
-  nftTitle: {
-    fontSize: 24,
+  cocriationTitle: {
+    fontSize: 22,
     fontWeight: '600',
     color: 'white',
     textAlign: 'center',
     marginBottom: Spacing.sm,
   },
-  nftMentalCode: {
-    fontSize: 14,
+  mentalCodeBadge: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderRadius: 12,
+  },
+  mentalCodeText: {
+    color: 'white',
+    fontSize: 12,
     fontWeight: '700',
-    color: '#FBBF24',
-    letterSpacing: 2,
+    letterSpacing: 1,
   },
-  nftInfo: {
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-    paddingVertical: Spacing.md,
-    marginBottom: Spacing.lg,
-    gap: Spacing.sm,
-  },
-  nftInfoRow: {
+  imageGrid: {
     flexDirection: 'row',
-    alignItems: 'center',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
     gap: Spacing.sm,
+    marginBottom: Spacing.lg,
   },
-  nftInfoText: {
+  imageItem: {
+    width: 70,
+    height: 70,
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
+  emptyImageItem: {
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  previewImage: {
+    width: '100%',
+    height: '100%',
+  },
+  infoSection: {
+    alignItems: 'center',
+    marginBottom: Spacing.lg,
+    gap: Spacing.xs,
+  },
+  userText: {
     fontSize: 14,
     color: 'rgba(255,255,255,0.9)',
   },
-  nftQuote: {
-    marginBottom: Spacing.lg,
-  },
-  nftQuoteText: {
-    fontSize: 12,
-    fontStyle: 'italic',
+  dateText: {
+    fontSize: 14,
     color: 'rgba(255,255,255,0.8)',
-    textAlign: 'center',
-    lineHeight: 18,
   },
-  nftHash: {
+  hashSection: {
     backgroundColor: 'rgba(0,0,0,0.3)',
     padding: Spacing.md,
     borderRadius: 12,
     marginBottom: Spacing.lg,
   },
-  nftHashLabel: {
+  hashLabel: {
     fontSize: 10,
     color: 'rgba(255,255,255,0.6)',
     marginBottom: 4,
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
-  nftHashValue: {
+  hashValue: {
     fontSize: 12,
     color: 'rgba(255,255,255,0.9)',
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
   },
-  nftFooter: {
+  footer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.xs,
+    marginTop: 'auto',
   },
-  nftFooterText: {
+  footerText: {
     fontSize: 12,
     color: 'rgba(255,255,255,0.7)',
     fontWeight: '600',
@@ -497,21 +449,15 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 18,
     fontWeight: '600',
+    color: '#fff',
   },
   infoContent: {
     marginTop: Spacing.lg,
-    gap: Spacing.lg,
   },
   infoText: {
     fontSize: 14,
     lineHeight: 22,
-  },
-  infoSection: {
-    gap: Spacing.sm,
-  },
-  infoSectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
+    color: 'rgba(255,255,255,0.8)',
   },
   completeButton: {
     flexDirection: 'row',
