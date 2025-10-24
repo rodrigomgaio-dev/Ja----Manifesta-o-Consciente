@@ -7,19 +7,21 @@ import {
   TouchableOpacity,
   ScrollView,
   Modal,
+  Share,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
+import * as FileSystem from 'expo-file-system';
+import * as MediaLibrary from 'expo-media-library';
 import GradientBackground from '@/components/ui/GradientBackground';
 import SacredCard from '@/components/ui/SacredCard';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useIndividualCocriations } from '@/hooks/useIndividualCocriations';
 import { useAuth } from '@/contexts/AuthContext';
 import { useVisionBoardItems } from '@/hooks/useVisionBoardItems';
-import { useDailyPractices } from '@/hooks/useDailyPractices'; // Assumindo que existe
 import { Spacing } from '@/constants/Colors';
 
 export default function SymbolicNFTScreen() {
@@ -29,18 +31,11 @@ export default function SymbolicNFTScreen() {
   const { cocreationId } = useLocalSearchParams<{ cocreationId: string }>();
   const { cocriations } = useIndividualCocriations();
   const { items: visionBoardItems } = useVisionBoardItems(cocreationId || '');
-  const { practices } = useDailyPractices(cocreationId || '');
 
   const [cocriation, setCocriation] = useState<any>(null);
   const [symbolicHash, setSymbolicHash] = useState('');
   const [showInfo, setShowInfo] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
-
-  // Seleção de conteúdo para o NFT
-  const [selectedGratitudes, setSelectedGratitudes] = useState<string[]>([]);
-  const [selectedMantra, setSelectedMantra] = useState<string | null>(null);
-  const [selectedMeditation, setSelectedMeditation] = useState<string | null>(null);
-  const [selectedAffirmations, setSelectedAffirmations] = useState<string[]>([]);
 
   useEffect(() => {
     if (cocreationId) {
@@ -82,6 +77,30 @@ export default function SymbolicNFTScreen() {
     setIsFullScreen(false);
   };
 
+  const handleDownload = async () => {
+    try {
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== 'granted') {
+        alert('Precisamos de permissão para salvar a imagem na galeria.');
+        return;
+      }
+      alert('Funcionalidade de download será implementada com react-native-view-shot');
+    } catch (error) {
+      console.error('Error downloading:', error);
+      alert('Erro ao baixar o NFT');
+    }
+  };
+
+  const handleShare = async () => {
+    try {
+      await Share.share({
+        message: `🌟 Cocriação Realizada!\n\n"${cocriation?.title}"\n\nCocriado com intenção, emoção e presença.\n\nHash: ${symbolicHash}`,
+      });
+    } catch (error) {
+      console.error('Error sharing:', error);
+    }
+  };
+
   if (!cocriation) {
     return (
       <GradientBackground>
@@ -96,12 +115,6 @@ export default function SymbolicNFTScreen() {
     );
   }
 
-  // Filtrar práticas por tipo
-  const gratitudes = practices.filter(p => p.type === 'gratitude').slice(0, 3);
-  const mantras = practices.filter(p => p.type === 'mantra').slice(0, 1);
-  const meditations = practices.filter(p => p.type === 'meditation').slice(0, 1);
-  const affirmations = practices.filter(p => p.type === 'affirmation').slice(0, 3);
-
   // Filtrar imagens do Vision Board
   const imageItems = visionBoardItems.filter(item => item.type === 'image' && item.content);
   const previewImages = imageItems.slice(0, 4);
@@ -115,153 +128,460 @@ export default function SymbolicNFTScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Text style={[styles.headerTitle, { color: colors.text }]}>
-            Personalizar NFT Simbólico
+            NFT Simbólico
           </Text>
           <TouchableOpacity onPress={handleClose}>
             <MaterialIcons name="close" size={28} color={colors.textMuted} />
           </TouchableOpacity>
         </View>
 
-        {/* Seções de Seleção */}
-        {gratitudes.length > 0 && (
-          <SacredCard style={styles.selectionCard}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>
-              Gratidões (até 3)
-            </Text>
-            {gratitudes.map((g, i) => (
-              <TouchableOpacity
-                key={g.id}
-                style={[
-                  styles.selectionItem,
-                  { borderColor: selectedGratitudes.includes(g.id) ? colors.primary : colors.border }
-                ]}
-                onPress={() => {
-                  if (selectedGratitudes.includes(g.id)) {
-                    setSelectedGratitudes(prev => prev.filter(id => id !== g.id));
-                  } else if (selectedGratitudes.length < 3) {
-                    setSelectedGratitudes(prev => [...prev, g.id]);
-                  }
-                }}
-              >
-                <MaterialIcons
-                  name={selectedGratitudes.includes(g.id) ? 'check-box' : 'check-box-outline-blank'}
-                  size={20}
-                  color={selectedGratitudes.includes(g.id) ? colors.primary : colors.textMuted}
-                />
-                <Text style={[styles.selectionText, { color: colors.text }]} numberOfLines={2}>
-                  {g.title || g.content.substring(0, 60) + '...'}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </SacredCard>
-        )}
+        {/* NFT Card */}
+        <SacredCard style={styles.nftCard}>
+          <LinearGradient
+            colors={['rgba(147, 51, 234, 0.1)', 'rgba(168, 85, 247, 0.05)']}
+            style={styles.nftGradient}
+          >
+            {/* Vision Board Preview */}
+            {previewImages.length > 0 && (
+              <View style={styles.visionBoardPreview}>
+                <View style={styles.imageGrid}>
+                  {previewImages.slice(0, 4).map((item, index) => (
+                    <Image
+                      key={item.id}
+                      source={{ uri: item.content }}
+                      style={[
+                        styles.gridImage,
+                        previewImages.length === 1 && styles.singleImage,
+                      ]}
+                      contentFit="cover"
+                    />
+                  ))}
+                </View>
+              </View>
+            )}
 
-        {mantras.length > 0 && (
-          <SacredCard style={styles.selectionCard}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>
-              Mantra
+            {/* Title */}
+            <Text style={[styles.nftTitle, { color: colors.text }]}>
+              {cocriation.title}
             </Text>
-            {mantras.map(m => (
-              <TouchableOpacity
-                key={m.id}
-                style={[
-                  styles.selectionItem,
-                  { borderColor: selectedMantra === m.id ? colors.primary : colors.border }
-                ]}
-                onPress={() => setSelectedMantra(selectedMantra === m.id ? null : m.id)}
-              >
-                <MaterialIcons
-                  name={selectedMantra === m.id ? 'radio-button-checked' : 'radio-button-unchecked'}
-                  size={20}
-                  color={selectedMantra === m.id ? colors.primary : colors.textMuted}
-                />
-                <Text style={[styles.selectionText, { color: colors.text }]} numberOfLines={2}>
-                  {m.title || m.content.substring(0, 60) + '...'}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </SacredCard>
-        )}
 
-        {meditations.length > 0 && (
-          <SacredCard style={styles.selectionCard}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>
-              Meditação
+            {/* Mental Code */}
+            {cocriation.mental_code && (
+              <Text style={[styles.mentalCode, { color: colors.primary }]}>
+                {cocriation.mental_code}
+              </Text>
+            )}
+
+            {/* Date */}
+            <Text style={[styles.completionDate, { color: colors.textMuted }]}>
+              Concluído em {formatDate(cocriation.completion_date || cocriation.created_at)}
             </Text>
-            {meditations.map(m => (
-              <TouchableOpacity
-                key={m.id}
-                style={[
-                  styles.selectionItem,
-                  { borderColor: selectedMeditation === m.id ? colors.primary : colors.border }
-                ]}
-                onPress={() => setSelectedMeditation(selectedMeditation === m.id ? null : m.id)}
-              >
-                <MaterialIcons
-                  name={selectedMeditation === m.id ? 'radio-button-checked' : 'radio-button-unchecked'}
-                  size={20}
-                  color={selectedMeditation === m.id ? colors.primary : colors.textMuted}
-                />
-                <Text style={[styles.selectionText, { color: colors.text }]} numberOfLines={2}>
-                  {m.title || m.content.substring(0, 60) + '...'}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </SacredCard>
-        )}
 
-        {affirmations.length > 0 && (
-          <SacredCard style={styles.selectionCard}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>
-              Afirmações (até 3)
+            {/* Divider */}
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+            {/* Manifesto */}
+            <Text style={[styles.manifestoText, { color: colors.textMuted }]}>
+              "Cocriado com intenção, emoção e presença."
             </Text>
-            {affirmations.map((a, i) => (
-              <TouchableOpacity
-                key={a.id}
-                style={[
-                  styles.selectionItem,
-                  { borderColor: selectedAffirmations.includes(a.id) ? colors.primary : colors.border }
-                ]}
-                onPress={() => {
-                  if (selectedAffirmations.includes(a.id)) {
-                    setSelectedAffirmations(prev => prev.filter(id => id !== a.id));
-                  } else if (selectedAffirmations.length < 3) {
-                    setSelectedAffirmations(prev => [...prev, a.id]);
-                  }
-                }}
-              >
-                <MaterialIcons
-                  name={selectedAffirmations.includes(a.id) ? 'check-box' : 'check-box-outline-blank'}
-                  size={20}
-                  color={selectedAffirmations.includes(a.id) ? colors.primary : colors.textMuted}
-                />
-                <Text style={[styles.selectionText, { color: colors.text }]} numberOfLines={2}>
-                  {a.title || a.content.substring(0, 60) + '...'}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </SacredCard>
-        )}
 
-        {/* Preview do NFT */}
-        <SacredCard style={styles.previewCard}>
-          <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: Spacing.lg }]}>
-            Pré-visualização do NFT
-          </Text>
-          <NFTPreview
-            cocriation={cocriation}
-            user={user}
-            symbolicHash={symbolicHash}
-            formatDate={formatDate}
-            previewImages={previewImages}
-            selectedGratitudes={selectedGratitudes}
-            selectedMantra={selectedMantra}
-            selectedMeditation={selectedMeditation}
-            selectedAffirmations={selectedAffirmations}
-            practices={practices}
-            colors={colors}
-          />
+            {/* Hash */}
+            <View style={styles.hashContainer}>
+              <Text style={[styles.hashLabel, { color: colors.textMuted }]}>
+                Hash Simbólico:
+              </Text>
+              <Text style={[styles.hashValue, { color: colors.primary }]}>
+                {symbolicHash}
+              </Text>
+            </View>
+
+            {/* Owner */}
+            <View style={styles.ownerContainer}>
+              <MaterialIcons name="person" size={16} color={colors.textMuted} />
+              <Text style={[styles.ownerText, { color: colors.textMuted }]}>
+                {user?.email || 'Cocriador'}
+              </Text>
+            </View>
+          </LinearGradient>
         </SacredCard>
 
-        {/* Botão Ver em Tela Cheia */}
+        {/* Action Buttons */}
+        <View style={styles.actionButtons}>
+          <TouchableOpacity
+            style={[styles.actionButton, { backgroundColor: colors.surface }]}
+            onPress={handleViewFullScreen}
+          >
+            <MaterialIcons name="fullscreen" size={24} color={colors.primary} />
+            <Text style={[styles.actionButtonText, { color: colors.text }]}>
+              Ver em Tela Cheia
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.actionButton, { backgroundColor: colors.surface }]}
+            onPress={handleDownload}
+          >
+            <MaterialIcons name="download" size={24} color={colors.primary} />
+            <Text style={[styles.actionButtonText, { color: colors.text }]}>
+              Baixar
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.actionButton, { backgroundColor: colors.surface }]}
+            onPress={handleShare}
+          >
+            <MaterialIcons name="share" size={24} color={colors.primary} />
+            <Text style={[styles.actionButtonText, { color: colors.text }]}>
+              Compartilhar
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Info Card */}
         <TouchableOpacity
+          style={[styles.infoCard, { backgroundColor: colors.surface }]}
+          onPress={() => setShowInfo(!showInfo)}
+        >
+          <View style={styles.infoHeader}>
+            <MaterialIcons name="info-outline" size={24} color={colors.primary} />
+            <Text style={[styles.infoTitle, { color: colors.text }]}>
+              O que é um NFT Simbólico?
+            </Text>
+            <MaterialIcons
+              name={showInfo ? 'expand-less' : 'expand-more'}
+              size={24}
+              color={colors.textMuted}
+            />
+          </View>
+
+          {showInfo && (
+            <View style={styles.infoContent}>
+              <Text style={[styles.infoText, { color: colors.textMuted }]}>
+                Este é um certificado emocional da sua jornada de cocriação. Ele existe
+                como um atestado de presença e intenção.
+              </Text>
+              <Text style={[styles.infoText, { color: colors.textMuted, marginTop: Spacing.md }]}>
+                Você pode baixar esta imagem e, se desejar, criar um NFT real em uma
+                blockchain através de plataformas como OpenSea, Rarible ou outras.
+              </Text>
+              <Text style={[styles.infoText, { color: colors.textMuted, marginTop: Spacing.md }]}>
+                O hash simbólico foi gerado localmente e não está registrado em blockchain.
+              </Text>
+            </View>
+          )}
+        </TouchableOpacity>
+
+        <View style={{ height: Spacing.xl }} />
+      </ScrollView>
+
+      {/* Full Screen Modal */}
+      <Modal
+        visible={isFullScreen}
+        animationType="fade"
+        onRequestClose={handleCloseFullScreen}
+      >
+        <GradientBackground>
+          <View style={[styles.fullScreenContainer, { paddingTop: insets.top }]}>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={handleCloseFullScreen}
+            >
+              <MaterialIcons name="close" size={32} color={colors.text} />
+            </TouchableOpacity>
+
+            <ScrollView
+              contentContainerStyle={styles.fullScreenContent}
+              showsVerticalScrollIndicator={false}
+            >
+              <LinearGradient
+                colors={['rgba(147, 51, 234, 0.1)', 'rgba(168, 85, 247, 0.05)']}
+                style={styles.fullScreenNFT}
+              >
+                {/* Vision Board Preview */}
+                {previewImages.length > 0 && (
+                  <View style={styles.fullScreenVisionBoard}>
+                    <View style={styles.imageGrid}>
+                      {previewImages.slice(0, 4).map((item, index) => (
+                        <Image
+                          key={item.id}
+                          source={{ uri: item.content }}
+                          style={[
+                            styles.gridImage,
+                            previewImages.length === 1 && styles.singleImage,
+                          ]}
+                          contentFit="cover"
+                        />
+                      ))}
+                    </View>
+                  </View>
+                )}
+
+                <Text style={[styles.fullScreenTitle, { color: colors.text }]}>
+                  {cocriation.title}
+                </Text>
+
+                {cocriation.mental_code && (
+                  <Text style={[styles.fullScreenMentalCode, { color: colors.primary }]}>
+                    {cocriation.mental_code}
+                  </Text>
+                )}
+
+                <Text style={[styles.fullScreenDate, { color: colors.textMuted }]}>
+                  Concluído em {formatDate(cocriation.completion_date || cocriation.created_at)}
+                </Text>
+
+                <View style={[styles.fullScreenDivider, { backgroundColor: colors.border }]} />
+
+                <Text style={[styles.fullScreenManifesto, { color: colors.textMuted }]}>
+                  "Cocriado com intenção, emoção e presença."
+                </Text>
+
+                <View style={styles.fullScreenHashContainer}>
+                  <Text style={[styles.fullScreenHashLabel, { color: colors.textMuted }]}>
+                    Hash Simbólico:
+                  </Text>
+                  <Text style={[styles.fullScreenHashValue, { color: colors.primary }]}>
+                    {symbolicHash}
+                  </Text>
+                </View>
+
+                <View style={styles.fullScreenOwnerContainer}>
+                  <MaterialIcons name="person" size={20} color={colors.textMuted} />
+                  <Text style={[styles.fullScreenOwnerText, { color: colors.textMuted }]}>
+                    {user?.email || 'Cocriador'}
+                  </Text>
+                </View>
+              </LinearGradient>
+            </ScrollView>
+          </View>
+        </GradientBackground>
+      </Modal>
+    </GradientBackground>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 16,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  nftCard: {
+    marginHorizontal: Spacing.lg,
+    marginVertical: Spacing.md,
+    overflow: 'hidden',
+  },
+  nftGradient: {
+    padding: Spacing.xl,
+    alignItems: 'center',
+  },
+  visionBoardPreview: {
+    width: '100%',
+    marginBottom: Spacing.xl,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  imageGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+  },
+  gridImage: {
+    width: '48.5%',
+    aspectRatio: 1,
+    borderRadius: 8,
+  },
+  singleImage: {
+    width: '100%',
+    aspectRatio: 1,
+  },
+  nftTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: Spacing.sm,
+  },
+  mentalCode: {
+    fontSize: 18,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginBottom: Spacing.md,
+  },
+  completionDate: {
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: Spacing.lg,
+  },
+  divider: {
+    width: '100%',
+    height: 1,
+    marginVertical: Spacing.lg,
+  },
+  manifestoText: {
+    fontSize: 16,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    marginBottom: Spacing.lg,
+    paddingHorizontal: Spacing.md,
+  },
+  hashContainer: {
+    alignItems: 'center',
+    marginBottom: Spacing.lg,
+  },
+  hashLabel: {
+    fontSize: 12,
+    marginBottom: Spacing.xs,
+  },
+  hashValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    fontFamily: 'monospace',
+  },
+  ownerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+  },
+  ownerText: {
+    fontSize: 14,
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingHorizontal: Spacing.lg,
+    marginVertical: Spacing.md,
+  },
+  actionButton: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.sm,
+    marginHorizontal: Spacing.xs,
+    borderRadius: 12,
+    gap: Spacing.xs,
+  },
+  actionButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  infoCard: {
+    marginHorizontal: Spacing.lg,
+    marginVertical: Spacing.md,
+    padding: Spacing.lg,
+    borderRadius: 16,
+  },
+  infoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  infoTitle: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  infoContent: {
+    marginTop: Spacing.md,
+    paddingTop: Spacing.md,
+  },
+  infoText: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  fullScreenContainer: {
+    flex: 1,
+  },
+  closeButton: {
+    position: 'absolute',
+    top: 60,
+    right: Spacing.lg,
+    zIndex: 10,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderRadius: 20,
+    padding: Spacing.xs,
+  },
+  fullScreenContent: {
+    padding: Spacing.xl,
+    justifyContent: 'center',
+    minHeight: '100%',
+  },
+  fullScreenNFT: {
+    padding: Spacing.xl * 1.5,
+    borderRadius: 24,
+    alignItems: 'center',
+  },
+  fullScreenVisionBoard: {
+    width: '100%',
+    marginBottom: Spacing.xl * 1.5,
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  fullScreenTitle: {
+    fontSize: 36,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: Spacing.md,
+  },
+  fullScreenMentalCode: {
+    fontSize: 24,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginBottom: Spacing.lg,
+  },
+  fullScreenDate: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: Spacing.xl,
+  },
+  fullScreenDivider: {
+    width: '100%',
+    height: 2,
+    marginVertical: Spacing.xl,
+  },
+  fullScreenManifesto: {
+    fontSize: 20,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    marginBottom: Spacing.xl,
+    paddingHorizontal: Spacing.lg,
+  },
+  fullScreenHashContainer: {
+    alignItems: 'center',
+    marginBottom: Spacing.xl,
+  },
+  fullScreenHashLabel: {
+    fontSize: 14,
+    marginBottom: Spacing.sm,
+  },
+  fullScreenHashValue: {
+    fontSize: 18,
+    fontWeight: '600',
+    fontFamily: 'monospace',
+  },
+  fullScreenOwnerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  fullScreenOwnerText: {
+    fontSize: 16,
+  },
+});
