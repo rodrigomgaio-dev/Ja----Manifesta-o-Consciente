@@ -107,12 +107,12 @@ export default function EditIndividualScreen() {
     }
 
     if (!formData.title.trim()) {
-      showModal('Erro', 'Por favor, informe o título da cocriação', 'error');
+      showModal('Erro', 'Por favor, informe o título da Cocriação', 'error');
       return;
     }
 
     if (!formData.description.trim()) {
-      showModal('Erro', 'Por favor, descreva sua cocriação', 'error');
+      showModal('Erro', 'Por favor, descreva sua Cocriação', 'error');
       return;
     }
 
@@ -177,7 +177,7 @@ export default function EditIndividualScreen() {
         <View style={[styles.container, { paddingTop: insets.top }]}>
           <View style={styles.loadingContainer}>
             <Text style={[styles.loadingText, { color: colors.text }]}>
-              Carregando cocriação...
+              Carregando Cocriação...
             </Text>
           </View>
         </View>
@@ -195,7 +195,7 @@ export default function EditIndividualScreen() {
               Acesso Negado
             </Text>
             <Text style={[styles.errorMessage, { color: colors.textSecondary }]}>
-              Você precisa estar logado para editar uma cocriação.
+              Você precisa estar logado para editar uma Cocriação.
             </Text>
           </View>
         </View>
@@ -229,7 +229,7 @@ export default function EditIndividualScreen() {
               <View style={{ width: 80 }} />
             </View>
             <Text style={[styles.headerSubtitle, { color: colors.textMuted }]}>
-              Atualize os detalhes da sua manifestação
+              Atualize os detalhes da sua Cocriação
             </Text>
           </View>
 
@@ -246,7 +246,7 @@ export default function EditIndividualScreen() {
                 Atualize sua Intenção
               </Text>
               <Text style={[styles.sectionDescription, { color: colors.textSecondary }]}>
-                Refine os detalhes da sua cocriação
+                Refine os detalhes da sua Cocriação
               </Text>
             </View>
 
@@ -278,7 +278,7 @@ export default function EditIndividualScreen() {
                 ]}
                 value={formData.description}
                 onChangeText={(value) => handleInputChange('description', value)}
-                placeholder="Descreva detalhadamente o que você deseja manifestar..."
+                placeholder="Descreva detalhadamente o que você deseja cocriar..."
                 placeholderTextColor={colors.textMuted}
                 multiline
                 numberOfLines={4}
@@ -304,7 +304,7 @@ export default function EditIndividualScreen() {
                 maxLength={30}
               />
               <Text style={[styles.inputHint, { color: colors.textMuted }]}>
-                Um código especial que representa sua manifestação
+                Um código especial que representa sua Cocriação
               </Text>
             </View>
 
@@ -319,7 +319,7 @@ export default function EditIndividualScreen() {
                 ]}
                 value={formData.why_reason}
                 onChangeText={(value) => handleInputChange('why_reason', value)}
-                placeholder="Por que esta manifestação é importante para você? Qual o sentimento por trás deste desejo?"
+                placeholder="Por que esta Cocriação é importante para você? Qual o sentimento por trás deste desejo?"
                 placeholderTextColor={colors.textMuted}
                 multiline
                 numberOfLines={3}
@@ -358,7 +358,7 @@ export default function EditIndividualScreen() {
                       Escolher Imagem de Capa
                     </Text>
                     <Text style={[styles.imageHint, { color: colors.textMuted }]}>
-                      Esta imagem representará sua cocriação
+                      Esta imagem representará sua Cocriação
                     </Text>
                   </View>
                 )}
@@ -379,7 +379,7 @@ export default function EditIndividualScreen() {
           {/* Sacred Quote */}
           <SacredCard style={styles.quoteCard}>
             <Text style={[styles.quote, { color: colors.textSecondary }]}>
-              "A manifestação é um processo vivo que pode ser refinado e aprimorado
+              "A Cocriação é um processo vivo que pode ser refinado e aprimorado
               conforme nossa consciência se expande."
             </Text>
           </SacredCard>

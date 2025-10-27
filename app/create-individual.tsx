@@ -60,18 +60,18 @@ export default function CreateIndividualScreen() {
     // Check authentication
     if (!user) {
       console.error('No user authenticated');
-      showWebAlert('Erro de Autenticação', 'Você precisa estar logado para criar uma cocriação.');
+      showWebAlert('Erro de Autenticação', 'Você precisa estar logado para criar uma Cocriação.');
       return;
     }
 
     // Validate required fields
     if (!formData.title.trim()) {
-      showWebAlert('Erro', 'Por favor, informe o título da sua cocriação');
+      showWebAlert('Erro', 'Por favor, informe o título da sua Cocriação');
       return;
     }
 
     if (!formData.description.trim()) {
-      showWebAlert('Erro', 'Por favor, descreva sua cocriação');
+      showWebAlert('Erro', 'Por favor, descreva sua Cocriação');
       return;
     }
 
@@ -94,7 +94,7 @@ export default function CreateIndividualScreen() {
         console.error('Error from createCocriation:', result.error);
         
         // More specific error messages
-        let errorMessage = 'Não foi possível criar sua cocriação. Tente novamente.';
+        let errorMessage = 'Não foi possível criar sua Cocriação. Tente novamente.';
         
         if (result.error.message) {
           if (result.error.message.includes('permission')) {
@@ -154,7 +154,7 @@ export default function CreateIndividualScreen() {
               Acesso Negado
             </Text>
             <Text style={[styles.errorMessage, { color: colors.textSecondary }]}>
-              Você precisa estar logado para criar uma cocriação.
+              Você precisa estar logado para criar uma Cocriação.
             </Text>
             <SacredButton
               title="Fazer Login"
@@ -251,7 +251,7 @@ export default function CreateIndividualScreen() {
                 ]}
                 value={formData.description}
                 onChangeText={(value) => handleInputChange('description', value)}
-                placeholder="Descreva detalhadamente o que você deseja manifestar..."
+                placeholder="Descreva detalhadamente o que você deseja cocriar..."
                 placeholderTextColor={colors.textMuted}
                 multiline
                 numberOfLines={4}
@@ -277,7 +277,7 @@ export default function CreateIndividualScreen() {
                 maxLength={30}
               />
               <Text style={[styles.inputHint, { color: colors.textMuted }]}>
-                Um código especial que representa sua manifestação
+                Um código especial que representa sua Cocriação
               </Text>
             </View>
 
@@ -292,7 +292,7 @@ export default function CreateIndividualScreen() {
                 ]}
                 value={formData.why_reason}
                 onChangeText={(value) => handleInputChange('why_reason', value)}
-                placeholder="Por que esta manifestação é importante para você? Qual o sentimento por trás deste desejo?"
+                placeholder="Por que esta Cocriação é importante para você? Qual o sentimento por trás deste desejo?"
                 placeholderTextColor={colors.textMuted}
                 multiline
                 numberOfLines={3}
@@ -331,7 +331,7 @@ export default function CreateIndividualScreen() {
                       Escolher Imagem de Capa
                     </Text>
                     <Text style={[styles.imageHint, { color: colors.textMuted }]}>
-                      Esta imagem representará sua cocriação
+                      Esta imagem representará sua Cocriação
                     </Text>
                   </View>
                 )}
@@ -378,7 +378,7 @@ export default function CreateIndividualScreen() {
           <SacredCard style={styles.quoteCard}>
             <Text style={[styles.quote, { color: colors.textSecondary }]}>
               "Tudo o que você pode imaginar já existe no campo infinito das possibilidades. 
-              A manifestação é simplesmente alinhar sua energia com essa realidade."
+              A Cocriação é simplesmente alinhar sua energia com essa realidade."
             </Text>
           </SacredCard>
         </ScrollView>
