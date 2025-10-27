@@ -43,7 +43,7 @@ export default function FutureLetterScreen() {
 
 Hoje estou plantando as sementes deste sonho no campo infinito das possibilidades. Sinto a emoção de saber que você já vive esta realidade que hoje crio com tanto amor.
 
-Quando ler esta carta, saberá que cada momento de presença, cada respiração consciente e cada visualização foram sementes que floresceram na manifestação perfeita.
+Quando ler esta carta, saberá que cada momento de presença, cada respiração consciente e cada visualização foram sementes que floresceram na Cocriação perfeita.
 
 Obrigado(a) por ser a prova viva de que nossos sonhos se tornam realidade quando os criamos com o coração.
 
@@ -350,9 +350,9 @@ Eu do presente`,
               ✨ Sua carta será enviada para o futuro
             </Text>
             <Text style={[styles.infoDescription, { color: colors.textSecondary }]}>
-              Esta carta ficará selada até você concluir sua cocriação. 
+              Esta carta ficará selada até você concluir sua Cocriação. 
               No momento da conclusão, ela será revelada como uma celebração 
-              da sua jornada de manifestação.
+              da sua jornada de Cocriação.
             </Text>
           </SacredCard>
         </View>
