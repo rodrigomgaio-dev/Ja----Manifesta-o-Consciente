@@ -122,18 +122,16 @@ export default function CompletionRitualScreen() {
     ]).start();
   };
 
-  const handleViewNFT = async () => {
-    if (!id) return;
-    
-    // Marcar cocriação como concluída
-    await updateCocriation(id, {
-      status: 'completed',
-      completion_date: new Date().toISOString(),
-    });
-    
-    // Navegar para tela do NFT (que virou Momória de Cocriação)
-    router.replace(`/symbolic-nft?cocreationId=${id}`);
-  };
+ const handleCustomizeMemory = () => {
+  if (!id) return;
+  // Marcar cocriação como concluída
+  updateCocriation(id, {
+    status: 'completed',
+    completion_date: new Date().toISOString(),
+  });
+  // Navegar para personalização
+  router.replace(`/memory-customization?cocreationId=${id}`);
+};
 
   if (step === 'celebration') {
     return (
