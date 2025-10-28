@@ -1,4 +1,3 @@
-// app/symbolic-nft.tsx
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -26,10 +25,14 @@ export default function SymbolicNFTScreen() {
   const { colors } = useTheme();
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
-  const { cocreationId } = useLocalSearchParams<{ cocreationId: string }>();
+  
+  // 🔑 Correção: leitura segura do parâmetro
+  const { cocreationId } = useLocalSearchParams();
+  const id = cocreationId as string;
+
   const { cocriations } = useIndividualCocriations();
-  const { items: visionBoardItems } = useVisionBoardItems(cocreationId || '');
-  const { practices } = useDailyPractices(cocreationId || '');
+  const { items: visionBoardItems } = useVisionBoardItems(id || '');
+  const { practices } = useDailyPractices(id || '');
 
   const [cocriation, setCocriation] = useState<any>(null);
   const [symbolicHash, setSymbolicHash] = useState('');
@@ -42,15 +45,16 @@ export default function SymbolicNFTScreen() {
   const [selectedMeditation, setSelectedMeditation] = useState<string | null>(null);
   const [selectedAffirmations, setSelectedAffirmations] = useState<string[]>([]);
 
+  // 🔑 Correção: usar 'id' em vez de 'cocreationId'
   useEffect(() => {
-    if (cocreationId) {
-      const found = cocriations.find(c => c.id === cocreationId);
+    if (id) {
+      const found = cocriations.find(c => c.id === id);
       if (found) {
         setCocriation(found);
         generateSymbolicHash(found);
       }
     }
-  }, [cocreationId, cocriations]);
+  }, [id, cocriations]);
 
   const generateSymbolicHash = (cocriation: any) => {
     const data = `${cocriation.id}${cocriation.title}${cocriation.created_at}${user?.id}`;
@@ -122,7 +126,7 @@ export default function SymbolicNFTScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Text style={[styles.headerTitle, { color: colors.text }]}>
-            Sua Memória de Cocriação
+            Personalizar Memória de Cocriação
           </Text>
           <TouchableOpacity onPress={handleClose}>
             <MaterialIcons name="close" size={28} color={colors.textMuted} />
