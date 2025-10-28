@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getSupabaseClient } from '@/services/supabase';
+import { supabase } from '@/services/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 
 export interface DailyPractice {
@@ -32,7 +32,6 @@ export function useDailyPractices(cocreationId?: string) {
 
     try {
       setLoading(true);
-      const supabase = getSupabaseClient();
       
       let query = supabase
         .from('daily_practices')
