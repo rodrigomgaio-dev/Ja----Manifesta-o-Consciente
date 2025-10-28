@@ -210,7 +210,7 @@ export default function PerfilScreen() {
                   Minhas Cocriações Concluídas
                 </Text>
                 <Text style={[styles.menuItemDescription, { color: colors.textSecondary }]}>
-                  Visualize seus NFTs Simbólicos
+                  Visualize sua Memória de Cocriação
                 </Text>
               </View>
             </View>

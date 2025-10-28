@@ -115,7 +115,7 @@ export default function SymbolicNFTScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Text style={[styles.headerTitle, { color: colors.text }]}>
-            Personalizar NFT Simbólico
+            Personalizar Memória de Cocriação
           </Text>
           <TouchableOpacity onPress={handleClose}>
             <MaterialIcons name="close" size={28} color={colors.textMuted} />
@@ -246,7 +246,7 @@ export default function SymbolicNFTScreen() {
         {/* Preview do NFT */}
         <SacredCard style={styles.previewCard}>
           <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: Spacing.lg }]}>
-            Pré-visualização do NFT
+            Pré-visualização de sua Memória de Cocriação
           </Text>
           <NFTPreview
             cocriation={cocriation}
@@ -280,7 +280,7 @@ export default function SymbolicNFTScreen() {
           >
             <MaterialIcons name="info" size={24} color={colors.primary} />
             <Text style={[styles.infoTitle, { color: colors.text }]}>
-              Sobre o NFT Simbólico
+              Sobre sua Memória de Cocriação
             </Text>
             <MaterialIcons
               name={showInfo ? 'expand-less' : 'expand-more'}
@@ -291,8 +291,8 @@ export default function SymbolicNFTScreen() {
           {showInfo && (
             <View style={styles.infoContent}>
               <Text style={[styles.infoText, { color: colors.textSecondary }]}>
-                Este NFT Simbólico é um certificado emocional da sua conquista. 
-                Você pode personalizá-lo com as práticas que mais ressoaram com você.
+                Esta é a Memória de sua Cocriação — um registro vivo do momento 
+                em que você reconheceu que tudo que desejou já era real.
               </Text>
             </View>
           )}
@@ -351,7 +351,7 @@ const NFTPreview = ({
     >
       {/* Badge */}
       <View style={styles.badge}>
-        <Text style={styles.badgeText}>CERTIFICADO DE COCRIAÇÃO</Text>
+        <Text style={styles.badgeText}>MINHA MEMÓRIA DE COCRIAÇÃO</Text>
       </View>
 
       {/* Frase Central */}

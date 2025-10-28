@@ -194,7 +194,7 @@ export default function CocriacaoDetailsScreen() {
   const handleCompleteCocriation = () => {
     showModal(
       'Você sente que isso já é real?',
-      'Ao confirmar, sua jornada de cocriação será concluída e você receberá seu NFT Simbólico.',
+      'Ao confirmar, sua jornada de cocriação será concluída e você receberá sua Memória de Cocriação.',
       'info',
       [
         {
@@ -576,7 +576,7 @@ export default function CocriacaoDetailsScreen() {
             <View style={styles.statItem}>
               <MaterialIcons name="auto-awesome" size={20} color={colors.accent} />
               <Text style={[styles.statText, { color: colors.textSecondary }]}>
-                NFT será gerado na conclusão
+                A sua Memória de Cocriação será gerada na conclusão
               </Text>
             </View>
           </View>
@@ -593,7 +593,7 @@ export default function CocriacaoDetailsScreen() {
             </View>
             <Text style={[styles.celebrationDescription, { color: colors.textSecondary }]}>
               Quando sentir que sua cocriação já é real e todos os seus objetivos foram alcançados,
-              você pode concluir esta jornada e receber seu NFT simbólico de conquista.
+              você pode concluir esta jornada e receber sua Memória de Cocriação como registro da sua conquista.
             </Text>
             <SacredButton
               title="Concluir Cocriação"

@@ -131,7 +131,7 @@ export default function CompletionRitualScreen() {
       completion_date: new Date().toISOString(),
     });
     
-    // Navegar para tela do NFT
+    // Navegar para tela do NFT (que virou Momória de Cocriação)
     router.replace(`/symbolic-nft?cocreationId=${id}`);
   };
 
@@ -234,7 +234,7 @@ export default function CompletionRitualScreen() {
               style={styles.nftButtonGradient}
             >
               <MaterialIcons name="card-giftcard" size={24} color="white" />
-              <Text style={styles.nftButtonText}>Ver meu NFT Simbólico</Text>
+              <Text style={styles.nftButtonText}>Ver minha Memória de Cocriação</Text>
             </LinearGradient>
           </TouchableOpacity>
         </Animated.View>

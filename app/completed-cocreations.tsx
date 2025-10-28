@@ -61,7 +61,7 @@ export default function CompletedCocreationsScreen() {
             Cocriações Concluídas
           </Text>
           <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-            Celebre suas conquistas e visualize seus NFTs Simbólicos
+            Celebre suas conquistas e visualize sua Memória de Cocriação
           </Text>
         </View>
 
@@ -129,7 +129,7 @@ export default function CompletedCocreationsScreen() {
                     <View style={styles.infoRow}>
                       <MaterialIcons name="card-giftcard" size={16} color={colors.accent} />
                       <Text style={[styles.infoText, { color: colors.accent }]}>
-                        NFT Simbólico disponível
+                       Memória de Cocriação disponível
                       </Text>
                     </View>
                   </View>
@@ -140,7 +140,7 @@ export default function CompletedCocreationsScreen() {
                       onPress={() => handleViewNFT(cocriation.id)}
                     >
                       <MaterialIcons name="visibility" size={18} color="white" />
-                      <Text style={styles.viewNFTButtonText}>Ver NFT</Text>
+                      <Text style={styles.viewNFTButtonText}>Ver Memória de Cocriação</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
