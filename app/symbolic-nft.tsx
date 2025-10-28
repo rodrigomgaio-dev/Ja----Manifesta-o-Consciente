@@ -1,4 +1,3 @@
-// app/symbolic-nft.tsx
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -19,7 +18,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useIndividualCocriations } from '@/hooks/useIndividualCocriations';
 import { useAuth } from '@/contexts/AuthContext';
 import { useVisionBoardItems } from '@/hooks/useVisionBoardItems';
-import { useDailyPractices } from '@/hooks/useDailyPractices'; // Assumindo que existe
+import { useDailyPractices } from '@/hooks/useDailyPractices';
 import { Spacing } from '@/constants/Colors';
 
 export default function SymbolicNFTScreen() {
@@ -36,7 +35,7 @@ export default function SymbolicNFTScreen() {
   const [showInfo, setShowInfo] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
 
-  // Seleção de conteúdo para o NFT
+  // Seleção de conteúdo para a Memória
   const [selectedGratitudes, setSelectedGratitudes] = useState<string[]>([]);
   const [selectedMantra, setSelectedMantra] = useState<string | null>(null);
   const [selectedMeditation, setSelectedMeditation] = useState<string | null>(null);
@@ -74,7 +73,7 @@ export default function SymbolicNFTScreen() {
     router.replace('/(tabs)/individual');
   };
 
-  const handleViewFullScreen = () => {
+  const handleGenerateMemory = () => {
     setIsFullScreen(true);
   };
 
@@ -106,6 +105,13 @@ export default function SymbolicNFTScreen() {
   const imageItems = visionBoardItems.filter(item => item.type === 'image' && item.content);
   const previewImages = imageItems.slice(0, 4);
 
+  // Verifica se pelo menos um item foi selecionado
+  const hasSelection =
+    selectedGratitudes.length > 0 ||
+    selectedMantra !== null ||
+    selectedMeditation !== null ||
+    selectedAffirmations.length > 0;
+
   return (
     <GradientBackground>
       <ScrollView
@@ -115,7 +121,7 @@ export default function SymbolicNFTScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Text style={[styles.headerTitle, { color: colors.text }]}>
-            Personalizar Memória de Cocriação
+            Sua Memória de Cocriação
           </Text>
           <TouchableOpacity onPress={handleClose}>
             <MaterialIcons name="close" size={28} color={colors.textMuted} />
@@ -128,7 +134,7 @@ export default function SymbolicNFTScreen() {
             <Text style={[styles.sectionTitle, { color: colors.text }]}>
               Gratidões (até 3)
             </Text>
-            {gratitudes.map((g, i) => (
+            {gratitudes.map((g) => (
               <TouchableOpacity
                 key={g.id}
                 style={[
@@ -215,7 +221,7 @@ export default function SymbolicNFTScreen() {
             <Text style={[styles.sectionTitle, { color: colors.text }]}>
               Afirmações (até 3)
             </Text>
-            {affirmations.map((a, i) => (
+            {affirmations.map((a) => (
               <TouchableOpacity
                 key={a.id}
                 style={[
@@ -243,12 +249,12 @@ export default function SymbolicNFTScreen() {
           </SacredCard>
         )}
 
-        {/* Preview do NFT */}
+        {/* Pré-visualização */}
         <SacredCard style={styles.previewCard}>
           <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: Spacing.lg }]}>
-            Pré-visualização de sua Memória de Cocriação
+            Pré-visualização
           </Text>
-          <NFTPreview
+          <MemoryPreview
             cocriation={cocriation}
             user={user}
             symbolicHash={symbolicHash}
@@ -263,13 +269,21 @@ export default function SymbolicNFTScreen() {
           />
         </SacredCard>
 
-        {/* Botão Ver em Tela Cheia */}
+        {/* Botão Gerar Memória */}
         <TouchableOpacity
-          style={[styles.fullScreenButton, { backgroundColor: colors.primary }]}
-          onPress={handleViewFullScreen}
+          style={[
+            styles.generateButton,
+            {
+              backgroundColor: hasSelection ? colors.primary : colors.textMuted + '60',
+            }
+          ]}
+          onPress={handleGenerateMemory}
+          disabled={!hasSelection}
         >
-          <MaterialIcons name="fullscreen" size={24} color="white" />
-          <Text style={styles.fullScreenButtonText}>Ver em Tela Cheia</Text>
+          <MaterialIcons name="auto-awesome" size={24} color="white" />
+          <Text style={styles.generateButtonText}>
+            Gerar Minha Memória de Cocriação
+          </Text>
         </TouchableOpacity>
 
         {/* Info Card */}
@@ -305,7 +319,7 @@ export default function SymbolicNFTScreen() {
               <MaterialIcons name="close" size={32} color="white" />
             </TouchableOpacity>
             <ScrollView contentContainerStyle={styles.fullScreenContent}>
-              <NFTPreview
+              <MemoryPreview
                 cocriation={cocriation}
                 user={user}
                 symbolicHash={symbolicHash}
@@ -327,8 +341,8 @@ export default function SymbolicNFTScreen() {
   );
 }
 
-// Componente de Preview do NFT
-const NFTPreview = ({
+// Componente de Preview da Memória
+const MemoryPreview = ({
   cocriation,
   user,
   symbolicHash,
@@ -347,22 +361,27 @@ const NFTPreview = ({
   return (
     <LinearGradient
       colors={['#1a0b2e', '#2d1b4e', '#4a2c6e', '#6B46C1']}
-      style={[styles.nftCard, isFullScreen && styles.nftCardFullScreen]}
+      style={[styles.memoryCard, isFullScreen && styles.memoryCardFullScreen]}
     >
       {/* Badge */}
       <View style={styles.badge}>
-        <Text style={styles.badgeText}>MINHA MEMÓRIA DE COCRIAÇÃO</Text>
+        <Text style={styles.badgeText}>Memória de Cocriação</Text>
       </View>
 
-      {/* Frase Central */}
-      <View style={styles.mainContent}>
-        <Text style={styles.mainText}>Já é.</Text>
-        <Text style={styles.subtitle}>Gratidão pela cocriação.</Text>
-      </View>
-
-      {/* Título */}
+      {/* Título + Narrativa Final */}
       <View style={styles.titleSection}>
         <Text style={styles.cocriationTitle}>{cocriation.title}</Text>
+
+        <View style={styles.narrativeSection}>
+          <Text style={styles.narrativeText}>
+            Esta é a sua Memória de Cocriação.
+            {"\n"}Não é um ativo. Não é um token.
+            {"\n"}É o testemunho silencioso do momento em que você disse:
+            {"\n\n"}Já é.
+            {"\n\n"}Guarde-a como um tesouro da alma.
+          </Text>
+        </View>
+
         {cocriation.mental_code && (
           <View style={[styles.mentalCodeBadge, { backgroundColor: colors.primary }]}>
             <Text style={styles.mentalCodeText}>{cocriation.mental_code}</Text>
@@ -501,7 +520,7 @@ const styles = StyleSheet.create({
   previewCard: {
     marginBottom: Spacing.lg,
   },
-  fullScreenButton: {
+  generateButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -510,7 +529,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xl,
     gap: Spacing.sm,
   },
-  fullScreenButtonText: {
+  generateButtonText: {
     fontSize: 16,
     fontWeight: '600',
     color: 'white',
@@ -537,8 +556,8 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     color: 'rgba(255,255,255,0.8)',
   },
-  // Estilos do NFT
-  nftCard: {
+  // Estilos da Memória
+  memoryCard: {
     width: '100%',
     maxWidth: 360,
     minHeight: 600,
@@ -548,7 +567,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     alignSelf: 'center',
   },
-  nftCardFullScreen: {
+  memoryCardFullScreen: {
     width: '90%',
     maxWidth: 500,
     minHeight: 700,
@@ -565,28 +584,9 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     color: '#FBBF24',
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 2,
-    textTransform: 'uppercase',
-  },
-  mainContent: {
-    alignItems: 'center',
-    marginBottom: Spacing.xl,
-  },
-  mainText: {
-    fontSize: 64,
-    fontWeight: '300',
-    color: 'white',
-    textAlign: 'center',
-    letterSpacing: 6,
-    marginBottom: Spacing.md,
-  },
-  subtitle: {
-    fontSize: 18,
-    fontStyle: 'italic',
-    color: 'rgba(255,255,255,0.9)',
-    textAlign: 'center',
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 1,
   },
   titleSection: {
     alignItems: 'center',
@@ -597,12 +597,32 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: 'white',
     textAlign: 'center',
-    marginBottom: Spacing.sm,
+    marginBottom: Spacing.lg,
+  },
+  narrativeSection: {
+    marginVertical: Spacing.lg,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.lg,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(251, 191, 36, 0.2)',
+  },
+  narrativeText: {
+    fontSize: 16,
+    lineHeight: 24,
+    textAlign: 'center',
+    color: 'rgba(255, 255, 255, 0.95)',
+    fontStyle: 'italic',
+    fontWeight: '300',
+    letterSpacing: 0.5,
   },
   mentalCodeBadge: {
+    alignSelf: 'flex-start',
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.xs,
     borderRadius: 12,
+    marginTop: Spacing.md,
   },
   mentalCodeText: {
     color: 'white',
