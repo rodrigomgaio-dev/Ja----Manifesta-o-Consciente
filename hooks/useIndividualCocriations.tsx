@@ -196,7 +196,7 @@ export function useIndividualCocriations() {
 
   const completeCocriation = async (id: string) => {
     return updateCocriation(id, {
-      status: 'completed',
+      status: 'active', {/*'completed', COMENTADO PARA TESTAR CONCLUSÃO*/} 
       completion_date: new Date().toISOString(),
     });
   };
