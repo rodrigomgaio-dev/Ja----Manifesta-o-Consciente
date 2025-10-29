@@ -7,30 +7,22 @@ import {
   Animated,
   Dimensions,
   TouchableOpacity,
-  Alert,
-  ActivityIndicator,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/contexts/ThemeContext';
-import { useIndividualCocriations } from '@/hooks/useIndividualCocriations';
-import { useDailyPractices } from '@/hooks/useDailyPractices'; // Importa o hook atualizado
+// import { useIndividualCocriations } from '@/hooks/useIndividualCocriations'; // Não será mais necessário aqui
+// import { useDailyPractices } from '@/hooks/useDailyPractices'; // Não será mais necessário aqui
+// import { supabase } from '@/services/supabase'; // Não será mais necessário aqui
 import { Spacing } from '@/constants/Colors';
-import { supabase } from '@/services/supabase'; // Importa o supabase
 
 const { width, height } = Dimensions.get('window');
 
 export default function CompletionRitualScreen() {
   const { colors } = useTheme();
   const { id: cocriacaoId } = useLocalSearchParams<{ id: string }>();
-  const { loadSingle } = useIndividualCocriations(); // Usa loadSingle do hook existente
-  const { getRecentPractices, getMostPracticedMantra } = useDailyPractices(); // Usa as funções do hook atualizado
-
-  // --- Estados para a lógica de conclusão ---
-  const [loadingData, setLoadingData] = useState(true); // Controla o carregamento inicial dos dados
-  const [memoryData, setMemoryData] = useState<any>(null); // Armazena os dados da memória
-  const [isCompleting, setIsCompleting] = useState(false); // Controla o estado de "concluindo"
+  // const { updateCocriation } = useIndividualCocriations(); // Removido
 
   // --- Estados para as animações (mantidos do original) ---
   const [step, setStep] = useState<'celebration' | 'realization'>('celebration');
@@ -44,77 +36,20 @@ export default function CompletionRitualScreen() {
   // Partículas
   const [particles, setParticles] = useState<any[]>([]);
 
-  // --- Carregar dados iniciais ---
+  // --- Efeito para iniciar animações ---
   useEffect(() => {
-    if (!cocriacaoId) {
-      Alert.alert('Erro', 'ID da Cocriação ausente.');
-      return;
-    }
-
-    const loadData = async () => {
-      try {
-        console.log("Iniciando carregamento de dados para cocriação:", cocriacaoId);
-        // 1. Obter detalhes da cocriação
-        const {  cocriacao, error: loadError } = await loadSingle(cocriacaoId);
-        if (loadError) {
-            console.error("Erro ao carregar cocriação:", loadError);
-            throw loadError;
-        }
-        if (!cocriacao) {
-            console.error("Cocriação não encontrada para ID:", cocriacaoId);
-            throw new Error('Cocriação não encontrada.');
-        }
-
-        console.log("Cocriação encontrada:", cocriacao.title);
-
-        // 2. Obter práticas recentes e mantra mais praticado
-        console.log("Buscando práticas recentes e mantra...");
-        const [recentGratitudes, recentAffirmations, mostPracticedMantra] = await Promise.all([
-          getRecentPractices(cocriacaoId, 'gratitude', 2),
-          getRecentPractices(cocriacaoId, 'affirmation', 2),
-          getMostPracticedMantra(cocriacaoId),
-        ]);
-
-        console.log("Práticas recentes (gratidões):", recentGratitudes);
-        console.log("Práticas recentes (afirmações):", recentAffirmations);
-        console.log("Mantra mais praticado:", mostPracticedMantra);
-
-        // 3. Montar o objeto memory_snapshot
-        const newMemoryData = {
-          title: cocriacao.title,
-          intention: cocriacao.why_reason || '',
-          start_date: cocriacao.created_at,
-          completion_date: new Date().toISOString(),
-          gratitudes: recentGratitudes,
-          affirmations: recentAffirmations,
-          most_practiced_mantra: mostPracticedMantra,
-        };
-
-        setMemoryData(newMemoryData);
-        console.log("MemoryData montado e armazenado:", newMemoryData);
-        setLoadingData(false); // Dados carregados
-
-        // Iniciar animações originais após carregar dados
-        console.log("Iniciando animações...");
-        startCelebrationAnimation();
-        createParticles();
-
-        // Transição para tela de realização após animação de celebração
-        setTimeout(() => {
-          console.log("Transição para tela de realização.");
-          setStep('realization');
-          startRealizationAnimation();
-        }, 3000);
-
-      } catch (err) {
-        console.error('Erro ao carregar dados para a memória:', err);
-        Alert.alert('Erro', `Falha ao carregar os dados: ${(err as Error).message}`);
-        setLoadingData(false); // Garante que o loading pare em caso de erro
-      }
-    };
-
-    loadData();
-  }, [cocriacaoId, loadSingle, getRecentPractices, getMostPracticedMantra]);
+    // Animação de celebração
+    startCelebrationAnimation();
+    
+    // Criar partículas
+    createParticles();
+    
+    // Transição para tela de realização
+    setTimeout(() => {
+      setStep('realization');
+      startRealizationAnimation();
+    }, 3000);
+  }, []);
 
   // --- Funções de Animação (mantidas do original) ---
   const createParticles = () => {
@@ -192,61 +127,17 @@ export default function CompletionRitualScreen() {
     ]).start();
   };
 
-  // --- Função Atualizada para Concluir (com mais logs e tratamento de erro na navegação) ---
-  const handleViewMemory = async () => {
-    console.log("handleViewMemory chamado. isCompleting:", isCompleting, "memoryData:", !!memoryData, "cocriacaoId:", cocriacaoId);
-    if (isCompleting) {
-        console.log("Operação de conclusão já em andamento.");
-        return; // Evita múltiplas chamadas simultâneas
-    }
-    if (!cocriacaoId || !memoryData) {
-        console.error("Dados insuficientes para concluir. ID:", !!cocriacaoId, "MemoryData:", !!memoryData);
-        Alert.alert('Erro', 'Dados insuficientes para concluir.');
+  // --- Função Atualizada para Navegar para Geração ---
+  const handleNavigateToGeneration = () => {
+    if (!cocriacaoId) {
+        console.error("ID da Cocriação ausente para navegação.");
         return;
     }
-
-    setIsCompleting(true);
-    try {
-      console.log("Atualizando cocriação no Supabase com memory_snapshot...");
-      // 1. Atualizar a cocriação no Supabase com status 'completed' e memory_snapshot
-      const { error: updateError } = await supabase
-        .from('individual_cocriations') // Substitua pelo nome real da sua tabela
-        .update({
-          status: 'completed', // Ajuste o status final conforme necessário
-          completion_date: memoryData.completion_date,
-          memory_snapshot: memoryData, // O objeto completo é salvo como JSON
-        })
-        .eq('id', cocriacaoId);
-
-      if (updateError) {
-        console.error("Erro ao atualizar cocriação no Supabase:", updateError);
-        throw updateError;
-      }
-
-      console.log("Cocriação atualizada com sucesso. Navegando para memory-view...");
-      // 2. Navegar para a tela da Memória de Cocriação
-      // Opcional: Passar o ID é suficiente, a tela memory-view buscará os dados
-      router.replace(`/memory-view?id=${cocriacaoId}`);
-      console.log("Navegação para memory-view acionada.");
-
-    } catch (err) {
-      console.error('Erro ao concluir cocriação ou navegar:', err);
-      Alert.alert('Erro', `Falha ao concluir a Cocriação ou navegar: ${(err as Error).message}`);
-    } finally {
-        setIsCompleting(false);
-        console.log("Finalizando handleViewMemory. isCompleting agora é:", isCompleting);
-    }
+    console.log("Navegando para memory-generation com ID:", cocriacaoId);
+    router.push(`/memory-generation?id=${cocriacaoId}`); // Navega para a nova tela
   };
 
   // --- Renderização ---
-  if (loadingData) {
-    // Opcional: Mostrar um loading mais sutil enquanto dados são carregados
-    // Se a animação de celebração começa após o carregamento, talvez não seja necessário
-    // A lógica atual assume que a animação começa após o useEffect terminar
-    // Portanto, enquanto loadingData é true, nada é renderizado explicitamente aqui
-    // e a animação começa automaticamente após o carregamento (quando step muda para 'realization')
-  }
-
   if (step === 'celebration') {
     return (
       <LinearGradient
@@ -339,23 +230,16 @@ export default function CompletionRitualScreen() {
         >
           <TouchableOpacity
             style={styles.nftButton}
-            onPress={handleViewMemory}
+            onPress={handleNavigateToGeneration} // Chama a nova função de navegação
             activeOpacity={0.8}
-            disabled={isCompleting} // Desabilita o botão durante a conclusão
           >
-            {isCompleting ? ( // Mostra loading no botão se estiver concluindo
-                <View style={styles.nftButtonGradient}>
-                    <ActivityIndicator size="small" color="white" />
-                </View>
-            ) : (
-                <LinearGradient
-                colors={['rgba(255,255,255,0.3)', 'rgba(255,255,255,0.1)']}
-                style={styles.nftButtonGradient}
-                >
-                <MaterialIcons name="card-giftcard" size={24} color="white" />
-                <Text style={styles.nftButtonText}>Ver minha Memória de Cocriação</Text>
-                </LinearGradient>
-            )}
+            <LinearGradient
+              colors={['rgba(255,255,255,0.3)', 'rgba(255,255,255,0.1)']}
+              style={styles.nftButtonGradient}
+            >
+              <MaterialIcons name="card-giftcard" size={24} color="white" />
+              <Text style={styles.nftButtonText}>Ver minha Memória de Cocriação</Text>
+            </LinearGradient>
           </TouchableOpacity>
         </Animated.View>
       </View>
