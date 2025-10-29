@@ -74,7 +74,7 @@ export function useDailyPractices(cocreationId?: string) {
         .order('created_at', { ascending: false });
 
       if (cocreationId) {
-        query = query.eq('cocreation_id', cocriacaoId);
+        query = query.eq('cocreation_id', cocreationId);
       }
 
       const { data, error } = await query;
@@ -89,7 +89,7 @@ export function useDailyPractices(cocreationId?: string) {
   };
 
   const addPractice = async (practice: Omit<DailyPractice, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
-    if (!user) return {  null, error: 'User not authenticated' };
+    if (!user) return { data: null, error: 'User not authenticated' };
 
     try {
       const { data, error } = await supabase
@@ -104,12 +104,12 @@ export function useDailyPractices(cocreationId?: string) {
       return { data, error: null };
     } catch (error: any) {
       console.error('Error adding practice:', error);
-      return {  null, error: error.message };
+      return { data: null, error: error.message };
     }
   };
 
   const updatePractice = async (id: string, updates: Partial<DailyPractice>) => {
-    if (!user) return {  null, error: 'User not authenticated' };
+    if (!user) return { data: null, error: 'User not authenticated' };
 
     try {
       const { data, error } = await supabase
@@ -126,7 +126,7 @@ export function useDailyPractices(cocreationId?: string) {
       return { data, error: null };
     } catch (error: any) {
       console.error('Error updating practice:', error);
-      return {  null, error: error.message };
+      return { data: null, error: error.message };
     }
   };
 
@@ -165,7 +165,7 @@ export function useDailyPractices(cocreationId?: string) {
 
     try {
       // Passo 1: Buscar os IDs das práticas diárias do tipo especificado associadas à cocriação
-      const {  dailyPracticeIds, error: dpError } = await supabase
+      const { data: dailyPracticeIds, error: dpError } = await supabase
         .from('daily_practices') // Tabela de definições
         .select('id') // Seleciona apenas o ID
         .eq('cocreation_id', cocriacaoId)
@@ -191,7 +191,7 @@ export function useDailyPractices(cocreationId?: string) {
       const practiceIds = dailyPracticeIds.map(dp => dp.id);
 
       // Passo 2: Buscar as sessões de prática realizadas para esses IDs específicos
-      const {  practiceSessions, error: psError } = await supabase
+      const { data: practiceSessions, error: psError } = await supabase
         .from('practice_sessions') // Tabela de sessões realizadas
         .select('practice_id, notes, practiced_at') // Seleciona campos relevantes
         .in('practice_id', practiceIds) // Filtra pelas práticas diárias encontradas
@@ -228,7 +228,7 @@ export function useDailyPractices(cocreationId?: string) {
       // Passo 1: Buscar os mantras diários associados à cocriação
       // CORREÇÃO: A sintaxe .select('title as name, content as text_content') pode não funcionar bem em todas as situações
       // A maneira mais confiável é selecionar os campos e mapear depois.
-      const {  dailyMantras, error: dmError } = await supabase
+      const { data: dailyMantras, error: dmError } = await supabase
         .from('daily_practices') // Tabela de definições
         .select('id, title, content') // Seleciona os campos reais
         .eq('cocreation_id', cocriacaoId)
@@ -245,7 +245,7 @@ export function useDailyPractices(cocreationId?: string) {
       const mantraIds = dailyMantras.map(m => m.id);
 
       // Passo 2: Contar as sessões de prática para cada ID de mantra (usando RPC)
-      const {  practiceCounts, error: countError } = await supabase
+      const { data: practiceCounts, error: countError } = await supabase
         .rpc('get_practice_counts', { practice_ids: mantraIds }); // Chama a função RPC criada no banco
 
       if (countError) throw countError;
