@@ -6,7 +6,7 @@ import { useIndividualCocriations } from '../hooks/useIndividualCocriations'; //
 // Usando o hook de práticas diárias (que precisa ser atualizado conforme a resposta anterior)
 import { useDailyPractices } from '../hooks/useDailyPractices'; // Ajuste o caminho
 import { useLocalSearchParams, router } from 'expo-router';
-import { supabase } from '../app/services/supabase'; // Ajuste o caminho
+import { supabase } from '@/services/supabase';
 import { useAuth } from '../contexts/AuthContext'; // Importa o contexto de autenticação
 import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
 
