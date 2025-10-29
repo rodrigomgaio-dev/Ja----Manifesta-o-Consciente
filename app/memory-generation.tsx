@@ -6,9 +6,11 @@ import { useIndividualCocriations } from '@/hooks/useIndividualCocriations';
 import { useDailyPractices } from '@/hooks/useDailyPractices';
 import { supabase } from '@/services/supabase';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useAuth } from '@/contexts/AuthContext'; // Importa o contexto de autenticação
 
 export default function MemoryGenerationScreen() {
   const { colors } = useTheme();
+  const { user } = useAuth(); // Obtém o usuário logado
   const { id: cocriacaoId } = useLocalSearchParams<{ id: string }>();
   const { loadSingle } = useIndividualCocriations();
   const { getRecentPractices, getMostPracticedMantra } = useDailyPractices();
@@ -18,6 +20,16 @@ export default function MemoryGenerationScreen() {
 
   useEffect(() => {
     const generateAndSaveMemory = async () => {
+      console.log("memory-generation.tsx - useEffect iniciado.");
+      console.log("memory-generation.tsx - ID recebido:", cocriacaoId);
+      console.log("memory-generation.tsx - Usuário logado:", user?.id);
+
+      if (!user?.id) {
+          setError('Usuário não autenticado.');
+          setLoading(false);
+          return;
+      }
+
       if (!cocriacaoId) {
         setError('ID da Cocriação ausente.');
         setLoading(false);
@@ -25,26 +37,31 @@ export default function MemoryGenerationScreen() {
       }
 
       try {
-        console.log("Iniciando geração e salvamento da memória para cocriação:", cocriacaoId);
-
+        console.log("memory-generation.tsx - Iniciando carregamento da cocriação via loadSingle...");
         // 1. Obter detalhes da cocriação
         const {  cocriacao, error: loadError } = await loadSingle(cocriacaoId);
+        console.log("memory-generation.tsx - Resultado de loadSingle:", { cocriacao, loadError });
+
         if (loadError) {
-            console.error("Erro ao carregar cocriação para memória:", loadError);
+            console.error("memory-generation.tsx - Erro ao carregar cocriação para memória:", loadError);
             throw loadError;
         }
         if (!cocriacao) {
-            console.error("Cocriação não encontrada para memória:", cocriacaoId);
+            console.error("memory-generation.tsx - Cocriação NÃO encontrada para ID:", cocriacaoId, "pelo usuário:", user.id);
             throw new Error('Cocriação não encontrada.');
         }
 
+        console.log("memory-generation.tsx - Cocriação encontrada:", cocriacao.title);
+
         // 2. Obter práticas recentes e mantra mais praticado
-        console.log("Buscando práticas recentes e mantra para memória...");
+        console.log("memory-generation.tsx - Buscando práticas recentes e mantra para memória...");
         const [recentGratitudes, recentAffirmations, mostPracticedMantra] = await Promise.all([
           getRecentPractices(cocriacaoId, 'gratitude', 2),
           getRecentPractices(cocriacaoId, 'affirmation', 2),
           getMostPracticedMantra(cocriacaoId),
         ]);
+
+        console.log("memory-generation.tsx - Práticas obtidas. Gratidões:", recentGratitudes.length, "Afirmações:", recentAffirmations.length, "Mantra:", !!mostPracticedMantra);
 
         // 3. Montar o objeto memory_snapshot
         const memoryData = {
@@ -57,10 +74,9 @@ export default function MemoryGenerationScreen() {
           most_practiced_mantra: mostPracticedMantra,
         };
 
-        console.log("Dados da memória montados:", memoryData);
+        console.log("memory-generation.tsx - Dados da memória montados. Atualizando no Supabase...");
 
         // 4. Atualizar a cocriação no Supabase com status 'completed' e memory_snapshot
-        console.log("Atualizando cocriação no Supabase com memória...");
         const { error: updateError } = await supabase
           .from('individual_cocriations')
           .update({
@@ -68,26 +84,27 @@ export default function MemoryGenerationScreen() {
             completion_date: memoryData.completion_date,
             memory_snapshot: memoryData,
           })
-          .eq('id', cocriacaoId);
+          .eq('id', cocriacaoId)
+          .eq('user_id', user.id); // Adiciona verificação de user_id na atualização também
 
         if (updateError) {
-          console.error("Erro ao atualizar cocriação com memória:", updateError);
+          console.error("memory-generation.tsx - Erro ao atualizar cocriação com memória:", updateError);
           throw updateError;
         }
 
-        console.log("Cocriação atualizada com sucesso. Navegando para memory-view...");
+        console.log("memory-generation.tsx - Cocriação atualizada com sucesso. Navegando para memory-view...");
         // 5. Navegar para a tela final da memória
         router.replace(`/memory-view?id=${cocriacaoId}`);
 
       } catch (err) {
-        console.error('Erro na geração ou salvamento da memória:', err);
+        console.error('memory-generation.tsx - Erro na geração ou salvamento da memória:', err);
         setError(`Falha ao gerar ou salvar a memória: ${(err as Error).message}`);
         setLoading(false); // Garante que o loading pare em caso de erro
       }
     };
 
     generateAndSaveMemory();
-  }, [cocriacaoId, loadSingle, getRecentPractices, getMostPracticedMantra]);
+  }, [cocriacaoId, user?.id, loadSingle, getRecentPractices, getMostPracticedMantra]); // Adiciona user?.id às dependências
 
   if (loading) {
     return (
