@@ -31,7 +31,7 @@ export default function MemoryViewScreen() {
 
       try {
         // Carrega a cocriação completa, incluindo o memory_snapshot
-        const {  cocriacao, error: loadError } = await loadSingle(cocriacaoId);
+        const { data: cocriacao, error: loadError } = await loadSingle(cocriacaoId);
 
         if (loadError) {
           console.error("Erro ao carregar memória:", loadError);
