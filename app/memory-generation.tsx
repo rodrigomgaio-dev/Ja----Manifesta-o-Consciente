@@ -1,19 +1,17 @@
 // app/memory-generation.tsx
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, Alert, TouchableOpacity } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useIndividualCocriations } from '@/hooks/useIndividualCocriations';
-import { useDailyPractices } from '@/hooks/useDailyPractices';
+import { useDailyPractices } from '@/hooks/useDailyPractices'; // Mantém apenas as funções de práticas
 import { supabase } from '@/services/supabase';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext'; // Importa o contexto de autenticação
 
 export default function MemoryGenerationScreen() {
   const { colors } = useTheme();
-  const { user } = useAuth(); // Obtém o usuário logado
+  const { user, session } = useAuth(); // Obtém o usuário e a sessão logados
   const { id: cocriacaoId } = useLocalSearchParams<{ id: string }>();
-  const { loadSingle } = useIndividualCocriations();
-  const { getRecentPractices, getMostPracticedMantra } = useDailyPractices();
+  const { getRecentPractices, getMostPracticedMantra } = useDailyPractices(); // Usa as funções do hook atualizado
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -23,9 +21,10 @@ export default function MemoryGenerationScreen() {
       console.log("memory-generation.tsx - useEffect iniciado.");
       console.log("memory-generation.tsx - ID recebido:", cocriacaoId);
       console.log("memory-generation.tsx - Usuário logado:", user?.id);
+      console.log("memory-generation.tsx - Session ID:", session?.user?.id); // Verifica se o ID do usuário na sessão bate
 
       if (!user?.id) {
-          setError('Usuário não autenticado.');
+          setError('Sessão expirada ou usuário não autenticado. Por favor, faça login novamente.');
           setLoading(false);
           return;
       }
@@ -37,21 +36,48 @@ export default function MemoryGenerationScreen() {
       }
 
       try {
-        console.log("memory-generation.tsx - Iniciando carregamento da cocriação via loadSingle...");
-        // 1. Obter detalhes da cocriação
-        const {  cocriacao, error: loadError } = await loadSingle(cocriacaoId);
-        console.log("memory-generation.tsx - Resultado de loadSingle:", { cocriacao, loadError });
+        console.log("memory-generation.tsx - Iniciando carregamento direto da cocriação...");
+        // 1. Obter detalhes da cocriação DIRETAMENTE do Supabase
+        const {  cocriacao, error: loadError } = await supabase
+          .from('individual_cocriations')
+          .select('*')
+          .eq('id', cocriacaoId)
+          .eq('user_id', user.id) // Garante que pertence ao usuário logado
+          .single(); // Espera um único resultado
+
+        console.log("memory-generation.tsx - Resultado da consulta direta:", { cocriacao, loadError });
 
         if (loadError) {
-            console.error("memory-generation.tsx - Erro ao carregar cocriação para memória:", loadError);
+            console.error("memory-generation.tsx - Erro ao carregar cocriação DIRETO para memória:", loadError);
+            // Pode ser um erro de permissão, timeout, etc.
             throw loadError;
         }
         if (!cocriacao) {
-            console.error("memory-generation.tsx - Cocriação NÃO encontrada para ID:", cocriacaoId, "pelo usuário:", user.id);
-            throw new Error('Cocriação não encontrada.');
+            console.error("memory-generation.tsx - Cocriação DIRETA NÃO encontrada para ID:", cocriacaoId, "pelo usuário:", user.id);
+            // Opcional: Tentar carregar *sem* user_id para debug (NÃO FAÇA ISSO em produção)
+            const {  debugCocriacao, error: debugError } = await supabase
+              .from('individual_cocriations')
+              .select('*')
+              .eq('id', cocriacaoId)
+              .single();
+
+            if (debugCocriacao) {
+                console.warn("memory-generation.tsx - DEBUG: Cocriação encontrada, mas NÃO pertence ao usuário logado. Proprietário:", debugCocriacao.user_id, "Usuário logado:", user.id);
+                // Se a cocriação existe mas para outro user_id, é um problema de sessão.
+                setError('Sessão inválida. A cocriação não pertence ao usuário logado. Por favor, recarregue a página ou faça login novamente.');
+            } else if (debugError) {
+                console.warn("memory-generation.tsx - DEBUG: Erro ao tentar carregar sem user_id:", debugError);
+                // Se nem sem user_id funciona, pode ser um problema de ID ou banco.
+                setError('Cocriação não encontrada. O ID pode estar incorreto ou a cocriação pode ter sido excluída.');
+            } else {
+                 // debugCocriacao é null e debugError é null, o que é improvável mas possível.
+                 setError('Cocriação não encontrada ou erro inesperado.');
+            }
+            setLoading(false); // Para o loading se a cocriação não for encontrada
+            return; // Sai da função para não continuar o processo
         }
 
-        console.log("memory-generation.tsx - Cocriação encontrada:", cocriacao.title);
+        console.log("memory-generation.tsx - Cocriação DIRETA encontrada:", cocriacao.title);
 
         // 2. Obter práticas recentes e mantra mais praticado
         console.log("memory-generation.tsx - Buscando práticas recentes e mantra para memória...");
@@ -98,13 +124,16 @@ export default function MemoryGenerationScreen() {
 
       } catch (err) {
         console.error('memory-generation.tsx - Erro na geração ou salvamento da memória:', err);
-        setError(`Falha ao gerar ou salvar a memória: ${(err as Error).message}`);
-        setLoading(false); // Garante que o loading pare em caso de erro
+        // A mensagem de erro já foi definida no bloco if (!cocriacao) acima, ou será uma falha genérica de update.
+        if (!error) { // Se o erro não foi definido no bloco if (!cocriacao)
+             setError(`Falha ao gerar ou salvar a memória: ${(err as Error).message}`);
+        }
+        setLoading(false); // Garante que o loading pare em caso de erro genérico também
       }
     };
 
     generateAndSaveMemory();
-  }, [cocriacaoId, user?.id, loadSingle, getRecentPractices, getMostPracticedMantra]); // Adiciona user?.id às dependências
+  }, [cocriacaoId, user?.id, session?.user?.id, getRecentPractices, getMostPracticedMantra]); // Adiciona session?.user?.id às dependências
 
   if (loading) {
     return (
@@ -120,6 +149,13 @@ export default function MemoryGenerationScreen() {
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <Text style={[styles.errorText, { color: colors.error }]}>Erro: {error}</Text>
         <Text style={{ color: colors.text }}>Por favor, tente novamente.</Text>
+        {/* Botão opcional para recarregar a sessão ou voltar */}
+        <TouchableOpacity
+            style={styles.retryButton}
+            onPress={() => router.back()} // Ou uma função para recarregar a sessão
+        >
+            <Text style={{ color: colors.primary }}>Voltar</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -137,10 +173,18 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 20,
   },
   errorText: {
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 10,
+    textAlign: 'center',
   },
+  retryButton: {
+    marginTop: 20,
+    padding: 10,
+    backgroundColor: 'rgba(139, 92, 246, 0.1)', // Exemplo de cor
+    borderRadius: 5,
+  }
 });
