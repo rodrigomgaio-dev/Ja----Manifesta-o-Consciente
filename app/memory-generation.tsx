@@ -1,6 +1,6 @@
 // app/memory-generation.tsx
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Alert, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useDailyPractices } from '@/hooks/useDailyPractices'; // Mantém apenas as funções de práticas
 import { supabase } from '@/services/supabase';
@@ -89,18 +89,26 @@ export default function MemoryGenerationScreen() {
 
         console.log("memory-generation.tsx - Práticas obtidas. Gratidões:", recentGratitudes.length, "Afirmações:", recentAffirmations.length, "Mantra:", !!mostPracticedMantra);
 
-        // 3. Montar o objeto memory_snapshot
-        const memoryData = {
+        // 3. Montar o objeto memory_snapshot CONDICIONALMENTE
+        const memoryData: any = { // Usamos 'any' temporariamente ou definimos um tipo mais flexível
           title: cocriacao.title,
           intention: cocriacao.why_reason || '',
           start_date: cocriacao.created_at,
           completion_date: new Date().toISOString(),
-          gratitudes: recentGratitudes,
-          affirmations: recentAffirmations,
-          most_practiced_mantra: mostPracticedMantra,
         };
 
-        console.log("memory-generation.tsx - Dados da memória montados. Atualizando no Supabase...");
+        // Adiciona campos apenas se houver dados
+        if (recentGratitudes.length > 0) {
+          memoryData.gratitudes = recentGratitudes;
+        }
+        if (recentAffirmations.length > 0) {
+          memoryData.affirmations = recentAffirmations;
+        }
+        if (mostPracticedMantra) {
+          memoryData.most_practiced_mantra = mostPracticedMantra;
+        }
+
+        console.log("memory-generation.tsx - Dados da memória montados (condicionalmente). Atualizando no Supabase:", memoryData);
 
         // 4. Atualizar a cocriação no Supabase com status 'completed' e memory_snapshot
         const { error: updateError } = await supabase
@@ -108,7 +116,7 @@ export default function MemoryGenerationScreen() {
           .update({
             status: 'completed',
             completion_date: memoryData.completion_date,
-            memory_snapshot: memoryData,
+            memory_snapshot: memoryData, // O objeto pode ter campos opcionais agora
           })
           .eq('id', cocriacaoId)
           .eq('user_id', user.id); // Adiciona verificação de user_id na atualização também
