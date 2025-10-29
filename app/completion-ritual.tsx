@@ -1,329 +1,420 @@
-{/* app/completion-ritual.tsx*/}
+// app/completion-ritual.tsx
 import React, { useState, useEffect, useRef } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Animated,
-  Dimensions,
-  TouchableOpacity,
-} from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
-import { MaterialIcons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useTheme } from '@/contexts/ThemeContext';
-import { useIndividualCocriations } from '@/hooks/useIndividualCocriations';
-import { Spacing } from '@/constants/Colors';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIndicator, useWindowDimensions } from 'react-native';
+// Usando o hook existente
+import { useIndividualCocriations } from '../hooks/useIndividualCocriations'; // Ajuste o caminho conforme necessário
+// Usando o hook de práticas diárias (que precisa ser atualizado conforme a resposta anterior)
+import { useDailyPractices } from '../hooks/useDailyPractices'; // Ajuste o caminho
+import { useLocalSearchParams, router } from 'expo-router';
+import { supabase } from '../app/services/supabase'; // Ajuste o caminho
+import { useAuth } from '../contexts/AuthContext'; // Importa o contexto de autenticação
+import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
 
-const { width, height } = Dimensions.get('window');
+// --- Tipos ---
+// Ajuste conforme o tipo IndividualCocriation definido em '@/services/types'
+type Gratitude = {
+  content: string;
+  practiced_at: string; // Ajuste conforme o tipo real de practice_sessions
+};
 
+type Affirmation = {
+  content: string;
+  practiced_at: string; // Ajuste conforme o tipo real de practice_sessions
+};
+
+type Mantra = {
+  id: string;
+  name: string;
+  text_content: string;
+  practice_count: number; // Calculado ou armazenado
+};
+
+type MemorySnapshot = {
+  title: string;
+  intention: string; // ou why_reason
+  start_date: string; // ou created_at
+  completion_date: string;
+  gratitudes: Gratitude[];
+  affirmations: Affirmation[];
+  most_practiced_mantra: Mantra | null;
+};
+
+// --- Componente ---
 export default function CompletionRitualScreen() {
-  const { colors } = useTheme();
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const { updateCocriation } = useIndividualCocriations();
+  const { id: cocriacaoId } = useLocalSearchParams<{ id: string }>();
+  const { width, height } = useWindowDimensions();
 
-  const [step, setStep] = useState<'celebration' | 'realization'>('celebration');
-  
-  // Animações
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(0.3)).current;
-  const textFadeAnim = useRef(new Animated.Value(0)).current;
-  const subtitleSlideAnim = useRef(new Animated.Value(50)).current;
-  
-  // Partículas
-  const [particles, setParticles] = useState<any[]>([]);
+  // --- Estados ---
+  const [loading, setLoading] = useState(true);
+  const [isCompleting, setIsCompleting] = useState(false);
+  const [showMemory, setShowMemory] = useState(false); // Controla a revelação dos elementos
+  const [memoryData, setMemoryData] = useState<MemorySnapshot | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
+  // --- Hooks ---
+  const { loadSingle } = useIndividualCocriations(); // Usa a função existente
+  const { user } = useAuth(); // Pode ser necessário para o hook useDailyPractices
+  const { getRecentPractices, getMostPracticedMantra } = useDailyPractices(user); // Passa o usuário se necessário
+
+  // --- Carregar dados iniciais ---
   useEffect(() => {
-    // Animação de celebração
-    startCelebrationAnimation();
-    
-    // Criar partículas
-    createParticles();
-    
-    // Transição para tela de realização
-    setTimeout(() => {
-      setStep('realization');
-      startRealizationAnimation();
-    }, 3000);
-  }, []);
+    const loadData = async () => {
+      if (!cocriacaoId) {
+        setError('ID da Cocriação ausente.');
+        setLoading(false);
+        return;
+      }
+      try {
+        // 1. Obter detalhes da cocriação usando a função do hook existente
+        const { data: cocriacao, error: loadError } = await loadSingle(cocriacaoId);
+        if (loadError) {
+          throw loadError;
+        }
+        if (!cocriacao) {
+          throw new Error('Cocriação não encontrada.');
+        }
 
-  const createParticles = () => {
-    const newParticles = [];
-    for (let i = 0; i < 20; i++) {
-      const particle = {
-        id: i,
-        x: Math.random() * width,
-        y: height + Math.random() * 100,
-        size: Math.random() * 20 + 10,
-        duration: Math.random() * 3000 + 2000,
-        delay: Math.random() * 500,
-        opacity: new Animated.Value(0),
-        translateY: new Animated.Value(0),
-      };
-      
-      // Animar partícula subindo
-      Animated.sequence([
-        Animated.delay(particle.delay),
-        Animated.parallel([
-          Animated.timing(particle.opacity, {
-            toValue: 0.8,
-            duration: 500,
-            useNativeDriver: true,
-          }),
-          Animated.timing(particle.translateY, {
-            toValue: -height - 100,
-            duration: particle.duration,
-            useNativeDriver: true,
-          }),
-        ]),
-        Animated.timing(particle.opacity, {
-          toValue: 0,
-          duration: 500,
-          useNativeDriver: true,
-        }),
-      ]).start();
-      
-      newParticles.push(particle);
+        // 2. Obter práticas recentes e mantra mais praticado
+        const [recentGratitudes, recentAffirmations, mostPracticedMantra] = await Promise.all([
+          getRecentPractices(cocriacaoId, 'gratitude', 2),
+          getRecentPractices(cocriacaoId, 'affirmation', 2),
+          getMostPracticedMantra(cocriacaoId),
+        ]);
+
+        // 3. Montar o objeto memory_snapshot
+        const newMemoryData: MemorySnapshot = {
+          title: cocriacao.title,
+          intention: cocriacao.why_reason || '', // Ajuste conforme o nome real do campo no banco/types
+          start_date: cocriacao.created_at, // Ajuste conforme o nome real do campo no banco/types
+          completion_date: new Date().toISOString(), // Data atual no momento da conclusão
+          gratitudes: recentGratitudes,
+          affirmations: recentAffirmations,
+          most_practiced_mantra: mostPracticedMantra,
+        };
+
+        setMemoryData(newMemoryData);
+        setLoading(false);
+      } catch (err) {
+        console.error('Erro ao carregar dados para a memória:', err);
+        setError(`Falha ao carregar os dados: ${(err as Error).message}`);
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, [cocriacaoId, loadSingle, getRecentPractices, getMostPracticedMantra]);
+
+  // --- Função para concluir a cocriação ---
+  const handleConcludeCocriacao = async () => {
+    if (!cocriacaoId || !memoryData) {
+      Alert.alert('Erro', 'Dados insuficientes para concluir.');
+      return;
     }
-    setParticles(newParticles);
+
+    setIsCompleting(true);
+    try {
+      // 1. Atualizar a cocriação no Supabase com status 'completed' e memory_snapshot
+      const { error: updateError } = await supabase
+        .from('individual_cocriations') // Substitua pelo nome real da sua tabela
+        .update({
+          status: 'completed', // Ajuste o status final conforme necessário
+          completion_date: memoryData.completion_date,
+          memory_snapshot: memoryData, // O objeto completo é salvo como JSON
+        })
+        .eq('id', cocriacaoId);
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      // 2. Revelar a memória gerada
+      setShowMemory(true);
+      // Opcional: Navegar automaticamente após um delay, ou esperar o botão
+    } catch (err) {
+      console.error('Erro ao concluir cocriação:', err);
+      Alert.alert('Erro', `Falha ao concluir a Cocriação: ${(err as Error).message}`);
+    } finally {
+      setIsCompleting(false);
+    }
   };
 
-  const startCelebrationAnimation = () => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 1000,
-        useNativeDriver: true,
-      }),
-      Animated.spring(scaleAnim, {
-        toValue: 1,
-        tension: 50,
-        friction: 7,
-        useNativeDriver: true,
-      }),
-    ]).start();
+  // --- Funções de navegação ---
+  const handleViewMemory = () => {
+    if (cocriacaoId) {
+      router.push(`/memory-view?id=${cocriacaoId}`);
+    }
   };
 
-  const startRealizationAnimation = () => {
-    Animated.sequence([
-      Animated.timing(textFadeAnim, {
-        toValue: 1,
-        duration: 1500,
-        useNativeDriver: true,
-      }),
-      Animated.delay(1500),
-      Animated.parallel([
-        Animated.timing(subtitleSlideAnim, {
-          toValue: 0,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-      ]),
-    ]).start();
-  };
-
-  const handleViewNFT = async () => {
-    if (!id) return;
-    
-    // Marcar cocriação como concluída
-    await updateCocriation(id, {
-      status: 'completed',
-      completion_date: new Date().toISOString(),
-    });
-    
-    // Navegar para a tela da Memória de Cocriação
-    router.replace(`/symbolic-nft?cocreationId=${id}`);
-  };
-
-  if (step === 'celebration') {
+  // --- Renderização ---
+  if (loading) {
     return (
-      <LinearGradient
-        colors={['#1a0b2e', '#2d1b4e', '#4a2c6e']}
-        style={styles.container}
-      >
-        {/* Partículas douradas */}
-        {particles.map((particle) => (
-          <Animated.View
-            key={particle.id}
-            style={[
-              styles.particle,
-              {
-                left: particle.x,
-                bottom: 0,
-                width: particle.size,
-                height: particle.size,
-                opacity: particle.opacity,
-                transform: [{ translateY: particle.translateY }],
-              },
-            ]}
-          >
-            <MaterialIcons name="auto-awesome" size={particle.size} color="#FBBF24" />
-          </Animated.View>
-        ))}
-        
-        {/* Ícone central pulsante */}
-        <Animated.View
-          style={[
-            styles.celebrationIcon,
-            {
-              opacity: fadeAnim,
-              transform: [{ scale: scaleAnim }],
-            },
-          ]}
-        >
-          <LinearGradient
-            colors={['#8B5CF6', '#EC4899', '#FBBF24']}
-            style={styles.iconGradient}
-          >
-            <MaterialIcons name="celebration" size={80} color="white" />
-          </LinearGradient>
-        </Animated.View>
-      </LinearGradient>
+      <View style={styles.container}>
+        <ActivityIndicator size="large" color="#4A90E2" />
+        <Text style={styles.loadingText}>Preparando sua Memória...</Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={() => router.back()}>
+          <Text style={styles.buttonText}>Voltar</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  if (!memoryData) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.errorText}>Erro: Dados da memória não carregados.</Text>
+      </View>
     );
   }
 
   return (
-    <LinearGradient
-      colors={['#6B46C1', '#8B5CF6', '#A855F7', '#EC4899', '#FBBF24']}
-      style={styles.container}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-    >
-      <View style={styles.realizationContainer}>
-        {/* Texto "Já é." */}
-        <Animated.View
-          style={[
-            styles.mainTextContainer,
-            {
-              opacity: textFadeAnim,
-            },
-          ]}
-        >
-          <Text style={styles.mainText}>Já é.</Text>
+    <ScrollView contentContainerStyle={styles.container}>
+      <View style={styles.content}>
+        {/* Animação Inicial */}
+        <Animated.View entering={FadeIn.duration(1500)}>
+          <Text style={styles.title}>Cerimônia de Conclusão</Text>
+          <Text style={styles.subtitle}>Você está prestes a selar esta Cocriação.</Text>
         </Animated.View>
-        
-        {/* Subtitle deslizando */}
-        <Animated.View
-          style={[
-            styles.subtitleContainer,
-            {
-              opacity: textFadeAnim,
-              transform: [{ translateY: subtitleSlideAnim }],
-            },
-          ]}
-        >
-          <Text style={styles.subtitle}>Gratidão pela cocriação.</Text>
-        </Animated.View>
-        
-        {/* Botão Ver Memória de Cocriação */}
-        <Animated.View
-          style={[
-            styles.buttonContainer,
-            {
-              opacity: textFadeAnim,
-            },
-          ]}
-        >
-          <TouchableOpacity
-            style={styles.nftButton}
-            onPress={handleViewNFT}
-            activeOpacity={0.8}
+
+        {/* Botão de Conclusão */}
+        {!showMemory && (
+          <Animated.View
+            entering={FadeInUp.delay(500).duration(1000)}
+            style={styles.conclusionButtonContainer}
           >
-            <LinearGradient
-              colors={['rgba(255,255,255,0.3)', 'rgba(255,255,255,0.1)']}
-              style={styles.nftButtonGradient}
+            <TouchableOpacity
+              style={styles.conclusionButton}
+              onPress={handleConcludeCocriacao}
+              disabled={isCompleting}
             >
-              <MaterialIcons name="card-giftcard" size={24} color="white" />
-              <Text style={styles.nftButtonText}>Ver minha Memória de Cocriação</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </Animated.View>
+              {isCompleting ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Text style={styles.conclusionButtonText}>Concluir Cocriação</Text>
+              )}
+            </TouchableOpacity>
+          </Animated.View>
+        )}
+
+        {/* Revelação da Memória */}
+        {showMemory && (
+          <Animated.View
+            entering={FadeIn.delay(1000).duration(1500)}
+            style={styles.memoryContainer}
+          >
+            <Text style={styles.memoryTitle}>{memoryData.title}</Text>
+            <Text style={styles.memoryIntro}>Esta é a sua Memória da Cocriação.</Text>
+
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Minhas Gratidões Finais</Text>
+              {memoryData.gratitudes.length > 0 ? (
+                memoryData.gratitudes.map((g, index) => (
+                  <Text key={index} style={styles.memoryItem}>
+                    • {g.content}
+                  </Text>
+                ))
+              ) : (
+                <Text style={styles.memoryItem}>Nenhuma gratidão registrada.</Text>
+              )}
+            </View>
+
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Afirmações que Me Sustentaram</Text>
+              {memoryData.affirmations.length > 0 ? (
+                memoryData.affirmations.map((a, index) => (
+                  <Text key={index} style={styles.memoryItem}>
+                    • {a.content}
+                  </Text>
+                ))
+              ) : (
+                <Text style={styles.memoryItem}>Nenhuma afirmação registrada.</Text>
+              )}
+            </View>
+
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Meu Mantra de Coração</Text>
+              {memoryData.most_practiced_mantra ? (
+                <>
+                  <Text style={styles.mantraName}>{memoryData.most_practiced_mantra.name}</Text>
+                  <Text style={styles.mantraText}>"{memoryData.most_practiced_mantra.text_content}"</Text>
+                  <Text style={styles.mantraCount}>
+                    Praticado {memoryData.most_practiced_mantra.practice_count} vezes
+                  </Text>
+                </>
+              ) : (
+                <Text style={styles.memoryItem}>Nenhum mantra praticado.</Text>
+              )}
+            </View>
+
+            <Text style={styles.finalPhrase}>Já é.</Text>
+
+            <TouchableOpacity style={styles.viewMemoryButton} onPress={handleViewMemory}>
+              <Text style={styles.viewMemoryButtonText}>Ver Minha Memória</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        )}
       </View>
-    </LinearGradient>
+    </ScrollView>
   );
 }
 
+// --- Estilos ---
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    flexGrow: 1,
+    padding: 20,
+    backgroundColor: '#f0f4f8', // Fundo suave
     justifyContent: 'center',
+  },
+  content: {
     alignItems: 'center',
-  },
-  particle: {
-    position: 'absolute',
-  },
-  celebrationIcon: {
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    overflow: 'hidden',
-    shadowColor: '#FBBF24',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 20,
-    elevation: 10,
-  },
-  iconGradient: {
     width: '100%',
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
   },
-  realizationContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.xl,
+  loadingText: {
+    marginTop: 20,
+    fontSize: 16,
+    color: '#555',
   },
-  mainTextContainer: {
-    marginBottom: Spacing.xl * 2,
-  },
-  mainText: {
-    fontSize: 72,
-    fontWeight: '300',
-    color: 'white',
+  errorText: {
+    fontSize: 16,
+    color: '#d32f2f',
     textAlign: 'center',
-    letterSpacing: 8,
+    marginBottom: 20,
   },
-  subtitleContainer: {
-    marginBottom: Spacing.xl * 3,
+  retryButton: {
+    backgroundColor: '#4A90E2',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 5,
+  },
+  buttonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 10,
+    textAlign: 'center',
   },
   subtitle: {
-    fontSize: 24,
-    fontWeight: '300',
-    color: 'rgba(255,255,255,0.95)',
+    fontSize: 16,
+    color: '#666',
     textAlign: 'center',
-    fontStyle: 'italic',
-    letterSpacing: 2,
+    marginBottom: 30,
   },
-  buttonContainer: {
+  conclusionButtonContainer: {
+    marginVertical: 20,
+  },
+  conclusionButton: {
+    backgroundColor: '#4A90E2',
+    paddingHorizontal: 30,
+    paddingVertical: 15,
+    borderRadius: 25,
+    elevation: 3, // Sombra para Android
+    shadowColor: '#000', // Sombra para iOS
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+  },
+  conclusionButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  memoryContainer: {
     width: '100%',
-    maxWidth: 320,
-  },
-  nftButton: {
-    borderRadius: 16,
-    overflow: 'hidden',
-    shadowColor: '#fff',
+    maxWidth: 600, // Limite de largura para telas maiores
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    padding: 20,
+    elevation: 5, // Sombra para Android
+    shadowColor: '#000', // Sombra para iOS
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  nftButtonGradient: {
-    flexDirection: 'row',
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: Spacing.lg,
-    paddingHorizontal: Spacing.xl,
-    gap: Spacing.md,
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.3)',
-    borderRadius: 16,
   },
-  nftButtonText: {
+  memoryTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  memoryIntro: {
+    fontSize: 16,
+    fontStyle: 'italic',
+    color: '#555',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  section: {
+    width: '100%',
+    marginBottom: 20,
+  },
+  sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: 'white',
-    letterSpacing: 0.5,
+    color: '#4A90E2',
+    marginBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+    paddingBottom: 5,
+  },
+  memoryItem: {
+    fontSize: 16,
+    color: '#666',
+    lineHeight: 22,
+    marginBottom: 8,
+  },
+  mantraName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 5,
+  },
+  mantraText: {
+    fontSize: 16,
+    color: '#666',
+    fontStyle: 'italic',
+    marginBottom: 5,
+  },
+  mantraCount: {
+    fontSize: 14,
+    color: '#888',
+  },
+  finalPhrase: {
+    fontSize: 32,
+    fontWeight: '900',
+    color: '#4A90E2',
+    marginVertical: 20,
+    alignSelf: 'flex-start',
+    paddingLeft: 10,
+  },
+  viewMemoryButton: {
+    backgroundColor: '#4A90E2',
+    paddingHorizontal: 30,
+    paddingVertical: 15,
+    borderRadius: 25,
+    marginTop: 20,
+    elevation: 3, // Sombra para Android
+    shadowColor: '#000', // Sombra para iOS
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+  },
+  viewMemoryButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
   },
 });
