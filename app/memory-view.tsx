@@ -13,10 +13,10 @@ import { Spacing } from '@/constants/Colors';
 const { width, height } = Dimensions.get('window');
 
 // Função para gerar valores aleatórios para colagem
-const getRandomRotation = () => (Math.random() - 0.5) * 20; // -10 a 10 graus
-const getRandomScale = () => 0.9 + Math.random() * 0.2; // 0.9 a 1.1
-const getRandomOffsetX = () => (Math.random() - 0.5) * 20; // -10 a 10 px
-const getRandomOffsetY = () => (Math.random() - 0.5) * 20; // -10 a 10 px
+const getRandomRotation = () => (Math.random() - 0.5) * 15; // -7.5 a 7.5 graus
+const getRandomScale = () => 0.85 + Math.random() * 0.25; // 0.85 a 1.1
+const getRandomOffsetX = () => (Math.random() - 0.5) * 15; // -7.5 a 7.5 px
+const getRandomOffsetY = () => (Math.random() - 0.5) * 15; // -7.5 a 7.5 px
 
 export default function MemoryViewScreen() {
   const { colors } = useTheme();
@@ -26,7 +26,7 @@ export default function MemoryViewScreen() {
   const [cocriacaoData, setCocriacaoData] = useState<any>(null);
   const [memoryData, setMemoryData] = useState<any>(null);
   const [visionBoardItems, setVisionBoardItems] = useState<any[]>([]);
-  const [coverImageUrl, setCoverImageUrl] = useState<string | null>(null); // Armazena a URL da imagem de capa
+  const [coverImageUrl, setCoverImageUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -43,7 +43,7 @@ export default function MemoryViewScreen() {
       // 1. Carregar dados principais da cocriação
       const { data: cocriacao, error: loadError } = await supabase
         .from('individual_cocriations')
-        .select('title, why_reason, mental_code, memory_snapshot, cover_image_url, status') // Inclui cover_image_url
+        .select('title, why_reason, mental_code, memory_snapshot, cover_image_url, status')
         .eq('id', cocriacaoId)
         .eq('user_id', user.id)
         .single();
@@ -71,7 +71,7 @@ export default function MemoryViewScreen() {
 
       setCocriacaoData(cocriacao);
       setMemoryData(cocriacao.memory_snapshot);
-      setCoverImageUrl(cocriacao.cover_image_url); // Armazena a URL da imagem de capa
+      setCoverImageUrl(cocriacao.cover_image_url);
 
       // 2. Carregar os itens do Vision Board
       const {  items, error: itemsError } = await supabase
@@ -183,33 +183,47 @@ export default function MemoryViewScreen() {
           <View style={styles.visionBoardCollageContainer}>
             <Text style={[styles.collageTitle, { color: colors.text }]}>Memórias Visuais:</Text>
             <View style={styles.visionBoardCollage}>
-              {visionBoardImages.map((item, index) => (
-                <Animated.View
-                  key={item.id || index} // Use ID se disponível, senão índice
-                  style={[
-                    styles.collageImage,
-                    {
-                      transform: [
-                        { rotate: `${getRandomRotation()}deg` },
-                        { scale: getRandomScale() },
-                        { translateX: getRandomOffsetX() },
-                        { translateY: getRandomOffsetY() },
-                      ],
-                      zIndex: index, // Imagens posteriores ficam por cima
-                      // Posicionamento aleatório dentro do container da colagem
-                      position: 'absolute',
-                      left: Math.random() * (width * 0.8 - 100), // Largura do container - largura da imagem
-                      top: Math.random() * 300, // Altura aleatória dentro de uma faixa
-                    },
-                  ]}
-                >
-                  <Image
-                    source={{ uri: item.content }}
-                    style={styles.collageImageContent}
-                    contentFit="cover"
-                  />
-                </Animated.View>
-              ))}
+              {visionBoardImages.map((item, index) => {
+                // Calcula posições para evitar sobreposição total e manter dentro dos limites
+                const imgWidth = 100;
+                const imgHeight = 100;
+                const containerWidth = width * 0.8; // 80% da largura da tela
+                const containerHeight = 300; // Altura fixa do container da colagem
+
+                // Garante que a imagem fique dentro dos limites do container com margem
+                const maxX = containerWidth - imgWidth - 10;
+                const maxY = containerHeight - imgHeight - 10;
+
+                const randomX = Math.min(maxX, Math.max(0, Math.random() * maxX));
+                const randomY = Math.min(maxY, Math.max(0, Math.random() * maxY));
+
+                return (
+                  <Animated.View
+                    key={item.id || index}
+                    style={[
+                      styles.collageImage,
+                      {
+                        transform: [
+                          { rotate: `${getRandomRotation()}deg` },
+                          { scale: getRandomScale() },
+                          { translateX: getRandomOffsetX() },
+                          { translateY: getRandomOffsetY() },
+                        ],
+                        // zIndex: index, // Removido zIndex para evitar sobreposição complexa
+                        position: 'absolute',
+                        left: randomX,
+                        top: randomY,
+                      },
+                    ]}
+                  >
+                    <Image
+                      source={{ uri: item.content }}
+                      style={styles.collageImageContent}
+                      contentFit="cover"
+                    />
+                  </Animated.View>
+                );
+              })}
             </View>
           </View>
         )}
@@ -260,15 +274,8 @@ export default function MemoryViewScreen() {
           )}
         </View>
 
-        {/* Frase Final */}
-        <LinearGradient
-          colors={['#8B5CF6', '#EC4899', '#FBBF24']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.finalPhraseGradient}
-        >
-          <Text style={styles.finalPhrase}>Agora JÁ É mesmo!</Text>
-        </LinearGradient>
+        {/* Frase Final (Estilo Quadro de Conquista) */}
+        <Text style={[styles.finalPhrase, { color: colors.primary }]}>Agora JÁ É mesmo!</Text>
 
         {/* Rodapé */}
         <Text style={[styles.footerText, { color: colors.textMuted, fontStyle: 'italic', textAlign: 'center', marginTop: Spacing.xl }]}>
@@ -289,7 +296,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: Spacing.lg,
     paddingBottom: 100,
-    alignItems: 'center', // Centraliza o conteúdo principal
+    alignItems: 'center',
   },
   errorText: {
     fontSize: 16,
@@ -303,37 +310,37 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: Spacing.lg,
     letterSpacing: 1.5,
-    textShadowColor: 'rgba(0, 0, 0, 0.5)', // Sombra para destaque
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 2,
   },
   infoSection: {
     width: '100%',
-    maxWidth: 600, // Limite de largura para telas maiores
+    maxWidth: 600,
     marginBottom: Spacing.lg,
     padding: Spacing.md,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)', // Fundo sutil
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderRadius: 12,
   },
   infoItem: {
     flexDirection: 'row',
-    alignItems: 'flex-start', // Alinha ícone ao topo do texto
+    alignItems: 'flex-start',
     marginBottom: Spacing.md,
   },
   infoText: {
     fontSize: 16,
     lineHeight: 22,
     marginLeft: Spacing.sm,
-    flex: 1, // Permite que o texto ocupe o espaço restante
+    flex: 1,
   },
   mentalCodeHighlight: {
-    color: '#FBBF24', // Cor dourada para o código mental
+    color: '#FBBF24',
     fontWeight: '700',
     letterSpacing: 1,
   },
   coverImageContainer: {
     width: '100%',
-    maxWidth: 400, // Limite de largura
+    maxWidth: 400,
     height: 200,
     marginBottom: Spacing.lg,
     borderRadius: 16,
@@ -361,12 +368,13 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   visionBoardCollage: {
-    width: '100%',
-    height: 300, // Altura fixa para a área da colagem
-    position: 'relative', // Permite posicionamento absoluto das imagens
-    backgroundColor: 'rgba(255, 255, 255, 0.02)', // Fundo sutil para a área da colagem
+    width: '80%', // 80% da largura do container pai
+    height: 300,
+    position: 'relative',
+    backgroundColor: 'rgba(255, 255, 255, 0.02)',
     borderRadius: 12,
-    overflow: 'hidden', // Contém as imagens que podem ultrapassar os limites
+    overflow: 'hidden',
+    alignSelf: 'center', // Centraliza o container da colagem
   },
   collageImage: {
     width: 100,
@@ -398,7 +406,7 @@ const styles = StyleSheet.create({
   },
   contentIcon: {
     marginRight: Spacing.sm,
-    marginTop: 2, // Alinhamento vertical do ícone com o texto
+    marginTop: 2,
   },
   contentTitle: {
     fontSize: 18,
@@ -419,25 +427,20 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     marginBottom: Spacing.xs,
   },
-  finalPhraseGradient: {
-    padding: Spacing.xl,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginVertical: Spacing.xl,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 10,
-  },
+  // --- Estilo Atualizado para a Frase Final ---
   finalPhrase: {
-    fontSize: 36,
-    fontWeight: '900',
-    color: 'white',
+    fontSize: 28,
+    fontWeight: '800',
     textAlign: 'center',
-    letterSpacing: 2,
+    marginVertical: Spacing.xl,
+    letterSpacing: 1.5,
+    // Removido o LinearGradient e estilos de botão
+    // Adicionado leve sombreado para destaque
+    textShadowColor: 'rgba(139, 92, 246, 0.5)', // Cor da sombra baseada nas cores do app
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 3,
   },
+  // ---
   footerText: {
     fontSize: 12,
     paddingHorizontal: Spacing.md,
