@@ -1,228 +1,247 @@
-import React, { useState, useEffect } from 'react';
+{/* app/completion-ritual.tsx*/}
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   Animated,
-  TouchableOpacity,
   Dimensions,
+  TouchableOpacity,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
-import GradientBackground from '@/components/ui/GradientBackground';
-import SacredButton from '@/components/ui/SacredButton';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useIndividualCocriations } from '@/hooks/useIndividualCocriations';
 import { Spacing } from '@/constants/Colors';
 
 const { width, height } = Dimensions.get('window');
 
 export default function CompletionRitualScreen() {
   const { colors } = useTheme();
-  const insets = useSafeAreaInsets();
-  const { cocreationId } = useLocalSearchParams();
-  const id = cocreationId as string;
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const { updateCocriation } = useIndividualCocriations();
 
-  const [phase, setPhase] = useState<'celebration' | 'realization' | 'completed'>('celebration');
-  const scaleAnim = new Animated.Value(0.8);
-  const textOpacity = new Animated.Value(0);
-  const textY = new Animated.Value(50);
+  const [step, setStep] = useState<'celebration' | 'realization'>('celebration');
+  
+  // Animações
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.3)).current;
+  const textFadeAnim = useRef(new Animated.Value(0)).current;
+  const subtitleSlideAnim = useRef(new Animated.Value(50)).current;
+  
+  // Partículas
+  const [particles, setParticles] = useState<any[]>([]);
 
   useEffect(() => {
-    // Fase 1: Celebração (3 segundos)
-    const celebrationTimer = setTimeout(() => {
-      setPhase('realization');
+    // Animação de celebração
+    startCelebrationAnimation();
+    
+    // Criar partículas
+    createParticles();
+    
+    // Transição para tela de realização
+    setTimeout(() => {
+      setStep('realization');
+      startRealizationAnimation();
     }, 3000);
-
-    // Fase 2: Realização (2 segundos)
-    const realizationTimer = setTimeout(() => {
-      setPhase('completed');
-    }, 5000);
-
-    return () => {
-      clearTimeout(celebrationTimer);
-      clearTimeout(realizationTimer);
-    };
   }, []);
 
-  useEffect(() => {
-    if (phase === 'celebration') {
-      // Animação pulsante do ícone
-      const pulseAnimation = Animated.loop(
-        Animated.sequence([
-          Animated.timing(scaleAnim, {
-            toValue: 1.2,
-            duration: 1000,
-            useNativeDriver: true,
-          }),
-          Animated.timing(scaleAnim, {
+  const createParticles = () => {
+    const newParticles = [];
+    for (let i = 0; i < 20; i++) {
+      const particle = {
+        id: i,
+        x: Math.random() * width,
+        y: height + Math.random() * 100,
+        size: Math.random() * 20 + 10,
+        duration: Math.random() * 3000 + 2000,
+        delay: Math.random() * 500,
+        opacity: new Animated.Value(0),
+        translateY: new Animated.Value(0),
+      };
+      
+      // Animar partícula subindo
+      Animated.sequence([
+        Animated.delay(particle.delay),
+        Animated.parallel([
+          Animated.timing(particle.opacity, {
             toValue: 0.8,
-            duration: 1000,
+            duration: 500,
             useNativeDriver: true,
           }),
-        ])
-      );
-      pulseAnimation.start();
-
-      return () => pulseAnimation.stop();
-    }
-
-    if (phase === 'realization') {
-      // Animação de aparecimento do texto
-      Animated.parallel([
-        Animated.timing(textOpacity, {
-          toValue: 1,
-          duration: 1500,
-          useNativeDriver: true,
-        }),
-        Animated.timing(textY, {
+          Animated.timing(particle.translateY, {
+            toValue: -height - 100,
+            duration: particle.duration,
+            useNativeDriver: true,
+          }),
+        ]),
+        Animated.timing(particle.opacity, {
           toValue: 0,
-          duration: 1500,
+          duration: 500,
           useNativeDriver: true,
         }),
       ]).start();
+      
+      newParticles.push(particle);
     }
-  }, [phase]);
-
-  const handleGoToMemoryConfig = () => {
-    router.push({
-      pathname: '/memory-config',
-      params: { cocreationId: id }
-    });
+    setParticles(newParticles);
   };
 
-  const handleGoToMemory = () => {
-    router.push({
-      pathname: '/symbolic-nft',
-      params: { cocreationId: id }
-    });
+  const startCelebrationAnimation = () => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 1000,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        tension: 50,
+        friction: 7,
+        useNativeDriver: true,
+      }),
+    ]).start();
   };
+
+  const startRealizationAnimation = () => {
+    Animated.sequence([
+      Animated.timing(textFadeAnim, {
+        toValue: 1,
+        duration: 1500,
+        useNativeDriver: true,
+      }),
+      Animated.delay(1500),
+      Animated.parallel([
+        Animated.timing(subtitleSlideAnim, {
+          toValue: 0,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start();
+  };
+
+  const handleViewNFT = async () => {
+    if (!id) return;
+    
+    // Marcar cocriação como concluída
+    await updateCocriation(id, {
+      status: 'completed',
+      completion_date: new Date().toISOString(),
+    });
+    
+    // Navegar para a tela da Memória de Cocriação
+    router.replace(`/symbolic-nft?cocreationId=${id}`);
+  };
+
+  if (step === 'celebration') {
+    return (
+      <LinearGradient
+        colors={['#1a0b2e', '#2d1b4e', '#4a2c6e']}
+        style={styles.container}
+      >
+        {/* Partículas douradas */}
+        {particles.map((particle) => (
+          <Animated.View
+            key={particle.id}
+            style={[
+              styles.particle,
+              {
+                left: particle.x,
+                bottom: 0,
+                width: particle.size,
+                height: particle.size,
+                opacity: particle.opacity,
+                transform: [{ translateY: particle.translateY }],
+              },
+            ]}
+          >
+            <MaterialIcons name="auto-awesome" size={particle.size} color="#FBBF24" />
+          </Animated.View>
+        ))}
+        
+        {/* Ícone central pulsante */}
+        <Animated.View
+          style={[
+            styles.celebrationIcon,
+            {
+              opacity: fadeAnim,
+              transform: [{ scale: scaleAnim }],
+            },
+          ]}
+        >
+          <LinearGradient
+            colors={['#8B5CF6', '#EC4899', '#FBBF24']}
+            style={styles.iconGradient}
+          >
+            <MaterialIcons name="celebration" size={80} color="white" />
+          </LinearGradient>
+        </Animated.View>
+      </LinearGradient>
+    );
+  }
 
   return (
-    <GradientBackground>
-      <View style={[styles.container, { paddingTop: insets.top }]}>
-        {phase === 'celebration' && (
-          <View style={styles.celebrationContainer}>
-            {/* Partículas animadas */}
-            {[...Array(20)].map((_, index) => (
-              <FloatingParticle
-                key={index}
-                index={index}
-                colors={colors}
-              />
-            ))}
-
-            {/* Ícone pulsante */}
-            <Animated.View
-              style={[
-                styles.iconContainer,
-                { transform: [{ scale: scaleAnim }] }
-              ]}
+    <LinearGradient
+      colors={['#6B46C1', '#8B5CF6', '#A855F7', '#EC4899', '#FBBF24']}
+      style={styles.container}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+    >
+      <View style={styles.realizationContainer}>
+        {/* Texto "Já é." */}
+        <Animated.View
+          style={[
+            styles.mainTextContainer,
+            {
+              opacity: textFadeAnim,
+            },
+          ]}
+        >
+          <Text style={styles.mainText}>Já é.</Text>
+        </Animated.View>
+        
+        {/* Subtitle deslizando */}
+        <Animated.View
+          style={[
+            styles.subtitleContainer,
+            {
+              opacity: textFadeAnim,
+              transform: [{ translateY: subtitleSlideAnim }],
+            },
+          ]}
+        >
+          <Text style={styles.subtitle}>Gratidão pela cocriação.</Text>
+        </Animated.View>
+        
+        {/* Botão Ver Memória de Cocriação */}
+        <Animated.View
+          style={[
+            styles.buttonContainer,
+            {
+              opacity: textFadeAnim,
+            },
+          ]}
+        >
+          <TouchableOpacity
+            style={styles.nftButton}
+            onPress={handleViewNFT}
+            activeOpacity={0.8}
+          >
+            <LinearGradient
+              colors={['rgba(255,255,255,0.3)', 'rgba(255,255,255,0.1)']}
+              style={styles.nftButtonGradient}
             >
-              <MaterialIcons name="auto-awesome" size={120} color={colors.glowStart} />
-            </Animated.View>
-
-            <Text style={styles.celebrationText}>Celebrando sua Cocriação</Text>
-          </View>
-        )}
-
-        {phase === 'realization' && (
-          <View style={styles.realizationContainer}>
-            <Animated.View
-              style={[
-                styles.realizationTextContainer,
-                {
-                  opacity: textOpacity,
-                  transform: [{ translateY: textY }]
-                }
-              ]}
-            >
-              <Text style={styles.realizationTitle}>Já é.</Text>
-              <Animated.View
-                style={[
-                  styles.realizationSubtitleContainer,
-                  { opacity: textOpacity }
-                ]}
-              >
-                <Text style={styles.realizationSubtitle}>
-                  Gratidão pela cocriação.
-                </Text>
-              </Animated.View>
-            </Animated.View>
-          </View>
-        )}
-
-        {phase === 'completed' && (
-          <View style={styles.completedContainer}>
-            <MaterialIcons name="celebration" size={80} color={colors.glowStart} />
-            <Text style={styles.completedTitle}>Sua Jornada Está Completa</Text>
-            <Text style={styles.completedText}>
-              Você reconheceu que tudo que desejou já era real.
-              {'\n\n'}
-              Agora podemos criar sua Memória de Cocriação.
-            </Text>
-
-            <SacredButton
-              title="Personalizar Memória"
-              onPress={handleGoToMemoryConfig}
-              style={styles.actionButton}
-            />
-          </View>
-        )}
+              <MaterialIcons name="card-giftcard" size={24} color="white" />
+              <Text style={styles.nftButtonText}>Ver minha Memória de Cocriação</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </Animated.View>
       </View>
-    </GradientBackground>
+    </LinearGradient>
   );
 }
-
-// Componente para as partículas flutuantes
-const FloatingParticle = ({ index, colors }) => {
-  const [position] = useState({
-    x: Math.random() * width,
-    y: height + 50,
-  });
-
-  const [animation] = useState(new Animated.Value(0));
-
-  useEffect(() => {
-    const animateParticle = () => {
-      Animated.timing(animation, {
-        toValue: 1,
-        duration: 3000,
-        useNativeDriver: true,
-      }).start(() => {
-        animation.setValue(0);
-        animateParticle();
-      });
-    };
-
-    animateParticle();
-  }, []);
-
-  const translateY = animation.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, -height - 100],
-  });
-
-  const opacity = animation.interpolate({
-    inputRange: [0, 0.7, 1],
-    outputRange: [1, 0.5, 0],
-  });
-
-  return (
-    <Animated.View
-      style={[
-        styles.particle,
-        {
-          left: position.x,
-          transform: [{ translateY }],
-          opacity,
-        },
-      ]}
-    >
-      <MaterialIcons name="star" size={8} color={colors.glowStart} />
-    </Animated.View>
-  );
-};
 
 const styles = StyleSheet.create({
   container: {
@@ -230,72 +249,81 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  celebrationContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: '100%',
-  },
-  iconContainer: {
-    marginBottom: Spacing.xl,
-  },
-  celebrationText: {
-    fontSize: 24,
-    fontWeight: '300',
-    color: 'rgba(255,255,255,0.9)',
-    textAlign: 'center',
-    marginTop: Spacing.lg,
-  },
   particle: {
     position: 'absolute',
+  },
+  celebrationIcon: {
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    overflow: 'hidden',
+    shadowColor: '#FBBF24',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  iconGradient: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   realizationContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  realizationTextContainer: {
-    alignItems: 'center',
-  },
-  realizationTitle: {
-    fontSize: 48,
-    fontWeight: '100',
-    color: '#fff',
-    textAlign: 'center',
-    letterSpacing: 2,
-    marginBottom: Spacing.lg,
-  },
-  realizationSubtitleContainer: {
-    marginTop: Spacing.lg,
-  },
-  realizationSubtitle: {
-    fontSize: 18,
-    fontWeight: '300',
-    color: 'rgba(255,255,255,0.8)',
-    textAlign: 'center',
-  },
-  completedContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
     paddingHorizontal: Spacing.xl,
   },
-  completedTitle: {
-    fontSize: 28,
+  mainTextContainer: {
+    marginBottom: Spacing.xl * 2,
+  },
+  mainText: {
+    fontSize: 72,
+    fontWeight: '300',
+    color: 'white',
+    textAlign: 'center',
+    letterSpacing: 8,
+  },
+  subtitleContainer: {
+    marginBottom: Spacing.xl * 3,
+  },
+  subtitle: {
+    fontSize: 24,
+    fontWeight: '300',
+    color: 'rgba(255,255,255,0.95)',
+    textAlign: 'center',
+    fontStyle: 'italic',
+    letterSpacing: 2,
+  },
+  buttonContainer: {
+    width: '100%',
+    maxWidth: 320,
+  },
+  nftButton: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#fff',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  nftButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.lg,
+    paddingHorizontal: Spacing.xl,
+    gap: Spacing.md,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.3)',
+    borderRadius: 16,
+  },
+  nftButtonText: {
+    fontSize: 18,
     fontWeight: '600',
-    color: '#fff',
-    textAlign: 'center',
-    marginTop: Spacing.lg,
-    marginBottom: Spacing.md,
-  },
-  completedText: {
-    fontSize: 16,
-    lineHeight: 24,
-    color: 'rgba(255,255,255,0.8)',
-    textAlign: 'center',
-    marginBottom: Spacing.xl,
-  },
-  actionButton: {
-    minWidth: 200,
+    color: 'white',
+    letterSpacing: 0.5,
   },
 });
