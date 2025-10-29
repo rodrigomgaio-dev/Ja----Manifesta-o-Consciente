@@ -89,7 +89,7 @@ export function useDailyPractices(cocreationId?: string) {
   };
 
   const addPractice = async (practice: Omit<DailyPractice, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
-    if (!user) return {  null, error: 'User not authenticated' };
+    if (!user) return { data: null, error: 'User not authenticated' };
 
     try {
       const { data, error } = await supabase
@@ -104,12 +104,12 @@ export function useDailyPractices(cocreationId?: string) {
       return { data, error: null };
     } catch (error: any) {
       console.error('Error adding practice:', error);
-      return {  null, error: error.message };
+      return { data: null, error: error.message };
     }
   };
 
   const updatePractice = async (id: string, updates: Partial<DailyPractice>) => {
-    if (!user) return {  null, error: 'User not authenticated' };
+    if (!user) return { data: null, error: 'User not authenticated' };
 
     try {
       const { data, error } = await supabase
@@ -126,7 +126,7 @@ export function useDailyPractices(cocreationId?: string) {
       return { data, error: null };
     } catch (error: any) {
       console.error('Error updating practice:', error);
-      return {  null, error: error.message };
+      return { data: null, error: error.message };
     }
   };
 
@@ -165,9 +165,9 @@ export function useDailyPractices(cocreationId?: string) {
 
     try {
       // Passo 1: Buscar os IDs das práticas diárias do tipo especificado associadas à cocriação
-      const { data: dailyPracticeIds, error: dpError } = await supabase // Desestruturação correta
-        .from('daily_practices') // Tabela de definições
-        .select('id') // Seleciona apenas o ID
+      const { data: dailyPracticeIds, error: dpError } = await supabase
+        .from('daily_practices')
+        .select('id')
         .eq('cocreation_id', cocriacaoId)
         .eq('type', type)
         .eq('user_id', user.id); // Garante que pertence ao usuário logado
@@ -191,14 +191,15 @@ export function useDailyPractices(cocreationId?: string) {
       const practiceIds = dailyPracticeIds.map(dp => dp.id);
 
       // Passo 2: Buscar as sessões de prática realizadas para esses IDs específicos
-      const {  practiceSessions, error: psError } = await supabase
-        .from('practice_sessions') // Tabela de sessões realizadas
-        .select('practice_id, notes, practiced_at') // Seleciona campos relevantes
-        .in('practice_id', practiceIds) // Filtra pelas práticas diárias encontradas
-        .order('practiced_at', { ascending: false }) // Ordena pelas mais recentes
-        .limit(limit); // Limita o número de resultados
+      const { data: practiceSessions, error: psError } = await supabase
+        .from('practice_sessions')
+        .select('practice_id, notes, practiced_at')
+        .in('practice_id', practiceIds)
+        .order('practiced_at', { ascending: false })
+        .limit(limit);
 
       if (psError) throw psError;
+      if (!practiceSessions) return [];
 
       // Mapeia as sessões para o formato esperado pela memória
       // Assumindo que 'notes' contém o conteúdo da gratidão/afirmação registrada
@@ -226,12 +227,12 @@ export function useDailyPractices(cocreationId?: string) {
 
     try {
       // Passo 1: Buscar os mantras diários associados à cocriação
-      const {  dailyMantras, error: dmError } = await supabase
-        .from('daily_practices') // Tabela de definições
-        .select('id, title as name, content as text_content') // Mapeia campos conforme o tipo MemoryMantra
+      const { data: dailyMantras, error: dmError } = await supabase
+        .from('daily_practices')
+        .select('id, title as name, content as text_content')
         .eq('cocreation_id', cocriacaoId)
-        .eq('type', 'mantra') // Filtra apenas mantras
-        .eq('user_id', user.id); // Garante que pertence ao usuário logado
+        .eq('type', 'mantra')
+        .eq('user_id', user.id);
 
       if (dmError) throw dmError;
 
@@ -243,10 +244,11 @@ export function useDailyPractices(cocreationId?: string) {
       const mantraIds = dailyMantras.map(m => m.id);
 
       // Passo 2: Contar as sessões de prática para cada ID de mantra (usando RPC)
-      const {  practiceCounts, error: countError } = await supabase
-        .rpc('get_practice_counts', { practice_ids: mantraIds }); // Chama a função RPC criada no banco
+      const { data: practiceCounts, error: countError } = await supabase
+        .rpc('get_practice_counts', { practice_ids: mantraIds });
 
       if (countError) throw countError;
+      if (!practiceCounts) return null;
 
       // Passo 3: Encontrar o mantra com a maior contagem
       let mostPracticedId = '';
