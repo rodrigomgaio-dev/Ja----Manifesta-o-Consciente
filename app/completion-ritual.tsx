@@ -53,17 +53,31 @@ export default function CompletionRitualScreen() {
 
     const loadData = async () => {
       try {
+        console.log("Iniciando carregamento de dados para cocriação:", cocriacaoId);
         // 1. Obter detalhes da cocriação
-        const { data: cocriacao, error: loadError } = await loadSingle(cocriacaoId);
-        if (loadError) throw loadError;
-        if (!cocriacao) throw new Error('Cocriação não encontrada.');
+        const {  cocriacao, error: loadError } = await loadSingle(cocriacaoId);
+        if (loadError) {
+            console.error("Erro ao carregar cocriação:", loadError);
+            throw loadError;
+        }
+        if (!cocriacao) {
+            console.error("Cocriação não encontrada para ID:", cocriacaoId);
+            throw new Error('Cocriação não encontrada.');
+        }
+
+        console.log("Cocriação encontrada:", cocriacao.title);
 
         // 2. Obter práticas recentes e mantra mais praticado
+        console.log("Buscando práticas recentes e mantra...");
         const [recentGratitudes, recentAffirmations, mostPracticedMantra] = await Promise.all([
           getRecentPractices(cocriacaoId, 'gratitude', 2),
           getRecentPractices(cocriacaoId, 'affirmation', 2),
           getMostPracticedMantra(cocriacaoId),
         ]);
+
+        console.log("Práticas recentes (gratidões):", recentGratitudes);
+        console.log("Práticas recentes (afirmações):", recentAffirmations);
+        console.log("Mantra mais praticado:", mostPracticedMantra);
 
         // 3. Montar o objeto memory_snapshot
         const newMemoryData = {
@@ -77,14 +91,17 @@ export default function CompletionRitualScreen() {
         };
 
         setMemoryData(newMemoryData);
+        console.log("MemoryData montado e armazenado:", newMemoryData);
         setLoadingData(false); // Dados carregados
 
         // Iniciar animações originais após carregar dados
+        console.log("Iniciando animações...");
         startCelebrationAnimation();
         createParticles();
 
         // Transição para tela de realização após animação de celebração
         setTimeout(() => {
+          console.log("Transição para tela de realização.");
           setStep('realization');
           startRealizationAnimation();
         }, 3000);
@@ -175,15 +192,22 @@ export default function CompletionRitualScreen() {
     ]).start();
   };
 
-  // --- Função Atualizada para Concluir ---
+  // --- Função Atualizada para Concluir (com mais logs e tratamento de erro na navegação) ---
   const handleViewMemory = async () => {
+    console.log("handleViewMemory chamado. isCompleting:", isCompleting, "memoryData:", !!memoryData, "cocriacaoId:", cocriacaoId);
+    if (isCompleting) {
+        console.log("Operação de conclusão já em andamento.");
+        return; // Evita múltiplas chamadas simultâneas
+    }
     if (!cocriacaoId || !memoryData) {
+        console.error("Dados insuficientes para concluir. ID:", !!cocriacaoId, "MemoryData:", !!memoryData);
         Alert.alert('Erro', 'Dados insuficientes para concluir.');
         return;
     }
 
     setIsCompleting(true);
     try {
+      console.log("Atualizando cocriação no Supabase com memory_snapshot...");
       // 1. Atualizar a cocriação no Supabase com status 'completed' e memory_snapshot
       const { error: updateError } = await supabase
         .from('individual_cocriations') // Substitua pelo nome real da sua tabela
@@ -195,50 +219,32 @@ export default function CompletionRitualScreen() {
         .eq('id', cocriacaoId);
 
       if (updateError) {
+        console.error("Erro ao atualizar cocriação no Supabase:", updateError);
         throw updateError;
       }
 
+      console.log("Cocriação atualizada com sucesso. Navegando para memory-view...");
       // 2. Navegar para a tela da Memória de Cocriação
       // Opcional: Passar o ID é suficiente, a tela memory-view buscará os dados
       router.replace(`/memory-view?id=${cocriacaoId}`);
+      console.log("Navegação para memory-view acionada.");
 
     } catch (err) {
-      console.error('Erro ao concluir cocriação:', err);
-      Alert.alert('Erro', `Falha ao concluir a Cocriação: ${(err as Error).message}`);
+      console.error('Erro ao concluir cocriação ou navegar:', err);
+      Alert.alert('Erro', `Falha ao concluir a Cocriação ou navegar: ${(err as Error).message}`);
     } finally {
         setIsCompleting(false);
+        console.log("Finalizando handleViewMemory. isCompleting agora é:", isCompleting);
     }
   };
 
   // --- Renderização ---
   if (loadingData) {
-    // Mostra um loading enquanto os dados estão sendo carregados
-    // ou talvez uma tela de fundo mais sutil, mantendo o foco na animação principal
-    // Para manter o estilo original, talvez não seja necessário um loading aqui
-    // pois a animação de celebração já começa após o carregamento.
-    // Vamos considerar que a animação de celebração é o feedback visual inicial.
-    // Se quiser um loading explícito, descomente abaixo:
-    /*
-    return (
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={{ color: colors.text }}>Preparando sua Memória...</Text>
-      </View>
-    );
-    */
-   // Neste caso, a animação começa após o carregamento, então o loading é implícito.
-   // Se o carregamento for longo, talvez valha a pena adicionar uma tela de splash temporária aqui.
-   // Por enquanto, apenas renderizamos a animação de celebração, que começará quando loadingData for false.
-   // Mas para evitar renderizar a animação antes de ter os dados, vamos manter a lógica de animação dentro do useEffect.
-   // Portanto, enquanto loadingData é true, nada é renderizado explicitamente aqui.
-   // A animação começa automaticamente após o useEffect terminar o carregamento.
-   // Se o carregamento falhar, o Alert é mostrado e o useEffect não prossegue para as animações.
-   // O código abaixo renderiza a animação de celebração imediatamente, o que é o comportamento desejado *após* os dados serem carregados.
-   // Para alinhar com isso, o código de renderização permanece o mesmo, mas a lógica de iniciar animações está no useEffect.
-   // O estado `step` controla o que é renderizado.
-   // Se loadingData for true, e step ainda não tiver sido definido ou a animação não tiver começado, pode haver um breve momento vazio.
-   // A maneira mais robusta é iniciar as animações apenas após o carregamento completo no useEffect.
-   // O código abaixo assume que o useEffect já iniciou as animações.
+    // Opcional: Mostrar um loading mais sutil enquanto dados são carregados
+    // Se a animação de celebração começa após o carregamento, talvez não seja necessário
+    // A lógica atual assume que a animação começa após o useEffect terminar
+    // Portanto, enquanto loadingData é true, nada é renderizado explicitamente aqui
+    // e a animação começa automaticamente após o carregamento (quando step muda para 'realization')
   }
 
   if (step === 'celebration') {
