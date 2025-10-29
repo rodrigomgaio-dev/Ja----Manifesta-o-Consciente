@@ -37,6 +37,8 @@ export default function MemoryViewScreen() {
     setError(null);
 
     try {
+      console.log("memory-view.tsx - Iniciando carregamento, ID:", cocriacaoId);
+
       if (!user?.id) throw new Error('Sessão expirada ou usuário não autenticado.');
       if (!cocriacaoId) throw new Error('ID da Cocriação ausente.');
 
@@ -48,6 +50,8 @@ export default function MemoryViewScreen() {
         .eq('user_id', user.id)
         .single();
 
+      console.log("memory-view.tsx - Resultado da consulta principal:", { cocriacao, loadError });
+
       if (loadError) throw loadError;
       if (!cocriacao) {
         const {  debugCocriacao, error: debugError } = await supabase
@@ -57,8 +61,10 @@ export default function MemoryViewScreen() {
           .single();
 
         if (debugCocriacao) {
+            console.warn("memory-view.tsx - DEBUG: Cocriação encontrada, mas NÃO pertence ao usuário logado. Proprietário:", debugCocriacao.user_id, "Usuário logado:", user.id);
             throw new Error('Sessão inválida. A memória não pertence ao usuário logado.');
         } else if (debugError) {
+            console.warn("memory-view.tsx - DEBUG: Erro ao tentar carregar sem user_id:", debugError);
             throw new Error('Cocriação não encontrada. O ID pode estar incorreto ou a cocriação pode ter sido excluída.');
         } else {
              throw new Error('Cocriação não encontrada ou erro inesperado.');
@@ -66,12 +72,16 @@ export default function MemoryViewScreen() {
       }
 
       if (!cocriacao.memory_snapshot) {
+        console.error("memory-view.tsx - memory_snapshot não encontrado em cocriacao:", cocriacao);
         throw new Error('Dados da Memória da Cocriação não encontrados no registro. A cocriação pode não ter sido concluída corretamente.');
       }
 
+      // Armazena os dados principais e da memória
       setCocriacaoData(cocriacao);
       setMemoryData(cocriacao.memory_snapshot);
       setCoverImageUrl(cocriacao.cover_image_url);
+
+      console.log("memory-view.tsx - Dados principais e memória carregados. memoryData:", cocriacao.memory_snapshot);
 
       // 2. Carregar os itens do Vision Board
       const {  items, error: itemsError } = await supabase
@@ -80,15 +90,17 @@ export default function MemoryViewScreen() {
         .eq('cocreation_id', cocriacaoId)
         .order('created_at', { ascending: true });
 
+      console.log("memory-view.tsx - Itens do Vision Board carregados:", items, "Erro:", itemsError);
+
       if (itemsError) {
-        console.error("Erro ao carregar itens do Vision Board:", itemsError);
+        console.error("memory-view.tsx - Erro ao carregar itens do Vision Board:", itemsError);
         setVisionBoardItems([]);
       } else {
         setVisionBoardItems(items || []);
       }
 
     } catch (err) {
-      console.error('Erro geral ao carregar a memória da cocriação:', err);
+      console.error('memory-view.tsx - Erro geral ao carregar a memória da cocriação:', err);
       setError(`Falha ao carregar a memória: ${(err as Error).message}`);
     } finally {
       setLoading(false);
@@ -132,6 +144,8 @@ export default function MemoryViewScreen() {
 
   // Filtra apenas imagens do Vision Board
   const visionBoardImages = visionBoardItems.filter(item => item.type === 'image' && item.content);
+
+  console.log("memory-view.tsx - Dados para renderização - memoryData:", memoryData, "visionBoardImages:", visionBoardImages);
 
   // --- Renderização da Memória (Colagem de Conquista) ---
   return (
@@ -187,19 +201,24 @@ export default function MemoryViewScreen() {
                 // Calcula posições para evitar sobreposição total e manter dentro dos limites
                 const imgWidth = 100;
                 const imgHeight = 100;
-                const containerWidth = width * 0.8; // 80% da largura da tela
-                const containerHeight = 300; // Altura fixa do container da colagem
+                // Ajusta o container para dar mais espaço para sobreposição
+                const containerWidth = width * 0.8;
+                const containerHeight = 350; // Aumenta a altura para mais espaço
 
-                // Garante que a imagem fique dentro dos limites do container com margem
-                const maxX = containerWidth - imgWidth - 10;
-                const maxY = containerHeight - imgHeight - 10;
+                // Margens internas para as imagens não saírem dos limites
+                const margin = 20;
+                const maxX = containerWidth - imgWidth - margin;
+                const maxY = containerHeight - imgHeight - margin;
 
+                // Gera coordenadas aleatórias dentro dos limites
                 const randomX = Math.min(maxX, Math.max(0, Math.random() * maxX));
                 const randomY = Math.min(maxY, Math.max(0, Math.random() * maxY));
 
+                console.log(`Imagem ${index} posicionada em: x=${randomX}, y=${randomY}`); // Log para debug de posição
+
                 return (
                   <Animated.View
-                    key={item.id || index}
+                    key={item.id || `img-${index}`} // Usa ID ou um prefixo único
                     style={[
                       styles.collageImage,
                       {
@@ -209,10 +228,11 @@ export default function MemoryViewScreen() {
                           { translateX: getRandomOffsetX() },
                           { translateY: getRandomOffsetY() },
                         ],
-                        // zIndex: index, // Removido zIndex para evitar sobreposição complexa
                         position: 'absolute',
                         left: randomX,
                         top: randomY,
+                        // Garante que as imagens se sobreponham de forma visível
+                        zIndex: Math.floor(randomY), // ZIndex baseado na posição Y para ordem mais natural
                       },
                     ]}
                   >
@@ -245,7 +265,7 @@ export default function MemoryViewScreen() {
             </View>
           )}
 
-          {memoryData.affirmations && memoryData.affirmations.length > 0 && (
+          {memoryData.affirmations && Array.isArray(memoryData.affirmations) && memoryData.affirmations.length > 0 && (
             <View style={styles.contentItem}>
               <MaterialIcons name="check-circle" size={24} color={colors.success} style={styles.contentIcon} />
               <View>
@@ -259,7 +279,7 @@ export default function MemoryViewScreen() {
             </View>
           )}
 
-          {memoryData.gratitudes && memoryData.gratitudes.length > 0 && (
+          {memoryData.gratitudes && Array.isArray(memoryData.gratitudes) && memoryData.gratitudes.length > 0 && (
             <View style={styles.contentItem}>
               <MaterialIcons name="favorite" size={24} color={colors.error} style={styles.contentIcon} />
               <View>
@@ -368,13 +388,16 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   visionBoardCollage: {
-    width: '80%', // 80% da largura do container pai
-    height: 300,
+    width: '80%',
+    height: 350, // Aumentado
     position: 'relative',
-    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+    backgroundColor: 'rgba(255, 255, 255, 0.02)', // Levemente mais opaco para referência
     borderRadius: 12,
     overflow: 'hidden',
-    alignSelf: 'center', // Centraliza o container da colagem
+    alignSelf: 'center',
+    // Borda sutil para visualizar o container
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   collageImage: {
     width: 100,
@@ -427,20 +450,18 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     marginBottom: Spacing.xs,
   },
-  // --- Estilo Atualizado para a Frase Final ---
   finalPhrase: {
-    fontSize: 28,
-    fontWeight: '800',
+    fontSize: 32, // Ajustado
+    fontWeight: '900', // Ajustado
     textAlign: 'center',
     marginVertical: Spacing.xl,
-    letterSpacing: 1.5,
-    // Removido o LinearGradient e estilos de botão
-    // Adicionado leve sombreado para destaque
-    textShadowColor: 'rgba(139, 92, 246, 0.5)', // Cor da sombra baseada nas cores do app
+    letterSpacing: 2, // Ajustado
+    // Mantém a cor principal, mas remove o gradiente e estilos de botão
+    // Adiciona um leve sombreado para destaque
+    textShadowColor: 'rgba(139, 92, 246, 0.7)', // Ajustado
     textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 3,
+    textShadowRadius: 4, // Ajustado
   },
-  // ---
   footerText: {
     fontSize: 12,
     paddingHorizontal: Spacing.md,
