@@ -1,78 +1,62 @@
 // app/completion-ritual.tsx
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIndicator, useWindowDimensions } from 'react-native';
-// Usando o hook existente
-import { useIndividualCocriations } from '../hooks/useIndividualCocriations'; // Ajuste o caminho conforme necessário
-// Usando o hook de práticas diárias (que precisa ser atualizado conforme a resposta anterior)
-import { useDailyPractices } from '../hooks/useDailyPractices'; // Ajuste o caminho
-import { useLocalSearchParams, router } from 'expo-router';
-import { supabase } from '@/services/supabase';
-import { useAuth } from '../contexts/AuthContext'; // Importa o contexto de autenticação
-import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Animated,
+  Dimensions,
+  TouchableOpacity,
+  Alert,
+  ActivityIndicator,
+} from 'react-native';
+import { router, useLocalSearchParams } from 'expo-router';
+import { MaterialIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useIndividualCocriations } from '@/hooks/useIndividualCocriations';
+import { useDailyPractices } from '@/hooks/useDailyPractices'; // Importa o hook atualizado
+import { Spacing } from '@/constants/Colors';
+import { supabase } from '@/services/supabase'; // Importa o supabase
 
-// --- Tipos ---
-// Ajuste conforme o tipo IndividualCocriation definido em '@/services/types'
-type Gratitude = {
-  content: string;
-  practiced_at: string; // Ajuste conforme o tipo real de practice_sessions
-};
+const { width, height } = Dimensions.get('window');
 
-type Affirmation = {
-  content: string;
-  practiced_at: string; // Ajuste conforme o tipo real de practice_sessions
-};
-
-type Mantra = {
-  id: string;
-  name: string;
-  text_content: string;
-  practice_count: number; // Calculado ou armazenado
-};
-
-type MemorySnapshot = {
-  title: string;
-  intention: string; // ou why_reason
-  start_date: string; // ou created_at
-  completion_date: string;
-  gratitudes: Gratitude[];
-  affirmations: Affirmation[];
-  most_practiced_mantra: Mantra | null;
-};
-
-// --- Componente ---
 export default function CompletionRitualScreen() {
+  const { colors } = useTheme();
   const { id: cocriacaoId } = useLocalSearchParams<{ id: string }>();
-  const { width, height } = useWindowDimensions();
+  const { loadSingle } = useIndividualCocriations(); // Usa loadSingle do hook existente
+  const { getRecentPractices, getMostPracticedMantra } = useDailyPractices(); // Usa as funções do hook atualizado
 
-  // --- Estados ---
-  const [loading, setLoading] = useState(true);
-  const [isCompleting, setIsCompleting] = useState(false);
-  const [showMemory, setShowMemory] = useState(false); // Controla a revelação dos elementos
-  const [memoryData, setMemoryData] = useState<MemorySnapshot | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  // --- Estados para a lógica de conclusão ---
+  const [loadingData, setLoadingData] = useState(true); // Controla o carregamento inicial dos dados
+  const [memoryData, setMemoryData] = useState<any>(null); // Armazena os dados da memória
+  const [isCompleting, setIsCompleting] = useState(false); // Controla o estado de "concluindo"
 
-  // --- Hooks ---
-  const { loadSingle } = useIndividualCocriations(); // Usa a função existente
-  const { user } = useAuth(); // Pode ser necessário para o hook useDailyPractices
-  const { getRecentPractices, getMostPracticedMantra } = useDailyPractices(user); // Passa o usuário se necessário
+  // --- Estados para as animações (mantidos do original) ---
+  const [step, setStep] = useState<'celebration' | 'realization'>('celebration');
+  
+  // Animações
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.3)).current;
+  const textFadeAnim = useRef(new Animated.Value(0)).current;
+  const subtitleSlideAnim = useRef(new Animated.Value(50)).current;
+  
+  // Partículas
+  const [particles, setParticles] = useState<any[]>([]);
 
   // --- Carregar dados iniciais ---
   useEffect(() => {
+    if (!cocriacaoId) {
+      Alert.alert('Erro', 'ID da Cocriação ausente.');
+      return;
+    }
+
     const loadData = async () => {
-      if (!cocriacaoId) {
-        setError('ID da Cocriação ausente.');
-        setLoading(false);
-        return;
-      }
       try {
-        // 1. Obter detalhes da cocriação usando a função do hook existente
+        // 1. Obter detalhes da cocriação
         const { data: cocriacao, error: loadError } = await loadSingle(cocriacaoId);
-        if (loadError) {
-          throw loadError;
-        }
-        if (!cocriacao) {
-          throw new Error('Cocriação não encontrada.');
-        }
+        if (loadError) throw loadError;
+        if (!cocriacao) throw new Error('Cocriação não encontrada.');
 
         // 2. Obter práticas recentes e mantra mais praticado
         const [recentGratitudes, recentAffirmations, mostPracticedMantra] = await Promise.all([
@@ -82,33 +66,120 @@ export default function CompletionRitualScreen() {
         ]);
 
         // 3. Montar o objeto memory_snapshot
-        const newMemoryData: MemorySnapshot = {
+        const newMemoryData = {
           title: cocriacao.title,
-          intention: cocriacao.why_reason || '', // Ajuste conforme o nome real do campo no banco/types
-          start_date: cocriacao.created_at, // Ajuste conforme o nome real do campo no banco/types
-          completion_date: new Date().toISOString(), // Data atual no momento da conclusão
+          intention: cocriacao.why_reason || '',
+          start_date: cocriacao.created_at,
+          completion_date: new Date().toISOString(),
           gratitudes: recentGratitudes,
           affirmations: recentAffirmations,
           most_practiced_mantra: mostPracticedMantra,
         };
 
         setMemoryData(newMemoryData);
-        setLoading(false);
+        setLoadingData(false); // Dados carregados
+
+        // Iniciar animações originais após carregar dados
+        startCelebrationAnimation();
+        createParticles();
+
+        // Transição para tela de realização após animação de celebração
+        setTimeout(() => {
+          setStep('realization');
+          startRealizationAnimation();
+        }, 3000);
+
       } catch (err) {
         console.error('Erro ao carregar dados para a memória:', err);
-        setError(`Falha ao carregar os dados: ${(err as Error).message}`);
-        setLoading(false);
+        Alert.alert('Erro', `Falha ao carregar os dados: ${(err as Error).message}`);
+        setLoadingData(false); // Garante que o loading pare em caso de erro
       }
     };
 
     loadData();
   }, [cocriacaoId, loadSingle, getRecentPractices, getMostPracticedMantra]);
 
-  // --- Função para concluir a cocriação ---
-  const handleConcludeCocriacao = async () => {
+  // --- Funções de Animação (mantidas do original) ---
+  const createParticles = () => {
+    const newParticles = [];
+    for (let i = 0; i < 20; i++) {
+      const particle = {
+        id: i,
+        x: Math.random() * width,
+        y: height + Math.random() * 100,
+        size: Math.random() * 20 + 10,
+        duration: Math.random() * 3000 + 2000,
+        delay: Math.random() * 500,
+        opacity: new Animated.Value(0),
+        translateY: new Animated.Value(0),
+      };
+      
+      // Animar partícula subindo
+      Animated.sequence([
+        Animated.delay(particle.delay),
+        Animated.parallel([
+          Animated.timing(particle.opacity, {
+            toValue: 0.8,
+            duration: 500,
+            useNativeDriver: true,
+          }),
+          Animated.timing(particle.translateY, {
+            toValue: -height - 100,
+            duration: particle.duration,
+            useNativeDriver: true,
+          }),
+        ]),
+        Animated.timing(particle.opacity, {
+          toValue: 0,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+      ]).start();
+      
+      newParticles.push(particle);
+    }
+    setParticles(newParticles);
+  };
+
+  const startCelebrationAnimation = () => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 1000,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        tension: 50,
+        friction: 7,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
+  const startRealizationAnimation = () => {
+    Animated.sequence([
+      Animated.timing(textFadeAnim, {
+        toValue: 1,
+        duration: 1500,
+        useNativeDriver: true,
+      }),
+      Animated.delay(1500),
+      Animated.parallel([
+        Animated.timing(subtitleSlideAnim, {
+          toValue: 0,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start();
+  };
+
+  // --- Função Atualizada para Concluir ---
+  const handleViewMemory = async () => {
     if (!cocriacaoId || !memoryData) {
-      Alert.alert('Erro', 'Dados insuficientes para concluir.');
-      return;
+        Alert.alert('Erro', 'Dados insuficientes para concluir.');
+        return;
     }
 
     setIsCompleting(true);
@@ -127,294 +198,247 @@ export default function CompletionRitualScreen() {
         throw updateError;
       }
 
-      // 2. Revelar a memória gerada
-      setShowMemory(true);
-      // Opcional: Navegar automaticamente após um delay, ou esperar o botão
+      // 2. Navegar para a tela da Memória de Cocriação
+      // Opcional: Passar o ID é suficiente, a tela memory-view buscará os dados
+      router.replace(`/memory-view?id=${cocriacaoId}`);
+
     } catch (err) {
       console.error('Erro ao concluir cocriação:', err);
       Alert.alert('Erro', `Falha ao concluir a Cocriação: ${(err as Error).message}`);
     } finally {
-      setIsCompleting(false);
-    }
-  };
-
-  // --- Funções de navegação ---
-  const handleViewMemory = () => {
-    if (cocriacaoId) {
-      router.push(`/memory-view?id=${cocriacaoId}`);
+        setIsCompleting(false);
     }
   };
 
   // --- Renderização ---
-  if (loading) {
+  if (loadingData) {
+    // Mostra um loading enquanto os dados estão sendo carregados
+    // ou talvez uma tela de fundo mais sutil, mantendo o foco na animação principal
+    // Para manter o estilo original, talvez não seja necessário um loading aqui
+    // pois a animação de celebração já começa após o carregamento.
+    // Vamos considerar que a animação de celebração é o feedback visual inicial.
+    // Se quiser um loading explícito, descomente abaixo:
+    /*
     return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" color="#4A90E2" />
-        <Text style={styles.loadingText}>Preparando sua Memória...</Text>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={{ color: colors.text }}>Preparando sua Memória...</Text>
       </View>
     );
+    */
+   // Neste caso, a animação começa após o carregamento, então o loading é implícito.
+   // Se o carregamento for longo, talvez valha a pena adicionar uma tela de splash temporária aqui.
+   // Por enquanto, apenas renderizamos a animação de celebração, que começará quando loadingData for false.
+   // Mas para evitar renderizar a animação antes de ter os dados, vamos manter a lógica de animação dentro do useEffect.
+   // Portanto, enquanto loadingData é true, nada é renderizado explicitamente aqui.
+   // A animação começa automaticamente após o useEffect terminar o carregamento.
+   // Se o carregamento falhar, o Alert é mostrado e o useEffect não prossegue para as animações.
+   // O código abaixo renderiza a animação de celebração imediatamente, o que é o comportamento desejado *após* os dados serem carregados.
+   // Para alinhar com isso, o código de renderização permanece o mesmo, mas a lógica de iniciar animações está no useEffect.
+   // O estado `step` controla o que é renderizado.
+   // Se loadingData for true, e step ainda não tiver sido definido ou a animação não tiver começado, pode haver um breve momento vazio.
+   // A maneira mais robusta é iniciar as animações apenas após o carregamento completo no useEffect.
+   // O código abaixo assume que o useEffect já iniciou as animações.
   }
 
-  if (error) {
+  if (step === 'celebration') {
     return (
-      <View style={styles.container}>
-        <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={() => router.back()}>
-          <Text style={styles.buttonText}>Voltar</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
-  if (!memoryData) {
-    return (
-      <View style={styles.container}>
-        <Text style={styles.errorText}>Erro: Dados da memória não carregados.</Text>
-      </View>
-    );
-  }
-
-  return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <View style={styles.content}>
-        {/* Animação Inicial */}
-        <Animated.View entering={FadeIn.duration(1500)}>
-          <Text style={styles.title}>Cerimônia de Conclusão</Text>
-          <Text style={styles.subtitle}>Você está prestes a selar esta Cocriação.</Text>
+      <LinearGradient
+        colors={['#1a0b2e', '#2d1b4e', '#4a2c6e']}
+        style={styles.container}
+      >
+        {/* Partículas douradas */}
+        {particles.map((particle) => (
+          <Animated.View
+            key={particle.id}
+            style={[
+              styles.particle,
+              {
+                left: particle.x,
+                bottom: 0,
+                width: particle.size,
+                height: particle.size,
+                opacity: particle.opacity,
+                transform: [{ translateY: particle.translateY }],
+              },
+            ]}
+          >
+            <MaterialIcons name="auto-awesome" size={particle.size} color="#FBBF24" />
+          </Animated.View>
+        ))}
+        
+        {/* Ícone central pulsante */}
+        <Animated.View
+          style={[
+            styles.celebrationIcon,
+            {
+              opacity: fadeAnim,
+              transform: [{ scale: scaleAnim }],
+            },
+          ]}
+        >
+          <LinearGradient
+            colors={['#8B5CF6', '#EC4899', '#FBBF24']}
+            style={styles.iconGradient}
+          >
+            <MaterialIcons name="celebration" size={80} color="white" />
+          </LinearGradient>
         </Animated.View>
+      </LinearGradient>
+    );
+  }
 
-        {/* Botão de Conclusão */}
-        {!showMemory && (
-          <Animated.View
-            entering={FadeInUp.delay(500).duration(1000)}
-            style={styles.conclusionButtonContainer}
+  // Tela de Realização (após a animação de celebração)
+  return (
+    <LinearGradient
+      colors={['#6B46C1', '#8B5CF6', '#A855F7', '#EC4899', '#FBBF24']}
+      style={styles.container}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+    >
+      <View style={styles.realizationContainer}>
+        {/* Texto "Já é." */}
+        <Animated.View
+          style={[
+            styles.mainTextContainer,
+            {
+              opacity: textFadeAnim,
+            },
+          ]}
+        >
+          <Text style={styles.mainText}>Já é.</Text>
+        </Animated.View>
+        
+        {/* Subtitle deslizando */}
+        <Animated.View
+          style={[
+            styles.subtitleContainer,
+            {
+              opacity: textFadeAnim,
+              transform: [{ translateY: subtitleSlideAnim }],
+            },
+          ]}
+        >
+          <Text style={styles.subtitle}>Gratidão pela cocriação.</Text>
+        </Animated.View>
+        
+        {/* Botão Ver Memória de Cocriação */}
+        <Animated.View
+          style={[
+            styles.buttonContainer,
+            {
+              opacity: textFadeAnim,
+            },
+          ]}
+        >
+          <TouchableOpacity
+            style={styles.nftButton}
+            onPress={handleViewMemory}
+            activeOpacity={0.8}
+            disabled={isCompleting} // Desabilita o botão durante a conclusão
           >
-            <TouchableOpacity
-              style={styles.conclusionButton}
-              onPress={handleConcludeCocriacao}
-              disabled={isCompleting}
-            >
-              {isCompleting ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <Text style={styles.conclusionButtonText}>Concluir Cocriação</Text>
-              )}
-            </TouchableOpacity>
-          </Animated.View>
-        )}
-
-        {/* Revelação da Memória */}
-        {showMemory && (
-          <Animated.View
-            entering={FadeIn.delay(1000).duration(1500)}
-            style={styles.memoryContainer}
-          >
-            <Text style={styles.memoryTitle}>{memoryData.title}</Text>
-            <Text style={styles.memoryIntro}>Esta é a sua Memória da Cocriação.</Text>
-
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Minhas Gratidões Finais</Text>
-              {memoryData.gratitudes.length > 0 ? (
-                memoryData.gratitudes.map((g, index) => (
-                  <Text key={index} style={styles.memoryItem}>
-                    • {g.content}
-                  </Text>
-                ))
-              ) : (
-                <Text style={styles.memoryItem}>Nenhuma gratidão registrada.</Text>
-              )}
-            </View>
-
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Afirmações que Me Sustentaram</Text>
-              {memoryData.affirmations.length > 0 ? (
-                memoryData.affirmations.map((a, index) => (
-                  <Text key={index} style={styles.memoryItem}>
-                    • {a.content}
-                  </Text>
-                ))
-              ) : (
-                <Text style={styles.memoryItem}>Nenhuma afirmação registrada.</Text>
-              )}
-            </View>
-
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Meu Mantra de Coração</Text>
-              {memoryData.most_practiced_mantra ? (
-                <>
-                  <Text style={styles.mantraName}>{memoryData.most_practiced_mantra.name}</Text>
-                  <Text style={styles.mantraText}>"{memoryData.most_practiced_mantra.text_content}"</Text>
-                  <Text style={styles.mantraCount}>
-                    Praticado {memoryData.most_practiced_mantra.practice_count} vezes
-                  </Text>
-                </>
-              ) : (
-                <Text style={styles.memoryItem}>Nenhum mantra praticado.</Text>
-              )}
-            </View>
-
-            <Text style={styles.finalPhrase}>Já é.</Text>
-
-            <TouchableOpacity style={styles.viewMemoryButton} onPress={handleViewMemory}>
-              <Text style={styles.viewMemoryButtonText}>Ver Minha Memória</Text>
-            </TouchableOpacity>
-          </Animated.View>
-        )}
+            {isCompleting ? ( // Mostra loading no botão se estiver concluindo
+                <View style={styles.nftButtonGradient}>
+                    <ActivityIndicator size="small" color="white" />
+                </View>
+            ) : (
+                <LinearGradient
+                colors={['rgba(255,255,255,0.3)', 'rgba(255,255,255,0.1)']}
+                style={styles.nftButtonGradient}
+                >
+                <MaterialIcons name="card-giftcard" size={24} color="white" />
+                <Text style={styles.nftButtonText}>Ver minha Memória de Cocriação</Text>
+                </LinearGradient>
+            )}
+          </TouchableOpacity>
+        </Animated.View>
       </View>
-    </ScrollView>
+    </LinearGradient>
   );
 }
 
-// --- Estilos ---
+// --- Estilos (mantidos do original) ---
 const styles = StyleSheet.create({
   container: {
-    flexGrow: 1,
-    padding: 20,
-    backgroundColor: '#f0f4f8', // Fundo suave
+    flex: 1,
     justifyContent: 'center',
-  },
-  content: {
     alignItems: 'center',
+  },
+  particle: {
+    position: 'absolute',
+  },
+  celebrationIcon: {
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    overflow: 'hidden',
+    shadowColor: '#FBBF24',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  iconGradient: {
     width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  loadingText: {
-    marginTop: 20,
-    fontSize: 16,
-    color: '#555',
+  realizationContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.xl,
   },
-  errorText: {
-    fontSize: 16,
-    color: '#d32f2f',
+  mainTextContainer: {
+    marginBottom: Spacing.xl * 2,
+  },
+  mainText: {
+    fontSize: 72,
+    fontWeight: '300',
+    color: 'white',
     textAlign: 'center',
-    marginBottom: 20,
+    letterSpacing: 8,
   },
-  retryButton: {
-    backgroundColor: '#4A90E2',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 5,
-  },
-  buttonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 10,
-    textAlign: 'center',
+  subtitleContainer: {
+    marginBottom: Spacing.xl * 3,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#666',
+    fontSize: 24,
+    fontWeight: '300',
+    color: 'rgba(255,255,255,0.95)',
     textAlign: 'center',
-    marginBottom: 30,
-  },
-  conclusionButtonContainer: {
-    marginVertical: 20,
-  },
-  conclusionButton: {
-    backgroundColor: '#4A90E2',
-    paddingHorizontal: 30,
-    paddingVertical: 15,
-    borderRadius: 25,
-    elevation: 3, // Sombra para Android
-    shadowColor: '#000', // Sombra para iOS
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-  },
-  conclusionButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  memoryContainer: {
-    width: '100%',
-    maxWidth: 600, // Limite de largura para telas maiores
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 20,
-    elevation: 5, // Sombra para Android
-    shadowColor: '#000', // Sombra para iOS
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    alignItems: 'center',
-  },
-  memoryTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 10,
-    textAlign: 'center',
-  },
-  memoryIntro: {
-    fontSize: 16,
     fontStyle: 'italic',
-    color: '#555',
-    marginBottom: 20,
-    textAlign: 'center',
+    letterSpacing: 2,
   },
-  section: {
+  buttonContainer: {
     width: '100%',
-    marginBottom: 20,
+    maxWidth: 320,
   },
-  sectionTitle: {
+  nftButton: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#fff',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  nftButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.lg,
+    paddingHorizontal: Spacing.xl,
+    gap: Spacing.md,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.3)',
+    borderRadius: 16,
+  },
+  nftButtonText: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#4A90E2',
-    marginBottom: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-    paddingBottom: 5,
-  },
-  memoryItem: {
-    fontSize: 16,
-    color: '#666',
-    lineHeight: 22,
-    marginBottom: 8,
-  },
-  mantraName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 5,
-  },
-  mantraText: {
-    fontSize: 16,
-    color: '#666',
-    fontStyle: 'italic',
-    marginBottom: 5,
-  },
-  mantraCount: {
-    fontSize: 14,
-    color: '#888',
-  },
-  finalPhrase: {
-    fontSize: 32,
-    fontWeight: '900',
-    color: '#4A90E2',
-    marginVertical: 20,
-    alignSelf: 'flex-start',
-    paddingLeft: 10,
-  },
-  viewMemoryButton: {
-    backgroundColor: '#4A90E2',
-    paddingHorizontal: 30,
-    paddingVertical: 15,
-    borderRadius: 25,
-    marginTop: 20,
-    elevation: 3, // Sombra para Android
-    shadowColor: '#000', // Sombra para iOS
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-  },
-  viewMemoryButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
+    color: 'white',
+    letterSpacing: 0.5,
   },
 });
