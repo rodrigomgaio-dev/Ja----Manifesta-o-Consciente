@@ -77,7 +77,7 @@ export function useDailyPractices(cocreationId?: string) {
         query = query.eq('cocreation_id', cocreationId);
       }
 
-      const { data, error } = await query;
+      const { data, error } = await query; // Desestruturação correta
 
       if (error) throw error;
       setPractices(data || []);
@@ -89,7 +89,7 @@ export function useDailyPractices(cocreationId?: string) {
   };
 
   const addPractice = async (practice: Omit<DailyPractice, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
-    if (!user) return { data: null, error: 'User not authenticated' };
+    if (!user) return {  null, error: 'User not authenticated' };
 
     try {
       const { data, error } = await supabase
@@ -104,12 +104,12 @@ export function useDailyPractices(cocreationId?: string) {
       return { data, error: null };
     } catch (error: any) {
       console.error('Error adding practice:', error);
-      return { data: null, error: error.message };
+      return {  null, error: error.message };
     }
   };
 
   const updatePractice = async (id: string, updates: Partial<DailyPractice>) => {
-    if (!user) return { data: null, error: 'User not authenticated' };
+    if (!user) return {  null, error: 'User not authenticated' };
 
     try {
       const { data, error } = await supabase
@@ -126,7 +126,7 @@ export function useDailyPractices(cocreationId?: string) {
       return { data, error: null };
     } catch (error: any) {
       console.error('Error updating practice:', error);
-      return { data: null, error: error.message };
+      return {  null, error: error.message };
     }
   };
 
@@ -150,7 +150,7 @@ export function useDailyPractices(cocreationId?: string) {
     }
   };
 
-  // --- Novas Funções para a Memória da Cocriação ---
+  // --- Novas Funções para a Memória da Cocriação (Corrigidas) ---
 
   // Função para obter práticas recentes (gratidões ou afirmações) associadas a uma cocriação
   const getRecentPractices = async (
@@ -165,14 +165,23 @@ export function useDailyPractices(cocreationId?: string) {
 
     try {
       // Passo 1: Buscar os IDs das práticas diárias do tipo especificado associadas à cocriação
-      const {  dailyPracticeIds, error: dpError } = await supabase
+      const { data: dailyPracticeIds, error: dpError } = await supabase // Desestruturação correta
         .from('daily_practices') // Tabela de definições
-        .select('id')
+        .select('id') // Seleciona apenas o ID
         .eq('cocreation_id', cocriacaoId)
         .eq('type', type)
         .eq('user_id', user.id); // Garante que pertence ao usuário logado
 
-      if (dpError) throw dpError;
+      if (dpError) {
+          console.error(`Erro ao buscar práticas diárias para ${type} na cocriação ${cocriacaoId}:`, dpError);
+          throw dpError; // Lança o erro para ser tratado pelo chamador
+      }
+
+      // Verifica se 'data' é um array antes de acessar .length
+      if (!Array.isArray(dailyPracticeIds)) {
+          console.error(`A resposta de Supabase para práticas diárias não é um array:`, dailyPracticeIds);
+          return []; // Retorna array vazio se não for um array
+      }
 
       if (dailyPracticeIds.length === 0) {
         console.log(`Nenhuma prática diária do tipo '${type}' encontrada para a cocriação ${cocriacaoId}.`);
@@ -202,7 +211,9 @@ export function useDailyPractices(cocreationId?: string) {
       return mappedPractices as (MemoryGratitude[] | MemoryAffirmation[]); // Ajuste o tipo de retorno se necessário
     } catch (err) {
       console.error(`Erro ao buscar práticas recentes (${type}) para cocriação ${cocriacaoId}:`, err);
-      throw err; // Lança o erro para ser tratado no chamador
+      // Não lança o erro aqui se não quiser que quebre a tela, apenas loga e retorna array vazio
+      // throw err; // Opcional: lançar para o chamador tratar
+      return []; // Retorna array vazio em caso de erro
     }
   };
 
@@ -215,7 +226,7 @@ export function useDailyPractices(cocreationId?: string) {
 
     try {
       // Passo 1: Buscar os mantras diários associados à cocriação
-      const { data: dailyMantras, error: dmError } = await supabase
+      const {  dailyMantras, error: dmError } = await supabase
         .from('daily_practices') // Tabela de definições
         .select('id, title as name, content as text_content') // Mapeia campos conforme o tipo MemoryMantra
         .eq('cocreation_id', cocriacaoId)
@@ -224,7 +235,7 @@ export function useDailyPractices(cocreationId?: string) {
 
       if (dmError) throw dmError;
 
-      if (dailyMantras.length === 0) {
+      if (!Array.isArray(dailyMantras) || dailyMantras.length === 0) {
         console.log(`Nenhum mantra diário encontrado para a cocriação ${cocriacaoId}.`);
         return null;
       }
@@ -272,7 +283,8 @@ export function useDailyPractices(cocreationId?: string) {
       return result;
     } catch (err) {
       console.error(`Erro ao buscar mantra mais praticado para cocriação ${cocriacaoId}:`, err);
-      throw err; // Lança o erro para ser tratado no chamador
+      // throw err; // Opcional: lançar para o chamador tratar
+      return null; // Retorna null em caso de erro
     }
   };
   // --- Fim das Novas Funções ---
