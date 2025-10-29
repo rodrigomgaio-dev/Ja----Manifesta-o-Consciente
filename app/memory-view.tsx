@@ -1,78 +1,64 @@
 // app/memory-view.tsx
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Alert, Dimensions, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Alert, Dimensions, RefreshControl, Animated } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
-import { supabase } from '@/services/supabase'; // Importa o supabase diretamente
+import { supabase } from '@/services/supabase';
 import { useTheme } from '@/contexts/ThemeContext';
-import { useAuth } from '@/contexts/AuthContext'; // Importe para obter o usuário logado
-import { LinearGradient } from 'expo-linear-gradient'; // Importa LinearGradient
-import { MaterialIcons } from '@expo/vector-icons'; // Importa ícones
-import { Image } from 'expo-image'; // Importa Image otimizada
-import SacredCard from '@/components/ui/SacredCard'; // Importa o componente SacredCard
-import { Spacing } from '@/constants/Colors'; // Importa constantes de espaçamento
+import { useAuth } from '@/contexts/AuthContext';
+import { LinearGradient } from 'expo-linear-gradient';
+import { MaterialIcons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
+import { Spacing } from '@/constants/Colors';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
+
+// Função para gerar valores aleatórios para colagem
+const getRandomRotation = () => (Math.random() - 0.5) * 20; // -10 a 10 graus
+const getRandomScale = () => 0.9 + Math.random() * 0.2; // 0.9 a 1.1
+const getRandomOffsetX = () => (Math.random() - 0.5) * 20; // -10 a 10 px
+const getRandomOffsetY = () => (Math.random() - 0.5) * 20; // -10 a 10 px
 
 export default function MemoryViewScreen() {
   const { colors } = useTheme();
-  const { user, session } = useAuth(); // Obtém o usuário e a sessão logados
+  const { user, session } = useAuth();
   const { id: cocriacaoId } = useLocalSearchParams<{ id: string }>();
 
-  const [cocriacaoData, setCocriacaoData] = useState<any>(null); // Agora carregamos os dados principais da cocriação
-  const [memoryData, setMemoryData] = useState<any>(null); // E os dados da memória gerada
-  const [visionBoardItems, setVisionBoardItems] = useState<any[]>([]); // Armazena os itens do vision board
+  const [cocriacaoData, setCocriacaoData] = useState<any>(null);
+  const [memoryData, setMemoryData] = useState<any>(null);
+  const [visionBoardItems, setVisionBoardItems] = useState<any[]>([]);
+  const [coverImageUrl, setCoverImageUrl] = useState<string | null>(null); // Armazena a URL da imagem de capa
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [refreshing, setRefreshing] = useState(false); // Para o pull-to-refresh
+  const [refreshing, setRefreshing] = useState(false);
 
-  // Função para carregar todos os dados
   const loadData = async (isRefresh = false) => {
-    if (isRefresh) {
-      setRefreshing(true);
-    } else {
-      setLoading(true);
-    }
+    if (isRefresh) setRefreshing(true);
+    else setLoading(true);
     setError(null);
 
     try {
-      console.log("memory-view.tsx - Carregando dados para memória, ID:", cocriacaoId);
-
-      if (!user?.id) {
-        throw new Error('Sessão expirada ou usuário não autenticado.');
-      }
-      if (!cocriacaoId) {
-        throw new Error('ID da Cocriação ausente.');
-      }
+      if (!user?.id) throw new Error('Sessão expirada ou usuário não autenticado.');
+      if (!cocriacaoId) throw new Error('ID da Cocriação ausente.');
 
       // 1. Carregar dados principais da cocriação
       const { data: cocriacao, error: loadError } = await supabase
         .from('individual_cocriations')
-        .select('title, why_reason, mental_code, memory_snapshot, status') // Seleciona campos principais
+        .select('title, why_reason, mental_code, memory_snapshot, cover_image_url, status') // Inclui cover_image_url
         .eq('id', cocriacaoId)
-        .eq('user_id', user.id) // Garante que pertence ao usuário logado
+        .eq('user_id', user.id)
         .single();
 
-      console.log("memory-view.tsx - Resultado da consulta principal:", { cocriacao, loadError });
-
-      if (loadError) {
-        console.error("memory-view.tsx - Erro ao carregar dados principais da cocriação:", loadError);
-        throw loadError;
-      }
-
+      if (loadError) throw loadError;
       if (!cocriacao) {
-        console.error("memory-view.tsx - Cocriação NÃO encontrada, ID:", cocriacaoId, "pelo usuário:", user.id);
-        // Tentativa de debug
-        const { data: debugCocriacao, error: debugError } = await supabase
+        const {  debugCocriacao, error: debugError } = await supabase
           .from('individual_cocriations')
-          .select('title, why_reason, mental_code, memory_snapshot, status')
+          .select('title, why_reason, mental_code, memory_snapshot, cover_image_url, status')
           .eq('id', cocriacaoId)
           .single();
 
         if (debugCocriacao) {
-            console.warn("memory-view.tsx - DEBUG: Cocriação encontrada, mas NÃO pertence ao usuário logado. Proprietário:", debugCocriacao.user_id, "Usuário logado:", user.id);
             throw new Error('Sessão inválida. A memória não pertence ao usuário logado.');
         } else if (debugError) {
-            console.warn("memory-view.tsx - DEBUG: Erro ao tentar carregar sem user_id:", debugError);
             throw new Error('Cocriação não encontrada. O ID pode estar incorreto ou a cocriação pode ter sido excluída.');
         } else {
              throw new Error('Cocriação não encontrada ou erro inesperado.');
@@ -83,29 +69,26 @@ export default function MemoryViewScreen() {
         throw new Error('Dados da Memória da Cocriação não encontrados no registro. A cocriação pode não ter sido concluída corretamente.');
       }
 
-      // Armazena os dados principais e da memória
       setCocriacaoData(cocriacao);
       setMemoryData(cocriacao.memory_snapshot);
+      setCoverImageUrl(cocriacao.cover_image_url); // Armazena a URL da imagem de capa
 
       // 2. Carregar os itens do Vision Board
-      const { data: items, error: itemsError } = await supabase
+      const {  items, error: itemsError } = await supabase
         .from('vision_board_items')
         .select('*')
         .eq('cocreation_id', cocriacaoId)
-        .order('created_at', { ascending: true }); // Ordena conforme criado
+        .order('created_at', { ascending: true });
 
       if (itemsError) {
-        console.error("memory-view.tsx - Erro ao carregar itens do Vision Board:", itemsError);
-        // Não lança erro, apenas loga. Pode não haver itens.
+        console.error("Erro ao carregar itens do Vision Board:", itemsError);
         setVisionBoardItems([]);
       } else {
         setVisionBoardItems(items || []);
       }
 
-      console.log("memory-view.tsx - Dados e itens do Vision Board carregados com sucesso.");
-
     } catch (err) {
-      console.error('memory-view.tsx - Erro geral ao carregar a memória da cocriação:', err);
+      console.error('Erro geral ao carregar a memória da cocriação:', err);
       setError(`Falha ao carregar a memória: ${(err as Error).message}`);
     } finally {
       setLoading(false);
@@ -121,163 +104,176 @@ export default function MemoryViewScreen() {
     loadData(true);
   };
 
-  if (loading && !refreshing) { // Mostra loading apenas na carga inicial
+  if (loading && !refreshing) {
     return (
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <LinearGradient colors={['#1a0b2e', '#2d1b4e', '#4a2c6e']} style={styles.container}>
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={{ color: colors.text }}>Carregando sua Memória da Cocriação...</Text>
-      </View>
+        <Text style={{ color: colors.text }}>Criando sua lembrança...</Text>
+      </LinearGradient>
     );
   }
 
   if (error) {
     return (
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <LinearGradient colors={['#1a0b2e', '#2d1b4e', '#4a2c6e']} style={styles.container}>
         <Text style={[styles.errorText, { color: colors.error }]}>Erro: {error}</Text>
         <Text style={{ color: colors.text }}>Por favor, tente novamente.</Text>
-      </View>
+      </LinearGradient>
     );
   }
 
   if (!memoryData || !cocriacaoData) {
     return (
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <LinearGradient colors={['#1a0b2e', '#2d1b4e', '#4a2c6e']} style={styles.container}>
         <Text style={{ color: colors.text }}>Nenhuma memória encontrada.</Text>
-      </View>
+      </LinearGradient>
     );
   }
 
-  // --- Renderização da Memória ---
+  // Filtra apenas imagens do Vision Board
+  const visionBoardImages = visionBoardItems.filter(item => item.type === 'image' && item.content);
+
+  // --- Renderização da Memória (Colagem de Conquista) ---
   return (
-    <LinearGradient
-      colors={['#1a0b2e', '#2d1b4e', '#4a2c6e']} // Gradiente de fundo
-      style={styles.container}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-    >
+    <LinearGradient colors={['#1a0b2e', '#2d1b4e', '#4a2c6e']} style={styles.container}>
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
-        }
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
       >
-        {/* Título da Cocriação */}
-        <SacredCard glowing style={styles.titleCard}>
-          <Text style={[styles.mainTitle, { color: colors.text }]}>{cocriacaoData.title}</Text>
-        </SacredCard>
+        {/* Título Principal */}
+        <Text style={[styles.mainTitle, { color: colors.text }]}>{cocriacaoData.title}</Text>
 
-        {/* O meu porquê */}
-        {cocriacaoData.why_reason && (
-          <SacredCard style={styles.sectionCard}>
-            <View style={styles.sectionHeader}>
-              <MaterialIcons name="sentiment-very-satisfied" size={24} color={colors.accent} />
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>O meu porquê:</Text>
+        {/* "O meu porquê" e Código Mental */}
+        <View style={styles.infoSection}>
+          {cocriacaoData.why_reason && (
+            <View style={styles.infoItem}>
+              <MaterialIcons name="sentiment-very-satisfied" size={20} color={colors.accent} />
+              <Text style={[styles.infoText, { color: colors.text }]}>
+                <Text style={{ fontWeight: 'bold' }}>O meu porquê: </Text>
+                {cocriacaoData.why_reason}
+              </Text>
             </View>
-            <Text style={[styles.sectionContent, { color: colors.textSecondary }]}>{cocriacaoData.why_reason}</Text>
-          </SacredCard>
+          )}
+          {cocriacaoData.mental_code && (
+            <View style={styles.infoItem}>
+              <MaterialIcons name="code" size={20} color={colors.primary} />
+              <Text style={[styles.infoText, { color: colors.text }]}>
+                <Text style={{ fontWeight: 'bold' }}>Código Mental: </Text>
+                <Text style={styles.mentalCodeHighlight}>{cocriacaoData.mental_code}</Text>
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {/* Imagem de Capa */}
+        {coverImageUrl && (
+          <View style={styles.coverImageContainer}>
+            <Image
+              source={{ uri: coverImageUrl }}
+              style={styles.coverImage}
+              contentFit="cover"
+            />
+          </View>
         )}
 
-        {/* Código Mental */}
-        {cocriacaoData.mental_code && (
-          <SacredCard style={styles.sectionCard}>
-            <View style={styles.sectionHeader}>
-              <MaterialIcons name="code" size={24} color={colors.primary} />
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>Código Mental:</Text>
-            </View>
-            <View style={styles.mentalCodeContainer}>
-              <Text style={styles.mentalCodeText}>{cocriacaoData.mental_code}</Text>
-            </View>
-          </SacredCard>
-        )}
-
-        {/* Imagens do Vision Board */}
-        {visionBoardItems.length > 0 && (
-          <SacredCard style={styles.sectionCard}>
-            <View style={styles.sectionHeader}>
-              <MaterialIcons name="dashboard" size={24} color={colors.secondary} />
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>Imagens do meu Caminho:</Text>
-            </View>
-            <View style={styles.visionBoardContainer}>
-              {visionBoardItems.map((item, index) => (
-                item.type === 'image' && item.content ? (
+        {/* Colagem de Imagens do Vision Board */}
+        {visionBoardImages.length > 0 && (
+          <View style={styles.visionBoardCollageContainer}>
+            <Text style={[styles.collageTitle, { color: colors.text }]}>Memórias Visuais:</Text>
+            <View style={styles.visionBoardCollage}>
+              {visionBoardImages.map((item, index) => (
+                <Animated.View
+                  key={item.id || index} // Use ID se disponível, senão índice
+                  style={[
+                    styles.collageImage,
+                    {
+                      transform: [
+                        { rotate: `${getRandomRotation()}deg` },
+                        { scale: getRandomScale() },
+                        { translateX: getRandomOffsetX() },
+                        { translateY: getRandomOffsetY() },
+                      ],
+                      zIndex: index, // Imagens posteriores ficam por cima
+                      // Posicionamento aleatório dentro do container da colagem
+                      position: 'absolute',
+                      left: Math.random() * (width * 0.8 - 100), // Largura do container - largura da imagem
+                      top: Math.random() * 300, // Altura aleatória dentro de uma faixa
+                    },
+                  ]}
+                >
                   <Image
-                    key={index}
-                    source={{ uri: item.content }} // A URL da imagem
-                    style={styles.visionBoardImage}
+                    source={{ uri: item.content }}
+                    style={styles.collageImageContent}
                     contentFit="cover"
                   />
-                ) : null
+                </Animated.View>
               ))}
             </View>
-          </SacredCard>
+          </View>
         )}
 
-        {/* Meu mantra mágico */}
-        {memoryData.most_practiced_mantra && (
-          <SacredCard style={styles.sectionCard}>
-            <View style={styles.sectionHeader}>
-              <MaterialIcons name="star" size={24} color={colors.warning} />
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>Meu mantra mágico:</Text>
+        {/* Mantra, Afirmações, Gratidões */}
+        <View style={styles.contentSection}>
+          {memoryData.most_practiced_mantra && (
+            <View style={styles.contentItem}>
+              <MaterialIcons name="star" size={24} color={colors.warning} style={styles.contentIcon} />
+              <View>
+                <Text style={[styles.contentTitle, { color: colors.text }]}>Meu mantra mágico:</Text>
+                <Text style={[styles.contentText, { color: colors.text }]}>
+                  "{memoryData.most_practiced_mantra.text_content}"
+                </Text>
+                <Text style={[styles.contentSubtext, { color: colors.textMuted }]}>
+                  Praticado {memoryData.most_practiced_mantra.practice_count} vezes
+                </Text>
+              </View>
             </View>
-            <Text style={[styles.mantraText, { color: colors.text }]}>
-              "{memoryData.most_practiced_mantra.text_content}"
-            </Text>
-            <Text style={[styles.mantraSubtext, { color: colors.textMuted }]}>
-              Praticado {memoryData.most_practiced_mantra.practice_count} vezes
-            </Text>
-          </SacredCard>
-        )}
+          )}
 
-        {/* Minhas crenças principais */}
-        {memoryData.affirmations && memoryData.affirmations.length > 0 && (
-          <SacredCard style={styles.sectionCard}>
-            <View style={styles.sectionHeader}>
-              <MaterialIcons name="check-circle" size={24} color={colors.success} />
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>Minhas crenças principais:</Text>
+          {memoryData.affirmations && memoryData.affirmations.length > 0 && (
+            <View style={styles.contentItem}>
+              <MaterialIcons name="check-circle" size={24} color={colors.success} style={styles.contentIcon} />
+              <View>
+                <Text style={[styles.contentTitle, { color: colors.text }]}>Minhas crenças principais:</Text>
+                {memoryData.affirmations.map((a: any, index: number) => (
+                  <Text key={`affirmation-${index}`} style={[styles.listItem, { color: colors.textSecondary }]}>
+                    • {a.content}
+                  </Text>
+                ))}
+              </View>
             </View>
-            {memoryData.affirmations.map((a: any, index: number) => (
-              <Text key={`affirmation-${index}`} style={[styles.listItem, { color: colors.textSecondary }]}>
-                • {a.content}
-              </Text>
-            ))}
-          </SacredCard>
-        )}
+          )}
 
-        {/* Minhas gratidões mais frequentes */}
-        {memoryData.gratitudes && memoryData.gratitudes.length > 0 && (
-          <SacredCard style={styles.sectionCard}>
-            <View style={styles.sectionHeader}>
-              <MaterialIcons name="favorite" size={24} color={colors.error} />
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>Minhas gratidões mais frequentes:</Text>
+          {memoryData.gratitudes && memoryData.gratitudes.length > 0 && (
+            <View style={styles.contentItem}>
+              <MaterialIcons name="favorite" size={24} color={colors.error} style={styles.contentIcon} />
+              <View>
+                <Text style={[styles.contentTitle, { color: colors.text }]}>Minhas gratidões mais frequentes:</Text>
+                {memoryData.gratitudes.map((g: any, index: number) => (
+                  <Text key={`gratitude-${index}`} style={[styles.listItem, { color: colors.textSecondary }]}>
+                    • {g.content}
+                  </Text>
+                ))}
+              </View>
             </View>
-            {memoryData.gratitudes.map((g: any, index: number) => (
-              <Text key={`gratitude-${index}`} style={[styles.listItem, { color: colors.textSecondary }]}>
-                • {g.content}
-              </Text>
-            ))}
-          </SacredCard>
-        )}
+          )}
+        </View>
 
         {/* Frase Final */}
-        <SacredCard glowing style={styles.finalCard}>
-          <LinearGradient
-            colors={['#8B5CF6', '#EC4899', '#FBBF24']} // Gradiente para a frase final
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.finalPhraseGradient}
-          >
-            <Text style={styles.finalPhrase}>Agora JÁ É mesmo!</Text>
-          </LinearGradient>
-        </SacredCard>
+        <LinearGradient
+          colors={['#8B5CF6', '#EC4899', '#FBBF24']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.finalPhraseGradient}
+        >
+          <Text style={styles.finalPhrase}>Agora JÁ É mesmo!</Text>
+        </LinearGradient>
 
         {/* Rodapé */}
-        <View style={styles.footer}>
-          <Text style={[styles.footerText, { color: colors.textMuted, fontStyle: 'italic', textAlign: 'center' }]}>
-            Esta é a sua Memória da Cocriação. Não é um ativo. Não é um token. É o testemunho silencioso do momento em que você disse: Já é. Guarde-a como um tesouro da alma.
-          </Text>
-        </View>
+        <Text style={[styles.footerText, { color: colors.textMuted, fontStyle: 'italic', textAlign: 'center', marginTop: Spacing.xl }]}>
+          Esta é a sua Memória da Cocriação. Não é um ativo. Não é um token. É o testemunho silencioso do momento em que você disse: Já é. Guarde-a como um tesouro da alma.
+        </Text>
       </ScrollView>
     </LinearGradient>
   );
@@ -292,7 +288,8 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: Spacing.lg,
-    paddingBottom: 100, // Espaço extra no final
+    paddingBottom: 100,
+    alignItems: 'center', // Centraliza o conteúdo principal
   },
   errorText: {
     fontSize: 16,
@@ -300,92 +297,146 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     textAlign: 'center',
   },
-  titleCard: {
-    marginBottom: Spacing.lg,
-    alignItems: 'center',
-  },
   mainTitle: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: 'bold',
     textAlign: 'center',
-    letterSpacing: 1,
+    marginBottom: Spacing.lg,
+    letterSpacing: 1.5,
+    textShadowColor: 'rgba(0, 0, 0, 0.5)', // Sombra para destaque
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
   },
-  sectionCard: {
+  infoSection: {
+    width: '100%',
+    maxWidth: 600, // Limite de largura para telas maiores
     marginBottom: Spacing.lg,
     padding: Spacing.md,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)', // Fundo sutil
+    borderRadius: 12,
   },
-  sectionHeader: {
+  infoItem: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: Spacing.sm,
+    alignItems: 'flex-start', // Alinha ícone ao topo do texto
+    marginBottom: Spacing.md,
   },
-  sectionTitle: {
+  infoText: {
+    fontSize: 16,
+    lineHeight: 22,
+    marginLeft: Spacing.sm,
+    flex: 1, // Permite que o texto ocupe o espaço restante
+  },
+  mentalCodeHighlight: {
+    color: '#FBBF24', // Cor dourada para o código mental
+    fontWeight: '700',
+    letterSpacing: 1,
+  },
+  coverImageContainer: {
+    width: '100%',
+    maxWidth: 400, // Limite de largura
+    height: 200,
+    marginBottom: Spacing.lg,
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 8,
+  },
+  coverImage: {
+    width: '100%',
+    height: '100%',
+  },
+  visionBoardCollageContainer: {
+    width: '100%',
+    maxWidth: 600,
+    marginBottom: Spacing.lg,
+    alignItems: 'center',
+  },
+  collageTitle: {
     fontSize: 18,
     fontWeight: '600',
-    marginLeft: Spacing.sm,
+    marginBottom: Spacing.md,
+    textAlign: 'center',
   },
-  sectionContent: {
-    fontSize: 16,
-    lineHeight: 24,
-    fontStyle: 'italic',
+  visionBoardCollage: {
+    width: '100%',
+    height: 300, // Altura fixa para a área da colagem
+    position: 'relative', // Permite posicionamento absoluto das imagens
+    backgroundColor: 'rgba(255, 255, 255, 0.02)', // Fundo sutil para a área da colagem
+    borderRadius: 12,
+    overflow: 'hidden', // Contém as imagens que podem ultrapassar os limites
   },
-  mentalCodeContainer: {
-    backgroundColor: 'rgba(139, 92, 246, 0.1)', // Fundo sutil
-    padding: Spacing.md,
+  collageImage: {
+    width: 100,
+    height: 100,
     borderRadius: 8,
-    alignItems: 'center',
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
   },
-  mentalCodeText: {
-    fontSize: 18,
-    fontWeight: '700',
-    letterSpacing: 2,
-    color: '#FBBF24', // Cor dourada para destaque
+  collageImageContent: {
+    width: '100%',
+    height: '100%',
   },
-  visionBoardContainer: {
+  contentSection: {
+    width: '100%',
+    maxWidth: 600,
+    marginBottom: Spacing.lg,
+  },
+  contentItem: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: Spacing.sm,
+    alignItems: 'flex-start',
+    marginBottom: Spacing.lg,
+    padding: Spacing.md,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 12,
   },
-  visionBoardImage: {
-    width: (width - Spacing.lg * 2 - Spacing.sm * 2) / 2, // Ajusta para 2 colunas com espaçamento
-    height: 150,
-    borderRadius: 8,
+  contentIcon: {
+    marginRight: Spacing.sm,
+    marginTop: 2, // Alinhamento vertical do ícone com o texto
   },
-  mantraText: {
+  contentTitle: {
     fontSize: 18,
-    fontStyle: 'italic',
+    fontWeight: '600',
     marginBottom: Spacing.xs,
-    textAlign: 'center',
   },
-  mantraSubtext: {
+  contentText: {
+    fontSize: 16,
+    fontStyle: 'italic',
+    lineHeight: 22,
+  },
+  contentSubtext: {
     fontSize: 14,
-    textAlign: 'center',
+    marginTop: Spacing.xs,
   },
   listItem: {
     fontSize: 16,
     lineHeight: 24,
     marginBottom: Spacing.xs,
   },
-  finalCard: {
-    marginVertical: Spacing.xl,
-    alignItems: 'center',
-  },
   finalPhraseGradient: {
     padding: Spacing.xl,
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
+    marginVertical: Spacing.xl,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 10,
   },
   finalPhrase: {
-    fontSize: 32,
+    fontSize: 36,
     fontWeight: '900',
     color: 'white',
     textAlign: 'center',
     letterSpacing: 2,
-  },
-  footer: {
-    paddingVertical: Spacing.md,
   },
   footerText: {
     fontSize: 12,
