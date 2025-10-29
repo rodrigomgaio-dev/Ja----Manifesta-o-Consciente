@@ -39,7 +39,7 @@ export default function MemoryViewScreen() {
       if (!cocriacaoId) throw new Error('ID da Cocriação ausente.');
 
       // 1. Carregar dados principais da cocriação e memory_snapshot
-      const { data: cocriacao, error: loadError } = await supabase
+      const {  cocriacao, error: loadError } = await supabase
         .from('individual_cocriations')
         .select('title, why_reason, mental_code, memory_snapshot, cover_image_url, status')
         .eq('id', cocriacaoId)
@@ -105,7 +105,7 @@ export default function MemoryViewScreen() {
         console.error("memory-view.tsx - Erro ao carregar mantras:", mantrasError);
         setMantras([]);
       } else {
-        setMantras(mantrasData || []);
+        setMantras(mantrasData || []); // Garante array mesmo que data seja null
       }
 
       // 4. Carregar Afirmações associadas à cocriação
@@ -120,11 +120,19 @@ export default function MemoryViewScreen() {
 
       if (afirmacoesError) {
         console.error("memory-view.tsx - Erro ao carregar afirmações:", afirmacoesError);
-        setAfirmacoes([]);
+        setAfirmacoes([]); // Garante array vazio em caso de erro
       } else {
-        // Seleciona até 3 afirmações aleatórias
-        const shuffledAfirmacoes = [...afirmacoesData].sort(() => 0.5 - Math.random());
-        setAfirmacoes(shuffledAfirmacoes.slice(0, 3));
+        // --- CORREÇÃO AQUI ---
+        // Verifica se afirmacoesData é um array antes de tentar iterar
+        if (Array.isArray(afirmacoesData)) {
+          // Seleciona até 3 afirmações aleatórias
+          const shuffledAfirmacoes = [...afirmacoesData].sort(() => 0.5 - Math.random());
+          setAfirmacoes(shuffledAfirmacoes.slice(0, 3));
+        } else {
+          console.warn("memory-view.tsx - afirmacoesData não é um array:", afirmacoesData);
+          setAfirmacoes([]); // Define como array vazio se não for um array
+        }
+        // ---
       }
 
     } catch (err) {
