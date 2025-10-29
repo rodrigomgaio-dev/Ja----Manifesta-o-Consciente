@@ -346,9 +346,9 @@ export default function CreateIndividualScreen() {
             </Text>
             <View style={styles.stepsList}>
               {[
+                'Escrever sua carta para o futuro',
                 'Criar seu Vision Board interativo',
                 'Definir práticas diárias personalizadas',
-                'Escrever sua carta para o futuro',
                 'Acompanhar sua jornada com presença',
                 'Celebrar de forma Inesquecível!',
               ].map((step, index) => (

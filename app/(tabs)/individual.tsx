@@ -321,9 +321,9 @@ export default function IndividualScreen() {
             <View style={styles.infoList}>
               {[
                 'Defina o que deseja Cocriar',
-                'Crie seu Vision Board interativo',
-                'Planeje seus Momentos de Cocriação',
                 'Envia uma carta para o seu EU do futuro',
+                'Crie seu Vision Board interativo',
+                'Planeje seus Momentos de Cocriação',                
                 'Mantenha-se Presente e firme na sua Cocriação',
                 'Celebre sua Cocriação de forma Inesqecível',
               ].map((step, index) => (
