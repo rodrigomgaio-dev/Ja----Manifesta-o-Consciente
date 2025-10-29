@@ -38,7 +38,7 @@ export default function MemoryGenerationScreen() {
       try {
         console.log("memory-generation.tsx - Iniciando carregamento direto da cocriação...");
         // 1. Obter detalhes da cocriação DIRETAMENTE do Supabase
-        const {  cocriacao, error: loadError } = await supabase
+        const { data: cocriacao, error: loadError } = await supabase
           .from('individual_cocriations')
           .select('*')
           .eq('id', cocriacaoId)
@@ -55,7 +55,7 @@ export default function MemoryGenerationScreen() {
         if (!cocriacao) {
             console.error("memory-generation.tsx - Cocriação DIRETA NÃO encontrada para ID:", cocriacaoId, "pelo usuário:", user.id);
             // Opcional: Tentar carregar *sem* user_id para debug (NÃO FAÇA ISSO em produção)
-            const {  debugCocriacao, error: debugError } = await supabase
+            const { data: debugCocriacao, error: debugError } = await supabase
               .from('individual_cocriations')
               .select('*')
               .eq('id', cocriacaoId)
