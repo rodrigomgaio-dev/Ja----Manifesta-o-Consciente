@@ -211,10 +211,52 @@ export default function CocriacaoDetailsScreen() {
     );
   };
 
-  const confirmCompletion = () => {
+  {/*const confirmCompletion = () => {
     setModalVisible(false);
     // Navegar para o ritual de conclusão
     router.push(`/completion-ritual?id=${cocriation.id}`);
+  };*/}
+  const confirmCompletion = async () => {
+    setModalVisible(false); // Fecha o modal de confirmação
+
+    // Adicione um estado de loading se desejar mostrar feedback
+    // setIsLoading(true);
+
+    try {
+      // Atualiza o status da cocriação no Supabase para 'completed'
+      // Usamos updateCocriation do hook, que já inclui a verificação de user_id
+      const result = await updateCocriation(cocriation.id, {
+        status: 'completed', // Define o status como 'completed'
+        // Se quiser, pode adicionar a data de conclusão aqui também
+        // completion_date: new Date().toISOString(), // Opcional, se o hook não fizer isso automaticamente
+      });
+
+      if (result.error) {
+        console.error('Erro ao concluir cocriação:', result.error);
+        showModal(
+          'Erro',
+          'Não foi possível concluir a cocriação. Tente novamente.',
+          'error'
+        );
+        // setIsLoading(false); // Se tiver estado de loading
+        return; // Interrompe a execução se houver erro
+      }
+
+      console.log("Cocriação atualizada para 'completed' com sucesso.");
+
+      // Após atualizar com sucesso, navega para a tela de animação
+      router.push(`/completion-ritual?id=${cocriation.id}`);
+
+    } catch (error) {
+      console.error('Erro inesperado ao concluir cocriação:', error);
+      showModal(
+        'Erro Inesperado',
+        'Algo deu errado. Tente novamente.',
+        'error'
+      );
+      // setIsLoading(false); // Se tiver estado de loading
+    }
+    // setIsLoading(false); // Se tiver estado de loading
   };
 
   const canToggleStatus = (cocriation: any) => {

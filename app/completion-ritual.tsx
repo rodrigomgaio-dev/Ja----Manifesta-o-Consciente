@@ -12,19 +12,14 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/contexts/ThemeContext';
-// import { useIndividualCocriations } from '@/hooks/useIndividualCocriations'; // Não será mais necessário aqui
-// import { useDailyPractices } from '@/hooks/useDailyPractices'; // Não será mais necessário aqui
-// import { supabase } from '@/services/supabase'; // Não será mais necessário aqui
 import { Spacing } from '@/constants/Colors';
 
 const { width, height } = Dimensions.get('window');
 
 export default function CompletionRitualScreen() {
   const { colors } = useTheme();
-  const { id: cocriacaoId } = useLocalSearchParams<{ id: string }>();
-  // const { updateCocriation } = useIndividualCocriations(); // Removido
+  const { id } = useLocalSearchParams<{ id: string }>(); // Recebe o ID da cocriação
 
-  // --- Estados para as animações (mantidos do original) ---
   const [step, setStep] = useState<'celebration' | 'realization'>('celebration');
   
   // Animações
@@ -36,7 +31,6 @@ export default function CompletionRitualScreen() {
   // Partículas
   const [particles, setParticles] = useState<any[]>([]);
 
-  // --- Efeito para iniciar animações ---
   useEffect(() => {
     // Animação de celebração
     startCelebrationAnimation();
@@ -49,9 +43,23 @@ export default function CompletionRitualScreen() {
       setStep('realization');
       startRealizationAnimation();
     }, 3000);
-  }, []);
 
-  // --- Funções de Animação (mantidas do original) ---
+    // Transição automática para a tela de memória após a animação de realização
+    const realizationTimeout = setTimeout(() => {
+      if (id) {
+        router.replace(`/memory-view-simple?id=${id}`); // Navega para a nova tela de memória
+      } else {
+        console.error("ID da cocriação ausente para navegação.");
+        // Poderia navegar para uma tela de erro ou voltar
+        // router.back();
+      }
+    }, 6000); // Ajuste este tempo conforme a duração total da animação de realização
+
+    // Cleanup para evitar navegação se o componente desmontar antes
+    return () => clearTimeout(realizationTimeout);
+
+  }, [id]);
+
   const createParticles = () => {
     const newParticles = [];
     for (let i = 0; i < 20; i++) {
@@ -127,17 +135,15 @@ export default function CompletionRitualScreen() {
     ]).start();
   };
 
-  // --- Função Atualizada para Navegar para Geração ---
-  const handleNavigateToGeneration = () => {
-    if (!cocriacaoId) {
-        console.error("ID da Cocriação ausente para navegação.");
-        return;
+  // A função handleViewMemory não faz mais atualizações, apenas navega
+  const handleViewMemory = () => {
+    if (id) {
+      router.replace(`/memory-view-simple?id=${id}`);
+    } else {
+      console.error("ID da cocriação ausente para navegação.");
     }
-    console.log("Navegando para memory-generation com ID:", cocriacaoId);
-    router.push(`/memory-generation?id=${cocriacaoId}`); // Navega para a nova tela
   };
 
-  // --- Renderização ---
   if (step === 'celebration') {
     return (
       <LinearGradient
@@ -185,7 +191,6 @@ export default function CompletionRitualScreen() {
     );
   }
 
-  // Tela de Realização (após a animação de celebração)
   return (
     <LinearGradient
       colors={['#6B46C1', '#8B5CF6', '#A855F7', '#EC4899', '#FBBF24']}
@@ -219,7 +224,7 @@ export default function CompletionRitualScreen() {
           <Text style={styles.subtitle}>Gratidão pela cocriação.</Text>
         </Animated.View>
         
-        {/* Botão Ver Memória de Cocriação */}
+        {/* Botão Memória de Cocriação */}
         <Animated.View
           style={[
             styles.buttonContainer,
@@ -230,7 +235,7 @@ export default function CompletionRitualScreen() {
         >
           <TouchableOpacity
             style={styles.nftButton}
-            onPress={handleNavigateToGeneration} // Chama a nova função de navegação
+            onPress={handleViewMemory} // Chama a função que navega
             activeOpacity={0.8}
           >
             <LinearGradient
@@ -238,7 +243,7 @@ export default function CompletionRitualScreen() {
               style={styles.nftButtonGradient}
             >
               <MaterialIcons name="card-giftcard" size={24} color="white" />
-              <Text style={styles.nftButtonText}>Ver minha Memória de Cocriação</Text>
+              <Text style={styles.nftButtonText}>Memória de Cocriação</Text>
             </LinearGradient>
           </TouchableOpacity>
         </Animated.View>
@@ -247,7 +252,6 @@ export default function CompletionRitualScreen() {
   );
 }
 
-// --- Estilos (mantidos do original) ---
 const styles = StyleSheet.create({
   container: {
     flex: 1,
