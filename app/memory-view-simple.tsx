@@ -1,6 +1,6 @@
 // app/memory-view-simple.tsx
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Dimensions, TouchableOpacity, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Dimensions, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -9,91 +9,23 @@ import { Image } from 'expo-image';
 import { Spacing } from '@/constants/Colors';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
-import Animated, { FadeIn, FadeInDown, FadeInUp, ZoomIn, SlideInRight, BounceIn, Loop, Sequence, useAnimatedStyle, withRepeat, withTiming } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInDown, FadeInUp, ZoomIn, SlideInRight } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const { width, height } = Dimensions.get('window');
-
-// --- Componente de Loading Emocional ---
-const EmotionalLoading = ({ colors }: { colors: any }) => {
-  const animatedStyle = useAnimatedStyle(() => {
-    return {
-      transform: [
-        { rotate: withRepeat(withTiming('360deg'), -1, 'RESTART') },
-      ],
-    };
-  });
-
-  return (
-    <View style={styles.loadingContainer}>
-      <Animated.View style={[styles.loadingIconContainer, animatedStyle]}>
-        <MaterialIcons name="auto-awesome" size={48} color={colors.gold || '#FBBF24'} />
-      </Animated.View>
-      <Text style={[styles.loadingText, { color: colors.text, marginTop: Spacing.lg, fontSize: 16 }]}>
-        Recriando sua memória...
-      </Text>
-    </View>
-  );
-};
-
-// --- Componente de Confetes ---
-const Confetti = ({ show }: { show: boolean }) => {
-  if (!show) return null;
-
-  const confettiPieces = [];
-  for (let i = 0; i < 50; i++) {
-    const size = Math.random() * 10 + 5;
-    const left = Math.random() * width;
-    const color = ['#FBBF24', '#EC4899', '#8B5CF6', '#34D399', '#A78BFA'][Math.floor(Math.random() * 5)];
-    const rotation = Math.random() * 360;
-    const duration = Math.random() * 3000 + 3000; // 3 a 6 segundos
-
-    const pieceStyle = {
-      position: 'absolute' as 'absolute',
-      top: -size,
-      left: left,
-      width: size,
-      height: size,
-      backgroundColor: color,
-      transform: [{ rotate: `${rotation}deg` }],
-      zIndex: 1000,
-    };
-
-    const animatedPieceStyle = useAnimatedStyle(() => {
-      return {
-        transform: [
-          { rotate: `${rotation}deg` },
-          { translateY: withTiming(height + size, { duration: duration }) },
-        ],
-      };
-    });
-
-    confettiPieces.push(
-      <Animated.View
-        key={i}
-        style={[pieceStyle, animatedPieceStyle]}
-      />
-    );
-  }
-
-  return <>{confettiPieces}</>;
-};
+const { width } = Dimensions.get('window');
 
 export default function MemoryViewSimpleScreen() {
   const { colors } = useTheme();
   const { user } = useAuth();
-  const { id: cocriacaoId, cameFromRitual } = useLocalSearchParams<{ id: string, cameFromRitual?: string }>(); // Recebe parâmetro opcional
+  const { id: cocriacaoId } = useLocalSearchParams<{ id: string }>();
+  const insets = useSafeAreaInsets();
 
   const [cocriacao, setCocriacao] = useState<any>(null);
   const [mantras, setMantras] = useState<any[]>([]);
   const [afirmacoes, setAfirmacoes] = useState<any[]>([]);
   const [visionBoardItems, setVisionBoardItems] = useState<any[]>([]);
-  const [futureLetter, setFutureLetter] = useState<any>(null); // Armazena a carta
-  const [showLetterModal, setShowLetterModal] = useState(false); // Controla o modal da carta
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showConfetti, setShowConfetti] = useState(false); // Controla a animação de confetes
-  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     const loadMemoryData = async () => {
@@ -109,10 +41,10 @@ export default function MemoryViewSimpleScreen() {
       }
 
       try {
-        // 1. Carregar dados principais da cocriação (título, código mental, imagem de capa, porquê, status da carta)
-        const {  cocriacaoData, error: cocriacaoError } = await supabase
+        // 1. Carregar dados principais da cocriação (título, código mental, imagem de capa, porquê)
+        const { data: cocriacaoData, error: cocriacaoError } = await supabase
           .from('individual_cocriations')
-          .select('title, mental_code, cover_image_url, why_reason, future_letter_completed') // Adiciona future_letter_completed
+          .select('title, mental_code, cover_image_url, why_reason')
           .eq('id', cocriacaoId)
           .eq('user_id', user.id) // Garante que pertence ao usuário logado
           .single();
@@ -120,25 +52,7 @@ export default function MemoryViewSimpleScreen() {
         if (cocriacaoError) throw cocriacaoError;
         if (!cocriacaoData) throw new Error('Cocriação não encontrada.');
 
-        // 2. Carregar Carta para o Futuro (se marcada como concluída)
-        let loadedFutureLetter = null;
-        if (cocriacaoData.future_letter_completed) {
-          const {  letterData, error: letterError } = await supabase
-            .from('future_letters') // Assumindo que é a tabela correta
-            .select('title, content') // Seleciona título e conteúdo
-            .eq('cocreation_id', cocriacaoId)
-            .eq('user_id', user.id)
-            .single();
-
-          if (letterError) {
-            console.error("Erro ao carregar carta para o futuro:", letterError);
-            // Pode continuar mesmo sem a carta
-          } else {
-            loadedFutureLetter = letterData;
-          }
-        }
-
-        // 3. Carregar Mantras associados à cocriação
+        // 2. Carregar Mantras associados à cocriação
         const { data: mantrasData, error: mantrasError } = await supabase
           .from('daily_practices')
           .select('content, title') // Seleciona o conteúdo ou título do mantra
@@ -148,8 +62,8 @@ export default function MemoryViewSimpleScreen() {
 
         if (mantrasError) throw mantrasError;
 
-        // 4. Carregar Afirmações associadas à cocriação
-        const {  afirmacoesData, error: afirmacoesError } = await supabase
+        // 3. Carregar Afirmações associadas à cocriação
+        const { data: afirmacoesData, error: afirmacoesError } = await supabase
           .from('daily_practices')
           .select('content, title') // Seleciona o conteúdo ou título da afirmação
           .eq('cocreation_id', cocriacaoId)
@@ -158,7 +72,7 @@ export default function MemoryViewSimpleScreen() {
 
         if (afirmacoesError) throw afirmacoesError;
 
-        // 5. Carregar Imagens do Vision Board associadas à cocriação
+        // 4. Carregar Imagens do Vision Board associadas à cocriação
         const { data: vbItemsData, error: vbError } = await supabase
           .from('vision_board_items')
           .select('content') // Seleciona a URL da imagem
@@ -169,17 +83,9 @@ export default function MemoryViewSimpleScreen() {
 
         // Atualiza os estados com os dados carregados
         setCocriacao(cocriacaoData);
-        setFutureLetter(loadedFutureLetter);
         setMantras(mantrasData || []);
         setAfirmacoes(afirmacoesData || []);
         setVisionBoardItems(vbItemsData || []);
-
-        // Ativa confetes se veio da tela de ritual
-        if (cameFromRitual === 'true') { // Verifica o parâmetro
-            setShowConfetti(true);
-            // Desativa os confetes após 5 segundos
-            setTimeout(() => setShowConfetti(false), 5000);
-        }
 
       } catch (err) {
         console.error('Erro ao carregar dados da memória:', err);
@@ -190,12 +96,13 @@ export default function MemoryViewSimpleScreen() {
     };
 
     loadMemoryData();
-  }, [cocriacaoId, user?.id, cameFromRitual]); // Adiciona cameFromRitual às dependências
+  }, [cocriacaoId, user?.id]);
 
   if (loading) {
     return (
       <LinearGradient colors={['#1a0b2e', '#2d1b4e', '#4a2c6e']} style={styles.container}>
-        <EmotionalLoading colors={colors} />
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={{ color: colors.text, marginTop: Spacing.lg, fontSize: 16 }}>Recriando sua memória...</Text>
       </LinearGradient>
     );
   }
@@ -230,23 +137,9 @@ export default function MemoryViewSimpleScreen() {
     );
   }
 
-  // --- Funções ---
-  const handleOpenLetter = () => {
-    if (futureLetter) {
-        setShowLetterModal(true);
-    }
-  };
-
-  const handleCloseLetter = () => {
-    setShowLetterModal(false);
-  };
-
   // --- Renderização da Memória com Animações ---
   return (
     <LinearGradient colors={['#1a0b2e', '#2d1b4e', '#4a2c6e']} style={styles.container}>
-      {/* Animação de Confetes */}
-      <Confetti show={showConfetti} />
-
       <ScrollView 
         contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + Spacing.lg }]}
         showsVerticalScrollIndicator={false}
@@ -272,16 +165,6 @@ export default function MemoryViewSimpleScreen() {
         >
           {cocriacao.title}
         </Animated.Text>
-
-        {/* Separador Visual */}
-        <Animated.View entering={FadeIn.delay(500).duration(1000)} style={styles.divider}>
-          <LinearGradient
-            colors={['rgba(139, 92, 246, 0.2)', 'rgba(236, 72, 153, 0.2)', 'rgba(251, 191, 36, 0.2)']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.dividerGradient}
-          />
-        </Animated.View>
 
         {/* Código Mental */}
         {cocriacao.mental_code && (
@@ -309,27 +192,13 @@ export default function MemoryViewSimpleScreen() {
           </Animated.View>
         )}
 
-        {/* Carta para o Futuro (se existir) */}
-        {cocriacao.future_letter_completed && (
-          <Animated.View entering={BounceIn.delay(900).duration(1000)} style={styles.letterContainer}>
-            <TouchableOpacity onPress={handleOpenLetter} activeOpacity={0.7}>
-              <LinearGradient
-                colors={['#8B5CF6', '#EC4899', '#FBBF24']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.letterGradient}
-              >
-                <MaterialIcons name="mail" size={32} color="white" />
-                <Text style={styles.letterText}>Receber Carta para o Futuro</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          </Animated.View>
-        )}
-
-        {/* Grade de Imagens do Vision Board (sem título) */}
+        {/* Grade de Imagens do Vision Board */}
         {visionBoardItems.length > 0 && (
           <Animated.View entering={FadeInUp.delay(1000).springify()} style={styles.visionBoardSection}>
-            {/* Título removido */}
+            <View style={styles.sectionHeader}>
+              <MaterialIcons name="collections" size={24} color="#EC4899" />
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Imagens da Manifestação</Text>
+            </View>
             <View style={styles.visionBoardGrid}>
               {visionBoardItems.map((item, index) => (
                 item.content && (
@@ -392,35 +261,28 @@ export default function MemoryViewSimpleScreen() {
           </Animated.View>
         )}
 
+        {/* Mensagem de Gratidão */}
+        <Animated.View entering={FadeIn.delay(2000).duration(1500)} style={styles.gratitudeSection}>
+          <MaterialIcons name="spa" size={48} color="#FBBF24" />
+          <Text style={[styles.gratitudeText, { color: colors.text }]}>Gratidão!</Text>
+          <Text style={[styles.gratitudeSubtext, { color: colors.textMuted }]}>
+            Por ter cocriado esta realidade com o universo
+          </Text>
+        </Animated.View>
+
         {/* "JÁ É!" Final */}
-        <Animated.View entering={ZoomIn.delay(2000).springify()}>
+        <Animated.View entering={ZoomIn.delay(2200).springify()}>
           <LinearGradient
-            colors={['#8B5CF6', '#EC4899', '#FBBF24']} // Gradiente como o Jaé
+            colors={['#8B5CF6', '#EC4899', '#FBBF24']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.jaEContainer}
           >
-            <Text style={styles.jaEText}>JÁ É !</Text> {/* Espaçamento extra conforme solicitado */}
+            <Text style={styles.jaEText}>JÁ É!</Text>
           </LinearGradient>
         </Animated.View>
 
-        {/* Botão "Gratidão" */}
-        <Animated.View entering={FadeInUp.delay(2200).springify()} style={styles.actionContainer}>
-          <TouchableOpacity
-            style={styles.gratitudeButton}
-            onPress={() => router.push('/completed-cocreations')} // Navega para onde for apropriado
-          >
-            <LinearGradient
-              colors={['rgba(255,255,255,0.3)', 'rgba(255,255,255,0.1)']}
-              style={styles.gratitudeButtonGradient}
-            >
-              <MaterialIcons name="card-giftcard" size={24} color="white" />
-              <Text style={styles.gratitudeButtonText}>Gratidão</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </Animated.View>
-
-        {/* Mensagem Final (abaixo do botão) */}
+        {/* Mensagem Final */}
         <Animated.View entering={FadeIn.delay(2400).duration(1500)} style={styles.footerMessage}>
           <Text style={[styles.footerText, { color: colors.textMuted }]}>
             Esta memória é um testemunho silencioso do momento em que você disse: Já é. 
@@ -428,37 +290,27 @@ export default function MemoryViewSimpleScreen() {
           </Text>
         </Animated.View>
 
+        {/* Botão para Voltar */}
+        <Animated.View entering={FadeInUp.delay(2600).springify()} style={styles.actionContainer}>
+          <TouchableOpacity
+            style={[styles.backButton, { backgroundColor: colors.primary }]}
+            onPress={() => router.push('/completed-cocreations')}
+          >
+            <MaterialIcons name="arrow-back" size={20} color="white" />
+            <Text style={styles.backButtonText}>Voltar às Cocriações</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={styles.createNewButton}
+            onPress={() => router.push('/(tabs)/individual')}
+          >
+            <MaterialIcons name="add-circle-outline" size={20} color={colors.primary} />
+            <Text style={[styles.createNewText, { color: colors.primary }]}>Criar Nova Cocriação</Text>
+          </TouchableOpacity>
+        </Animated.View>
+
         <View style={{ height: insets.bottom + Spacing.xl }} />
       </ScrollView>
-
-      {/* Modal da Carta para o Futuro */}
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={showLetterModal}
-        onRequestClose={handleCloseLetter}
-      >
-        <View style={styles.modalContainer}>
-          <LinearGradient
-            colors={['#1a0b2e', '#2d1b4e', '#4a2c6e']}
-            style={styles.modalContent}
-          >
-            <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>
-                {futureLetter?.title || "Carta para o Futuro"}
-              </Text>
-              <TouchableOpacity onPress={handleCloseLetter} style={styles.closeButton}>
-                <MaterialIcons name="close" size={24} color={colors.text} />
-              </TouchableOpacity>
-            </View>
-            <ScrollView style={styles.modalBody}>
-              <Text style={[styles.modalText, { color: colors.textSecondary }]}>
-                {futureLetter?.content || "Conteúdo da carta não encontrado."}
-              </Text>
-            </ScrollView>
-          </LinearGradient>
-        </View>
-      </Modal>
     </LinearGradient>
   );
 }
@@ -539,14 +391,6 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 8,
   },
-  divider: {
-    width: '80%',
-    height: 2,
-    marginVertical: Spacing.md,
-  },
-  dividerGradient: {
-    flex: 1,
-  },
   mentalCodeBadge: {
     paddingHorizontal: Spacing.xl,
     paddingVertical: Spacing.md,
@@ -590,37 +434,21 @@ const styles = StyleSheet.create({
     height: '30%',
     background: 'linear-gradient(to top, rgba(0,0,0,0.3), transparent)',
   },
-  letterContainer: {
-    width: '100%',
-    maxWidth: 400,
-    alignItems: 'center',
-    marginBottom: Spacing.xl,
-  },
-  letterGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: Spacing.lg,
-    paddingHorizontal: Spacing.xl,
-    borderRadius: 28,
-    gap: Spacing.md,
-    width: '100%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  letterText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: 'white',
-    letterSpacing: 0.5,
-  },
   visionBoardSection: {
     width: '100%',
     maxWidth: 600,
     marginBottom: Spacing.xl,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.lg,
+    gap: Spacing.md,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
   visionBoardGrid: {
     flexDirection: 'row',
@@ -645,17 +473,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(139, 92, 246, 0.2)',
   },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: Spacing.lg,
-    gap: Spacing.md,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
   sectionContent: {
     fontSize: 16,
     lineHeight: 24,
@@ -665,6 +482,24 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 28,
     marginBottom: Spacing.sm,
+  },
+  gratitudeSection: {
+    alignItems: 'center',
+    marginVertical: Spacing.xl * 2,
+    paddingVertical: Spacing.xl,
+  },
+  gratitudeText: {
+    fontSize: 28,
+    fontWeight: '700',
+    marginTop: Spacing.lg,
+    marginBottom: Spacing.sm,
+    textAlign: 'center',
+    letterSpacing: 1.5,
+  },
+  gratitudeSubtext: {
+    fontSize: 14,
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
   jaEContainer: {
     paddingHorizontal: Spacing.xl * 2,
@@ -679,47 +514,17 @@ const styles = StyleSheet.create({
   },
   jaEText: {
     fontSize: 56,
-    fontWeight: '900', // Mantido o mesmo fontWeight do Jaé
+    fontWeight: '900',
     color: 'white',
     textAlign: 'center',
-    letterSpacing: 4, // Espaçamento entre letras
+    letterSpacing: 4,
     textShadowColor: 'rgba(0, 0, 0, 0.3)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
   },
-  gratitudeButton: {
-    // Estilo similar ao botão da completion-ritual.tsx
-    borderRadius: 16,
-    overflow: 'hidden',
-    shadowColor: '#fff',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
-    width: '100%',
-    maxWidth: 320,
-    marginBottom: Spacing.lg, // Espaçamento antes da mensagem final
-  },
-  gratitudeButtonGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: Spacing.lg,
-    paddingHorizontal: Spacing.xl,
-    gap: Spacing.md,
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.3)',
-    borderRadius: 16,
-  },
-  gratitudeButtonText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: 'white',
-    letterSpacing: 0.5,
-  },
   footerMessage: {
     paddingHorizontal: Spacing.lg,
-    // marginBottom: Spacing.xl, // Removido, pois agora vem após o botão
+    marginBottom: Spacing.xl,
   },
   footerText: {
     fontSize: 13,
@@ -730,53 +535,41 @@ const styles = StyleSheet.create({
   actionContainer: {
     width: '100%',
     maxWidth: 400,
-    alignItems: 'center', // Centraliza o botão
-    // gap: Spacing.md, // Removido, pois só tem um botão agora
+    gap: Spacing.md,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingIconContainer: {
-    // Pode adicionar bordas ou fundo se quiser
-  },
-  loadingText: {
-    // Estilo do texto de loading
-  },
-  // --- Estilos do Modal ---
-  modalContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)', // Fundo escuro semi-transparente
-  },
-  modalContent: {
-    width: '90%',
-    maxWidth: 500,
-    maxHeight: '80%',
-    borderRadius: 20,
-    padding: Spacing.lg,
-  },
-  modalHeader: {
+  backButton: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: Spacing.md,
+    justifyContent: 'center',
+    paddingVertical: Spacing.lg,
+    borderRadius: 28,
+    gap: Spacing.sm,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    flex: 1, // Faz o título ocupar o espaço restante
-  },
-  closeButton: {
-    padding: Spacing.sm,
-  },
-  modalBody: {
-    flex: 1,
-  },
-  modalText: {
+  backButtonText: {
+    color: 'white',
     fontSize: 16,
-    lineHeight: 24,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  createNewButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.lg,
+    borderRadius: 28,
+    gap: Spacing.sm,
+    borderWidth: 2,
+    borderColor: 'rgba(139, 92, 246, 0.5)',
+    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+  },
+  createNewText: {
+    fontSize: 16,
+    fontWeight: '600',
+    letterSpacing: 0.5,
   },
 });
