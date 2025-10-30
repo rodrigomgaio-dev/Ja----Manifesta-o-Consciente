@@ -34,7 +34,7 @@ export default function CompletedCocreationsScreen() {
   };
 
   const handleViewNFT = (cocreationId: string) => {
-    router.push(`/symbolic-nft?cocreationId=${cocreationId}`);
+    router.push(`/memory-view-simple?id=${cocreationId}`);
   };
 
   return (
@@ -139,7 +139,7 @@ export default function CompletedCocreationsScreen() {
                       style={[styles.viewNFTButton, { backgroundColor: colors.primary }]}
                       onPress={() => handleViewNFT(cocriation.id)}
                     >
-                      <MaterialIcons name="visibility" size={18} color="white" />
+                      <MaterialIcons name="auto-awesome" size={18} color="white" />
                       <Text style={styles.viewNFTButtonText}>Ver Memória de Cocriação</Text>
                     </TouchableOpacity>
                   </View>
