@@ -1,5 +1,5 @@
 // app/memory-view-simple.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Dimensions, TouchableOpacity, Modal } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -9,10 +9,46 @@ import { Image } from 'expo-image';
 import { Spacing } from '@/constants/Colors';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
-import Animated, { FadeIn, FadeInDown, FadeInUp, ZoomIn, SlideInRight, BounceIn } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInDown, FadeInUp, ZoomIn, SlideInRight, BounceIn, useAnimatedStyle, useSharedValue, withTiming, withRepeat, withSequence, runOnJS } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
+
+// --- Componente de Confetes ---
+const ConfettiPiece = ({ left, duration, size, color, onFinish }: { left: number, duration: number, size: number, color: string, onFinish: () => void }) => {
+  const translateY = useSharedValue(-size); // Começa acima da tela
+  const rotate = useSharedValue(0);
+
+  useEffect(() => {
+    // Animação de queda com rotação
+    translateY.value = withTiming(height + size, { duration }, () => runOnJS(onFinish)()); // Move para fora da tela inferiormente
+    rotate.value = withRepeat(withTiming(360, { duration: duration / 2 }), -1, 'RESTART'); // Rotaciona continuamente
+  }, []);
+
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [
+        { translateY: translateY.value },
+        { rotate: `${rotate.value}deg` },
+      ],
+    };
+  });
+
+  return (
+    <Animated.View
+      style={[
+        styles.confettiPiece,
+        animatedStyle,
+        {
+          left,
+          width: size,
+          height: size,
+          backgroundColor: color,
+        },
+      ]}
+    />
+  );
+};
 
 export default function MemoryViewSimpleScreen() {
   const { colors } = useTheme();
@@ -33,15 +69,16 @@ export default function MemoryViewSimpleScreen() {
 
   useEffect(() => {
     // Verificar se está vindo da tela completion-ritual
-    const checkForConfetti = async () => {
-      const { fromCompletion } = (useLocalSearchParams() as any);
-      if (fromCompletion === 'true') {
-        setShowConfetti(true);
-        createConfetti();
-        setTimeout(() => setShowConfetti(false), 5000);
-      }
-    };
-    checkForConfetti();
+    // NOTA: O código original usava 'fromCompletion', mas a navegação foi atualizada para 'cameFromRitual'
+    // Precisamos alinhar isso. Vamos assumir que o parâmetro correto é 'cameFromRitual'
+    // Se você estiver usando a versão antiga do completion-ritual, ajuste o parâmetro abaixo
+    const params = useLocalSearchParams();
+    const cameFromRitual = params.cameFromRitual; // Verifique o nome do parâmetro enviado
+    if (cameFromRitual === 'true') {
+      setShowConfetti(true);
+      createConfetti();
+      setTimeout(() => setShowConfetti(false), 5000);
+    }
 
     const loadMemoryData = async () => {
       if (!user?.id) {
@@ -122,7 +159,7 @@ export default function MemoryViewSimpleScreen() {
     };
 
     loadMemoryData();
-  }, [cocriacaoId, user?.id]);
+  }, [cocriacaoId, user?.id]); // Removi 'fromCompletion' se não for um parâmetro real recebido
 
   const createConfetti = () => {
     const pieces = [];
@@ -130,13 +167,17 @@ export default function MemoryViewSimpleScreen() {
       pieces.push({
         id: i,
         left: Math.random() * width,
-        duration: Math.random() * 3000 + 2000,
-        delay: Math.random() * 1000,
-        size: Math.random() * 10 + 5,
+        duration: Math.random() * 3000 + 2000, // 2 a 5 segundos
+        delay: Math.random() * 1000, // Delay inicial aleatório
+        size: Math.random() * 10 + 5, // Tamanho entre 5 e 15
         color: ['#FBBF24', '#8B5CF6', '#EC4899', '#34D399'][Math.floor(Math.random() * 4)],
       });
     }
     setConfettiPieces(pieces);
+  };
+
+  const handleConfettiFinish = (id: number) => {
+    setConfettiPieces(prev => prev.filter(piece => piece.id !== id));
   };
 
   if (loading) {
@@ -202,18 +243,13 @@ export default function MemoryViewSimpleScreen() {
     <LinearGradient colors={['#1a0b2e', '#2d1b4e', '#4a2c6e']} style={styles.container}>
       {/* Confetes caindo */}
       {showConfetti && confettiPieces.map((piece) => (
-        <Animated.View
+        <ConfettiPiece
           key={piece.id}
-          entering={FadeIn.delay(piece.delay).duration(500)}
-          style={[
-            styles.confettiPiece,
-            {
-              left: piece.left,
-              width: piece.size,
-              height: piece.size,
-              backgroundColor: piece.color,
-            },
-          ]}
+          left={piece.left}
+          duration={piece.duration}
+          size={piece.size}
+          color={piece.color}
+          onFinish={() => handleConfettiFinish(piece.id)}
         />
       ))}
       <ScrollView 
@@ -332,9 +368,12 @@ export default function MemoryViewSimpleScreen() {
           </Animated.View>
         )}
 
-        {/* Carta para o Futuro */}
+        {/* Animação de Carta Chegando */}
         {futureLetter && (
-          <Animated.View entering={BounceIn.delay(1800).springify()} style={styles.letterSection}>
+          <Animated.View
+            entering={SlideInDown.delay(1900).springify()} // Animação de entrada para simbolizar a carta chegando
+            style={styles.letterSection}
+          >
             <TouchableOpacity
               style={styles.letterContainer}
               onPress={() => setShowLetterModal(true)}
@@ -429,9 +468,9 @@ const styles = StyleSheet.create({
   },
   confettiPiece: {
     position: 'absolute',
-    top: -10,
+    top: 0, // Começa acima da tela (ajustado via translateY)
     borderRadius: 2,
-    transform: [{ rotate: '45deg' }],
+    transform: [{ rotate: '45deg' }], // Formato de diamante
   },
   loadingContainer: {
     flex: 1,
@@ -633,7 +672,7 @@ const styles = StyleSheet.create({
   jaEText: {
     fontSize: 56,
     fontWeight: '300',
-    color: '#D4AF37',
+    color: '#D4AF37', // Cor dourada do Jaé
     textAlign: 'center',
     letterSpacing: 6,
   },
