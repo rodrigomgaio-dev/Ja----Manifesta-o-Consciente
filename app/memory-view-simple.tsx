@@ -146,7 +146,7 @@ export default function MemoryViewSimpleScreen() {
           <Animated.View entering={ZoomIn.delay(200).springify()}>
             <MaterialIcons name="auto-awesome" size={64} color="#FBBF24" />
           </Animated.View>
-          <Text style={[styles.loadingText, { color: colors.text }]}>Recriando sua memória...</Text>
+          <Text style={[styles.loadingText, { color: colors.text }]}>Carregando memória...</Text>
           <Animated.View entering={FadeIn.delay(500)} style={styles.loadingSubtext}>
             <Text style={{ color: colors.textMuted, fontSize: 14, textAlign: 'center' }}>Um momento de gratidão</Text>
           </Animated.View>
