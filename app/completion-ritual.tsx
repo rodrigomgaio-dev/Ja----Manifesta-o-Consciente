@@ -123,10 +123,11 @@ export default function CompletionRitualScreen() {
     ]).start();
   };
 
-  // A função handleViewMemory agora apenas navega
+  // A função handleViewMemory agora navega passando o parâmetro cameFromRitual
   const handleViewMemory = () => {
     if (id) {
-      router.replace(`/memory-view-simple?id=${id}`);
+      // Passa o parâmetro cameFromRitual=true
+      router.replace(`/memory-view-simple?id=${id}&cameFromRitual=true`);
     } else {
       console.error("ID da cocriação ausente para navegação.");
     }
@@ -223,7 +224,7 @@ export default function CompletionRitualScreen() {
         >
           <TouchableOpacity
             style={styles.nftButton}
-            onPress={handleViewMemory} // Chama a função que navega
+            onPress={handleViewMemory} // Chama a função atualizada
             activeOpacity={0.8}
           >
             <LinearGradient
@@ -231,7 +232,7 @@ export default function CompletionRitualScreen() {
               style={styles.nftButtonGradient}
             >
               <MaterialIcons name="card-giftcard" size={24} color="white" />
-              <Text style={styles.nftButtonText}>Memória de Cocriação</Text>
+              <Text style={styles.nftButtonText}>Ver minha Memória de Cocriação</Text>
             </LinearGradient>
           </TouchableOpacity>
         </Animated.View>
