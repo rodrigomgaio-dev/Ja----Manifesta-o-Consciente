@@ -126,8 +126,8 @@ export default function CompletionRitualScreen() {
     // A função handleViewMemory atualizada
   const handleViewMemory = () => {
     if (id) {
-      // Passa o parâmetro cameFromRitual=true
-      router.replace(`/memory-view-simple?id=${id}&cameFromRitual=true`); // <-- LINHA ATUALIZADA
+      // Passa o parâmetro fromCompletion=true
+      router.replace(`/memory-view-simple?id=${id}&fromCompletion=true`); // <-- LINHA ATUALIZADA
     } else {
       console.error("ID da cocriação ausente para navegação.");
     }
