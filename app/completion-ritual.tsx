@@ -123,10 +123,10 @@ export default function CompletionRitualScreen() {
     ]).start();
   };
 
-  // A função handleViewMemory agora apenas navega
+  // A função handleViewMemory agora apenas navega com parâmetro de confetti
   const handleViewMemory = () => {
     if (id) {
-      router.replace(`/memory-view-simple?id=${id}`);
+      router.replace(`/memory-view-simple?id=${id}&fromCompletion=true`);
     } else {
       console.error("ID da cocriação ausente para navegação.");
     }

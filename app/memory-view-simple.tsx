@@ -1,6 +1,6 @@
 // app/memory-view-simple.tsx
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Dimensions, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Dimensions, TouchableOpacity, Modal } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -9,7 +9,7 @@ import { Image } from 'expo-image';
 import { Spacing } from '@/constants/Colors';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
-import Animated, { FadeIn, FadeInDown, FadeInUp, ZoomIn, SlideInRight } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInDown, FadeInUp, ZoomIn, SlideInRight, BounceIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width } = Dimensions.get('window');
@@ -24,10 +24,25 @@ export default function MemoryViewSimpleScreen() {
   const [mantras, setMantras] = useState<any[]>([]);
   const [afirmacoes, setAfirmacoes] = useState<any[]>([]);
   const [visionBoardItems, setVisionBoardItems] = useState<any[]>([]);
+  const [futureLetter, setFutureLetter] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showLetterModal, setShowLetterModal] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [confettiPieces, setConfettiPieces] = useState<any[]>([]);
 
   useEffect(() => {
+    // Verificar se está vindo da tela completion-ritual
+    const checkForConfetti = async () => {
+      const { fromCompletion } = (useLocalSearchParams() as any);
+      if (fromCompletion === 'true') {
+        setShowConfetti(true);
+        createConfetti();
+        setTimeout(() => setShowConfetti(false), 5000);
+      }
+    };
+    checkForConfetti();
+
     const loadMemoryData = async () => {
       if (!user?.id) {
         setError('Usuário não autenticado.');
@@ -41,10 +56,10 @@ export default function MemoryViewSimpleScreen() {
       }
 
       try {
-        // 1. Carregar dados principais da cocriação (título, código mental, imagem de capa, porquê)
+        // 1. Carregar dados principais da cocriação (título, código mental, imagem de capa, porquê, descrição)
         const { data: cocriacaoData, error: cocriacaoError } = await supabase
           .from('individual_cocriations')
-          .select('title, mental_code, cover_image_url, why_reason')
+          .select('title, mental_code, cover_image_url, why_reason, description')
           .eq('id', cocriacaoId)
           .eq('user_id', user.id) // Garante que pertence ao usuário logado
           .single();
@@ -81,11 +96,22 @@ export default function MemoryViewSimpleScreen() {
 
         if (vbError) throw vbError;
 
+        // 5. Carregar Carta para o Futuro
+        const { data: letterData, error: letterError } = await supabase
+          .from('future_letters')
+          .select('title, content, is_revealed')
+          .eq('individual_cocreation_id', cocriacaoId)
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (letterError && letterError.code !== 'PGRST116') throw letterError;
+
         // Atualiza os estados com os dados carregados
         setCocriacao(cocriacaoData);
         setMantras(mantrasData || []);
         setAfirmacoes(afirmacoesData || []);
         setVisionBoardItems(vbItemsData || []);
+        setFutureLetter(letterData || null);
 
       } catch (err) {
         console.error('Erro ao carregar dados da memória:', err);
@@ -98,11 +124,33 @@ export default function MemoryViewSimpleScreen() {
     loadMemoryData();
   }, [cocriacaoId, user?.id]);
 
+  const createConfetti = () => {
+    const pieces = [];
+    for (let i = 0; i < 50; i++) {
+      pieces.push({
+        id: i,
+        left: Math.random() * width,
+        duration: Math.random() * 3000 + 2000,
+        delay: Math.random() * 1000,
+        size: Math.random() * 10 + 5,
+        color: ['#FBBF24', '#8B5CF6', '#EC4899', '#34D399'][Math.floor(Math.random() * 4)],
+      });
+    }
+    setConfettiPieces(pieces);
+  };
+
   if (loading) {
     return (
       <LinearGradient colors={['#1a0b2e', '#2d1b4e', '#4a2c6e']} style={styles.container}>
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={{ color: colors.text, marginTop: Spacing.lg, fontSize: 16 }}>Recriando sua memória...</Text>
+        <Animated.View entering={FadeIn.duration(1000)} style={styles.loadingContainer}>
+          <Animated.View entering={ZoomIn.delay(200).springify()}>
+            <MaterialIcons name="auto-awesome" size={64} color="#FBBF24" />
+          </Animated.View>
+          <Text style={[styles.loadingText, { color: colors.text }]}>Recriando sua memória...</Text>
+          <Animated.View entering={FadeIn.delay(500)} style={styles.loadingSubtext}>
+            <Text style={{ color: colors.textMuted, fontSize: 14, textAlign: 'center' }}>Um momento de gratidão</Text>
+          </Animated.View>
+        </Animated.View>
       </LinearGradient>
     );
   }
@@ -113,10 +161,16 @@ export default function MemoryViewSimpleScreen() {
         <MaterialIcons name="error-outline" size={64} color={colors.error} />
         <Text style={[styles.errorText, { color: colors.error }]}>Ops! {error}</Text>
         <TouchableOpacity
-          style={[styles.backButton, { backgroundColor: colors.primary }]}
+          style={styles.gratitudeButton}
           onPress={() => router.push('/completed-cocreations')}
         >
-          <Text style={styles.backButtonText}>Voltar às Cocriações</Text>
+          <LinearGradient
+            colors={['rgba(255,255,255,0.3)', 'rgba(255,255,255,0.1)']}
+            style={styles.gratitudeButtonGradient}
+          >
+            <MaterialIcons name="favorite" size={24} color="white" />
+            <Text style={styles.gratitudeButtonText}>Gratidão</Text>
+          </LinearGradient>
         </TouchableOpacity>
       </LinearGradient>
     );
@@ -128,10 +182,16 @@ export default function MemoryViewSimpleScreen() {
         <MaterialIcons name="image-not-supported" size={64} color={colors.textMuted} />
         <Text style={{ color: colors.text, marginTop: Spacing.lg }}>Nenhuma memória encontrada.</Text>
         <TouchableOpacity
-          style={[styles.backButton, { backgroundColor: colors.primary, marginTop: Spacing.xl }]}
+          style={[styles.gratitudeButton, { marginTop: Spacing.xl }]}
           onPress={() => router.push('/completed-cocreations')}
         >
-          <Text style={styles.backButtonText}>Voltar às Cocriações</Text>
+          <LinearGradient
+            colors={['rgba(255,255,255,0.3)', 'rgba(255,255,255,0.1)']}
+            style={styles.gratitudeButtonGradient}
+          >
+            <MaterialIcons name="favorite" size={24} color="white" />
+            <Text style={styles.gratitudeButtonText}>Gratidão</Text>
+          </LinearGradient>
         </TouchableOpacity>
       </LinearGradient>
     );
@@ -140,6 +200,22 @@ export default function MemoryViewSimpleScreen() {
   // --- Renderização da Memória com Animações ---
   return (
     <LinearGradient colors={['#1a0b2e', '#2d1b4e', '#4a2c6e']} style={styles.container}>
+      {/* Confetes caindo */}
+      {showConfetti && confettiPieces.map((piece) => (
+        <Animated.View
+          key={piece.id}
+          entering={FadeIn.delay(piece.delay).duration(500)}
+          style={[
+            styles.confettiPiece,
+            {
+              left: piece.left,
+              width: piece.size,
+              height: piece.size,
+              backgroundColor: piece.color,
+            },
+          ]}
+        />
+      ))}
       <ScrollView 
         contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + Spacing.lg }]}
         showsVerticalScrollIndicator={false}
@@ -151,12 +227,11 @@ export default function MemoryViewSimpleScreen() {
 
         {/* Cabeçalho emocional */}
         <Animated.View entering={FadeInDown.delay(200).springify()} style={styles.headerContainer}>
-          <MaterialIcons name="auto-awesome" size={48} color="#FBBF24" />
           <Text style={[styles.headerTitle, { color: colors.text }]}>Memória de Cocriação</Text>
-          <Text style={[styles.headerSubtitle, { color: colors.textMuted }]}>
-            Um registro emocional da sua jornada de manifestação
-          </Text>
         </Animated.View>
+
+        {/* Separador visual */}
+        <View style={styles.separator} />
 
         {/* Título Principal */}
         <Animated.Text 
@@ -168,16 +243,16 @@ export default function MemoryViewSimpleScreen() {
 
         {/* Código Mental */}
         {cocriacao.mental_code && (
-          <Animated.View entering={ZoomIn.delay(600).springify()}>
-            <LinearGradient
-              colors={['#8B5CF6', '#EC4899']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.mentalCodeBadge}
-            >
-              <Text style={styles.mentalCode}>{cocriacao.mental_code}</Text>
-            </LinearGradient>
-          </Animated.View>
+          <Animated.Text entering={ZoomIn.delay(600).springify()} style={styles.mentalCode}>
+            {cocriacao.mental_code}
+          </Animated.Text>
+        )}
+
+        {/* Descrição */}
+        {cocriacao.description && (
+          <Animated.Text entering={FadeInUp.delay(700).springify()} style={[styles.description, { color: colors.textSecondary }]}>
+            {cocriacao.description}
+          </Animated.Text>
         )}
 
         {/* Imagem de Capa */}
@@ -195,10 +270,6 @@ export default function MemoryViewSimpleScreen() {
         {/* Grade de Imagens do Vision Board */}
         {visionBoardItems.length > 0 && (
           <Animated.View entering={FadeInUp.delay(1000).springify()} style={styles.visionBoardSection}>
-            <View style={styles.sectionHeader}>
-              <MaterialIcons name="collections" size={24} color="#EC4899" />
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>Imagens da Manifestação</Text>
-            </View>
             <View style={styles.visionBoardGrid}>
               {visionBoardItems.map((item, index) => (
                 item.content && (
@@ -261,56 +332,87 @@ export default function MemoryViewSimpleScreen() {
           </Animated.View>
         )}
 
-        {/* Mensagem de Gratidão */}
-        <Animated.View entering={FadeIn.delay(2000).duration(1500)} style={styles.gratitudeSection}>
-          <MaterialIcons name="spa" size={48} color="#FBBF24" />
-          <Text style={[styles.gratitudeText, { color: colors.text }]}>Gratidão!</Text>
-          <Text style={[styles.gratitudeSubtext, { color: colors.textMuted }]}>
-            Por ter cocriado esta realidade com o universo
-          </Text>
-        </Animated.View>
+        {/* Carta para o Futuro */}
+        {futureLetter && (
+          <Animated.View entering={BounceIn.delay(1800).springify()} style={styles.letterSection}>
+            <TouchableOpacity
+              style={styles.letterContainer}
+              onPress={() => setShowLetterModal(true)}
+            >
+              <MaterialIcons name="mail" size={64} color="#FBBF24" />
+              <Text style={[styles.letterTitle, { color: colors.text }]}>Carta para o Futuro</Text>
+              <Text style={[styles.letterSubtitle, { color: colors.textMuted }]}>Toque para abrir</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        )}
 
-        {/* "JÁ É!" Final */}
-        <Animated.View entering={ZoomIn.delay(2200).springify()}>
-          <LinearGradient
-            colors={['#8B5CF6', '#EC4899', '#FBBF24']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.jaEContainer}
-          >
-            <Text style={styles.jaEText}>JÁ É!</Text>
-          </LinearGradient>
+        {/* "Já é !" Final com estilo do Home */}
+        <Animated.View entering={ZoomIn.delay(2000).springify()} style={styles.jaEContainer}>
+          <Text style={styles.jaEText}>Já é !</Text>
         </Animated.View>
 
         {/* Mensagem Final */}
-        <Animated.View entering={FadeIn.delay(2400).duration(1500)} style={styles.footerMessage}>
+        <Animated.View entering={FadeIn.delay(2200).duration(1500)} style={styles.footerMessage}>
           <Text style={[styles.footerText, { color: colors.textMuted }]}>
             Esta memória é um testemunho silencioso do momento em que você disse: Já é. 
             Guarde-a como um tesouro da alma e lembre-se sempre de que você é um cocriador consciente.
           </Text>
         </Animated.View>
 
-        {/* Botão para Voltar */}
-        <Animated.View entering={FadeInUp.delay(2600).springify()} style={styles.actionContainer}>
+        {/* Botão Gratidão */}
+        <Animated.View entering={FadeInUp.delay(2400).springify()} style={styles.actionContainer}>
           <TouchableOpacity
-            style={[styles.backButton, { backgroundColor: colors.primary }]}
+            style={styles.gratitudeButton}
             onPress={() => router.push('/completed-cocreations')}
           >
-            <MaterialIcons name="arrow-back" size={20} color="white" />
-            <Text style={styles.backButtonText}>Voltar às Cocriações</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={styles.createNewButton}
-            onPress={() => router.push('/(tabs)/individual')}
-          >
-            <MaterialIcons name="add-circle-outline" size={20} color={colors.primary} />
-            <Text style={[styles.createNewText, { color: colors.primary }]}>Criar Nova Cocriação</Text>
+            <LinearGradient
+              colors={['rgba(255,255,255,0.3)', 'rgba(255,255,255,0.1)']}
+              style={styles.gratitudeButtonGradient}
+            >
+              <MaterialIcons name="favorite" size={24} color="white" />
+              <Text style={styles.gratitudeButtonText}>Gratidão</Text>
+            </LinearGradient>
           </TouchableOpacity>
         </Animated.View>
 
         <View style={{ height: insets.bottom + Spacing.xl }} />
       </ScrollView>
+
+      {/* Modal da Carta */}
+      <Modal
+        visible={showLetterModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowLetterModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <Animated.View entering={ZoomIn.springify()} style={styles.modalContent}>
+            <LinearGradient
+              colors={['#2d1b4e', '#4a2c6e']}
+              style={styles.modalGradient}
+            >
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={() => setShowLetterModal(false)}
+              >
+                <MaterialIcons name="close" size={28} color="white" />
+              </TouchableOpacity>
+              
+              <MaterialIcons name="mail-outline" size={48} color="#FBBF24" style={{ marginBottom: Spacing.lg }} />
+              
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
+                {futureLetter?.title || 'Carta para o Futuro'}
+              </Text>
+              
+              <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
+                <Text style={[styles.modalText, { color: colors.textSecondary }]}>
+                  {futureLetter?.content}
+                </Text>
+              </ScrollView>
+            </LinearGradient>
+          </Animated.View>
+        </View>
+      </Modal>
     </LinearGradient>
   );
 }
@@ -324,6 +426,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: Spacing.lg,
     paddingBottom: Spacing.xl * 2,
+  },
+  confettiPiece: {
+    position: 'absolute',
+    top: -10,
+    borderRadius: 2,
+    transform: [{ rotate: '45deg' }],
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: Spacing.lg,
+  },
+  loadingText: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginTop: Spacing.md,
+  },
+  loadingSubtext: {
+    marginTop: Spacing.sm,
   },
   // Brilhos de fundo
   sparkle1: {
@@ -359,20 +481,19 @@ const styles = StyleSheet.create({
   // Cabeçalho
   headerContainer: {
     alignItems: 'center',
-    marginBottom: Spacing.xl,
+    marginBottom: Spacing.lg,
     paddingVertical: Spacing.lg,
   },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    marginTop: Spacing.md,
-    marginBottom: Spacing.xs,
+    fontSize: 20,
+    fontWeight: '600',
     letterSpacing: 1,
   },
-  headerSubtitle: {
-    fontSize: 14,
-    textAlign: 'center',
-    fontStyle: 'italic',
+  separator: {
+    width: '100%',
+    height: 1,
+    backgroundColor: 'rgba(139, 92, 246, 0.3)',
+    marginBottom: Spacing.xl,
   },
   errorText: {
     fontSize: 18,
@@ -391,23 +512,21 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 8,
   },
-  mentalCodeBadge: {
-    paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.md,
-    borderRadius: 24,
-    marginBottom: Spacing.xl,
-    shadowColor: '#8B5CF6',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 8,
-  },
   mentalCode: {
-    fontSize: 20,
-    fontWeight: '900',
-    letterSpacing: 2,
-    color: 'white',
+    fontSize: 18,
+    fontWeight: '300',
+    letterSpacing: 4,
+    color: '#8B5CF6',
     textAlign: 'center',
+    marginBottom: Spacing.md,
+  },
+  description: {
+    fontSize: 16,
+    lineHeight: 24,
+    textAlign: 'center',
+    fontStyle: 'italic',
+    marginBottom: Spacing.xl,
+    paddingHorizontal: Spacing.md,
   },
   coverImageContainer: {
     width: '100%',
@@ -483,44 +602,40 @@ const styles = StyleSheet.create({
     lineHeight: 28,
     marginBottom: Spacing.sm,
   },
-  gratitudeSection: {
+  letterSection: {
+    width: '100%',
+    maxWidth: 400,
+    marginVertical: Spacing.xl,
     alignItems: 'center',
-    marginVertical: Spacing.xl * 2,
-    paddingVertical: Spacing.xl,
   },
-  gratitudeText: {
-    fontSize: 28,
-    fontWeight: '700',
-    marginTop: Spacing.lg,
-    marginBottom: Spacing.sm,
-    textAlign: 'center',
-    letterSpacing: 1.5,
+  letterContainer: {
+    alignItems: 'center',
+    padding: Spacing.xl,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: 'rgba(251, 191, 36, 0.3)',
+    gap: Spacing.md,
   },
-  gratitudeSubtext: {
+  letterTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    letterSpacing: 1,
+  },
+  letterSubtitle: {
     fontSize: 14,
-    textAlign: 'center',
     fontStyle: 'italic',
   },
   jaEContainer: {
-    paddingHorizontal: Spacing.xl * 2,
-    paddingVertical: Spacing.xl * 1.5,
-    borderRadius: 28,
-    shadowColor: '#8B5CF6',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.6,
-    shadowRadius: 16,
-    elevation: 16,
-    marginBottom: Spacing.xl,
+    alignItems: 'center',
+    marginVertical: Spacing.xl * 2,
   },
   jaEText: {
     fontSize: 56,
-    fontWeight: '900',
-    color: 'white',
+    fontWeight: '300',
+    color: '#D4AF37',
     textAlign: 'center',
-    letterSpacing: 4,
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
+    letterSpacing: 6,
   },
   footerMessage: {
     paddingHorizontal: Spacing.lg,
@@ -534,42 +649,73 @@ const styles = StyleSheet.create({
   },
   actionContainer: {
     width: '100%',
-    maxWidth: 400,
-    gap: Spacing.md,
+    maxWidth: 320,
   },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: Spacing.lg,
-    borderRadius: 28,
-    gap: Spacing.sm,
-    shadowColor: '#000',
+  gratitudeButton: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#fff',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
-    elevation: 8,
+    elevation: 5,
   },
-  backButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-  createNewButton: {
+  gratitudeButtonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: Spacing.lg,
-    borderRadius: 28,
-    gap: Spacing.sm,
+    paddingHorizontal: Spacing.xl,
+    gap: Spacing.md,
     borderWidth: 2,
-    borderColor: 'rgba(139, 92, 246, 0.5)',
-    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+    borderColor: 'rgba(255,255,255,0.3)',
+    borderRadius: 16,
   },
-  createNewText: {
-    fontSize: 16,
+  gratitudeButtonText: {
+    fontSize: 18,
     fontWeight: '600',
+    color: 'white',
     letterSpacing: 0.5,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.lg,
+  },
+  modalContent: {
+    width: '100%',
+    maxWidth: 500,
+    maxHeight: '80%',
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  modalGradient: {
+    padding: Spacing.xl,
+    alignItems: 'center',
+  },
+  closeButton: {
+    position: 'absolute',
+    top: Spacing.md,
+    right: Spacing.md,
+    zIndex: 10,
+    padding: Spacing.sm,
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: Spacing.lg,
+    letterSpacing: 1,
+  },
+  modalScroll: {
+    width: '100%',
+    maxHeight: 400,
+  },
+  modalText: {
+    fontSize: 16,
+    lineHeight: 24,
+    textAlign: 'center',
   },
 });
