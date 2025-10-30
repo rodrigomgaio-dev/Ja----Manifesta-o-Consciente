@@ -37,7 +37,7 @@ export default function MemoryViewSimpleScreen() {
 
       try {
         // 1. Carregar dados principais da cocriação (título, código mental, imagem de capa, porquê)
-        const {  cocriacaoData, error: cocriacaoError } = await supabase
+        const { data: cocriacaoData, error: cocriacaoError } = await supabase
           .from('individual_cocriations')
           .select('title, mental_code, cover_image_url, why_reason')
           .eq('id', cocriacaoId)
@@ -48,7 +48,7 @@ export default function MemoryViewSimpleScreen() {
         if (!cocriacaoData) throw new Error('Cocriação não encontrada.');
 
         // 2. Carregar Mantras associados à cocriação
-        const {  mantrasData, error: mantrasError } = await supabase
+        const { data: mantrasData, error: mantrasError } = await supabase
           .from('daily_practices')
           .select('content, title') // Seleciona o conteúdo ou título do mantra
           .eq('cocreation_id', cocriacaoId)
@@ -58,7 +58,7 @@ export default function MemoryViewSimpleScreen() {
         if (mantrasError) throw mantrasError;
 
         // 3. Carregar Afirmações associadas à cocriação
-        const {  afirmacoesData, error: afirmacoesError } = await supabase
+        const { data: afirmacoesData, error: afirmacoesError } = await supabase
           .from('daily_practices')
           .select('content, title') // Seleciona o conteúdo ou título da afirmação
           .eq('cocreation_id', cocriacaoId)
@@ -68,12 +68,11 @@ export default function MemoryViewSimpleScreen() {
         if (afirmacoesError) throw afirmacoesError;
 
         // 4. Carregar Imagens do Vision Board associadas à cocriação
-        const {  vbItemsData, error: vbError } = await supabase
+        const { data: vbItemsData, error: vbError } = await supabase
           .from('vision_board_items')
           .select('content') // Seleciona a URL da imagem
           .eq('cocreation_id', cocriacaoId)
-          .eq('type', 'image') // Filtra apenas imagens
-          .eq('user_id', user.id);
+          .eq('type', 'image');
 
         if (vbError) throw vbError;
 
