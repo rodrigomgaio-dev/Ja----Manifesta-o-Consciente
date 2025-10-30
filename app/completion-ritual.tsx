@@ -231,7 +231,7 @@ export default function CompletionRitualScreen() {
               style={styles.nftButtonGradient}
             >
               <MaterialIcons name="card-giftcard" size={24} color="white" />
-              <Text style={styles.nftButtonText}>Ver minha Memória de Cocriação</Text>
+              <Text style={styles.nftButtonText}>Memória de Cocriação</Text>
             </LinearGradient>
           </TouchableOpacity>
         </Animated.View>
