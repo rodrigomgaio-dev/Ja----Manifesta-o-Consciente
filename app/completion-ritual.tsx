@@ -44,21 +44,9 @@ export default function CompletionRitualScreen() {
       startRealizationAnimation();
     }, 3000);
 
-    // Transição automática para a tela de memória após a animação de realização
-    const realizationTimeout = setTimeout(() => {
-      if (id) {
-        router.replace(`/memory-view-simple?id=${id}`); // Navega para a nova tela de memória
-      } else {
-        console.error("ID da cocriação ausente para navegação.");
-        // Poderia navegar para uma tela de erro ou voltar
-        // router.back();
-      }
-    }, 6000); // Ajuste este tempo conforme a duração total da animação de realização
-
-    // Cleanup para evitar navegação se o componente desmontar antes
-    return () => clearTimeout(realizationTimeout);
-
-  }, [id]);
+    // REMOVIDA A NAVEGAÇÃO AUTOMÁTICA AQUI
+    // O usuário precisa clicar no botão para navegar
+  }, [id]); // <-- O efeito roda quando 'id' muda
 
   const createParticles = () => {
     const newParticles = [];
@@ -135,7 +123,7 @@ export default function CompletionRitualScreen() {
     ]).start();
   };
 
-  // A função handleViewMemory não faz mais atualizações, apenas navega
+  // A função handleViewMemory agora apenas navega
   const handleViewMemory = () => {
     if (id) {
       router.replace(`/memory-view-simple?id=${id}`);
@@ -224,7 +212,7 @@ export default function CompletionRitualScreen() {
           <Text style={styles.subtitle}>Gratidão pela cocriação.</Text>
         </Animated.View>
         
-        {/* Botão Memória de Cocriação */}
+        {/* Botão Ver Memória de Cocriação */}
         <Animated.View
           style={[
             styles.buttonContainer,
@@ -243,7 +231,7 @@ export default function CompletionRitualScreen() {
               style={styles.nftButtonGradient}
             >
               <MaterialIcons name="card-giftcard" size={24} color="white" />
-              <Text style={styles.nftButtonText}>Memória de Cocriação</Text>
+              <Text style={styles.nftButtonText}>Ver minha Memória de Cocriação</Text>
             </LinearGradient>
           </TouchableOpacity>
         </Animated.View>
