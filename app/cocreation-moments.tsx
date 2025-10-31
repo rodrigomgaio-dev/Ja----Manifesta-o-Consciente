@@ -339,8 +339,9 @@ export default function CocreationMomentsScreen() {
         {/* Sacred Quote */}
         <SacredCard style={styles.quoteCard}>
           <Text style={[styles.quote, { color: colors.textSecondary }]}>
-            "A manifestação floresce na consistência da prática diária. 
-            Cada momento é uma oportunidade de co-criar sua realidade."
+            "Você está sempre cocriando. 
+            Cada Momento de Cocriação é uma oportunidade singular de escolha consciente
+            do que deseja cocriar, com presença, foco e intenção."
           </Text>
         </SacredCard>
       </ScrollView>
